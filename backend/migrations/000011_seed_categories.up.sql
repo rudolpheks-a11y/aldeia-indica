@@ -1,0 +1,18 @@
+INSERT INTO service_categories (slug, name_pt, icon_name, sort_order) VALUES
+    ('diarista',                    'Diarista',                     'cleaning_services',    1),
+    ('mensalista',                  'Mensalista',                   'home',                 2),
+    ('jardineiro',                  'Jardineiro',                   'grass',                3),
+    ('piscineiro',                  'Piscineiro',                   'pool',                 4),
+    ('eletricista',                 'Eletricista',                  'electrical_services',  5),
+    ('encanador',                   'Encanador',                    'plumbing',             6),
+    ('pintor',                      'Pintor',                       'format_paint',         7),
+    ('pedreiro',                    'Pedreiro',                     'construction',         8),
+    ('marido-de-aluguel',           'Marido de Aluguel',            'handyman',             9),
+    ('baba',                        'Babá',                         'child_care',          10),
+    ('cuidador',                    'Cuidador',                     'elderly',             11),
+    ('professor-particular',        'Professor Particular',         'school',              12),
+    ('passeador-de-caes',           'Passeador de Cães',            'pets',                13),
+    ('adestrador',                  'Adestrador',                   'pets',                14),
+    ('tecnico-de-informatica',      'Técnico de Informática',       'computer',            15),
+    ('instalador-de-ar-condicionado','Instalador de Ar-Condicionado','ac_unit',            16),
+    ('motorista',                   'Motorista',                    'directions_car',      17);

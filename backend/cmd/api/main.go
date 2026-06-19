@@ -1,0 +1,89 @@
+package main
+
+import (
+	"context"
+	"log/slog"
+	"net/http"
+	"os"
+	"os/signal"
+	"syscall"
+	"time"
+
+	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/auth"
+	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/config"
+	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/handler"
+	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/platform/logger"
+	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/platform/postgres"
+	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/server"
+	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/service"
+	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/storage"
+)
+
+func main() {
+	cfg := config.Load()
+	log := logger.New(cfg.LogLevel)
+
+	ctx := context.Background()
+
+	db, err := postgres.Connect(ctx, cfg.DatabaseURL)
+	if err != nil {
+		log.Error("connect to database", "error", err)
+		os.Exit(1)
+	}
+	defer db.Close()
+	log.Info("database connected")
+
+	s3Client, err := storage.NewS3Client(ctx, cfg)
+	if err != nil {
+		log.Error("init s3 client", "error", err)
+		os.Exit(1)
+	}
+
+	j := auth.NewJWT(cfg.JWTSecret, cfg.JWTAccessExpiry, cfg.JWTRefreshExpiry)
+
+	authSvc := service.NewAuthService(db, j, cfg.JWTRefreshExpiry)
+	userSvc := service.NewUserService(db)
+	providerSvc := service.NewProviderService(db)
+	ratingSvc := service.NewRatingService(db, providerSvc)
+	recSvc := service.NewRecommendationService(db, providerSvc)
+
+	authH := handler.NewAuthHandler(authSvc)
+	approvalH := handler.NewApprovalHandler(userSvc)
+	providerH := handler.NewProviderHandler(providerSvc)
+	ratingH := handler.NewRatingHandler(ratingSvc)
+	recH := handler.NewRecommendationHandler(recSvc)
+	requestH := handler.NewRequestHandler(db)
+	uploadH := handler.NewUploadHandler(s3Client)
+	adminH := handler.NewAdminHandler(db)
+	categoryH := handler.NewCategoryHandler(db)
+
+	router := server.NewRouter(
+		log, j,
+		authH, providerH, ratingH, recH,
+		approvalH, requestH, uploadH, adminH, categoryH,
+	)
+
+	srv := server.New(cfg.Port, router)
+
+	go func() {
+		if err := srv.Start(); err != nil && err != http.ErrServerClosed {
+			log.Error("server error", "error", err)
+			os.Exit(1)
+		}
+	}()
+
+	quit := make(chan os.Signal, 1)
+	signal.Notify(quit, syscall.SIGINT, syscall.SIGTERM)
+	<-quit
+
+	log.Info("shutting down server")
+	shutdownCtx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	if err := srv.Shutdown(shutdownCtx); err != nil {
+		log.Error("shutdown error", "error", err)
+	}
+	log.Info("server stopped")
+
+	_ = slog.Default()
+}
