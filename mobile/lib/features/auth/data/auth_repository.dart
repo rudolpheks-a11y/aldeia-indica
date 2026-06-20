@@ -27,6 +27,9 @@ class AuthRepository {
       refreshToken: tokens.refreshToken,
     );
     await _storage.saveCommunityId(communityId);
+    if (tokens.userId.isNotEmpty) {
+      await _storage.saveUserId(tokens.userId);
+    }
     return tokens;
   }
 

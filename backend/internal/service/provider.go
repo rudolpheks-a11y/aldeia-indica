@@ -55,22 +55,24 @@ func (s *ProviderService) Search(ctx context.Context, communityID uuid.UUID, f S
 		sortCol = "pp.total_hires DESC"
 	}
 
+	// EXISTS subquery avoids the DISTINCT ON / ORDER BY conflict that would
+	// prevent sorting by score or rating when a provider has multiple categories.
 	query := fmt.Sprintf(`
-		SELECT DISTINCT ON (u.id)
-		       u.id, u.full_name, u.avatar_key,
+		SELECT u.id, u.full_name, u.avatar_key,
 		       pp.city, pp.years_in_neighborhood, pp.score_aldeia,
 		       pp.avg_rating, pp.recommendation_count
 		FROM provider_profiles pp
 		JOIN users u ON u.id = pp.user_id
-		LEFT JOIN provider_services ps ON ps.provider_id = pp.user_id
-		LEFT JOIN service_categories sc ON sc.id = ps.category_id
 		WHERE pp.community_id = $1
 		  AND pp.is_visible = true
-		  AND ($2 = '' OR sc.slug = $2)
+		  AND ($2 = '' OR EXISTS (
+		        SELECT 1 FROM provider_services ps
+		        JOIN service_categories sc ON sc.id = ps.category_id
+		        WHERE ps.provider_id = pp.user_id AND sc.slug = $2))
 		  AND ($3 = '' OR pp.city ILIKE '%%' || $3 || '%%')
 		  AND ($4 = 0 OR pp.avg_rating >= $4)
 		  AND ($5 = 0 OR pp.years_in_neighborhood >= $5)
-		ORDER BY u.id, %s
+		ORDER BY %s
 		LIMIT $6 OFFSET $7
 	`, sortCol)
 

@@ -10,6 +10,10 @@ final wsServiceProvider = Provider((ref) {
   return ws;
 });
 
+final _currentUserIdProvider = FutureProvider<String?>((ref) async {
+  return ref.watch(storageServiceProvider).getUserId();
+});
+
 class ChatNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
   late String _conversationId;
   StreamSubscription? _sub;
@@ -19,12 +23,13 @@ class ChatNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
 
   Future<void> init(String conversationId) async {
     _conversationId = conversationId;
+    final myId = await ref.read(_currentUserIdProvider.future);
 
     final api = ref.read(apiClientProvider);
     final resp = await api.get(ApiEndpoints.messages(conversationId));
     final history = (resp.data as List<dynamic>)
         .cast<Map<String, dynamic>>()
-        .reversed
+        .map((m) => _withMine(m, myId))
         .toList();
 
     state = AsyncValue.data(history);
@@ -36,7 +41,7 @@ class ChatNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
       if (msg['conversation_id'] == _conversationId &&
           msg['type'] == 'message') {
         final current = state.valueOrNull ?? [];
-        state = AsyncValue.data([msg, ...current]);
+        state = AsyncValue.data([_withMine(msg, myId), ...current]);
       }
     });
 
@@ -49,6 +54,13 @@ class ChatNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
       'conversation_id': _conversationId,
       'body': text,
     });
+  }
+
+  Map<String, dynamic> _withMine(Map<String, dynamic> msg, String? myId) {
+    return {
+      ...msg,
+      'is_mine': myId != null && msg['sender_id'] == myId,
+    };
   }
 }
 

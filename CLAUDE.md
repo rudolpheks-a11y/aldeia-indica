@@ -255,17 +255,24 @@ authProvider            // AsyncNotifierProvider<AuthNotifier, AuthState>
 ### Fase 1 — Diretório de Confiança (concluída)
 Auth, aprovação, perfis, busca, avaliações, recomendações, pedidos, admin, Score Aldeia, upload S3.
 
-### Fase 2 — Comunicação (próxima)
-- WebSocket Hub no backend (`internal/ws/hub.go` — ainda não implementado)
-- FCM: notificação de nova mensagem para usuário offline
-- Fotos e localização no chat
-- Testes de integração com banco real
+### Fase 2 — Comunicação (concluída)
+- `internal/ws/hub.go` — Hub registrado por user_id (não por conversa); suporta múltiplas conexões simultâneas
+- `internal/ws/client.go` — loop de read/write com coder/websocket (context-based, não gorilla)
+- `internal/ws/handler.go` — upgrade HTTP com auth via `?token=` query param (WebSocket não suporta headers)
+- `internal/service/chat.go` — GetOrCreateConversation, ListConversations, LoadHistory, PersistMessage, MarkRead
+- `internal/handler/chat.go` — REST: POST /chat/conversations, GET /chat/conversations, GET /chat/conversations/:id/messages, POST /chat/conversations/:id/read
+- `internal/fcm/client.go` — FCM HTTP v1 API com oauth2/google; graceful no-op se FCM_SERVICE_ACCOUNT_JSON não configurado
+- Bug fix: busca de prestadores usava DISTINCT ON que impedia ordenação por score/rating — substituído por EXISTS subquery
+- Bug fix: TokenPair agora inclui `user_id` para o Flutter determinar `is_mine` nas mensagens
+- Flutter: botão "Contatar" no perfil cria conversa e navega para `/chat/:id`
+- Flutter: `chat_provider.dart` adiciona `is_mine` a cada mensagem com base no user_id salvo
 
-### Fase 3 — Analytics e Multi-comunidade
+### Fase 3 — Analytics e Multi-comunidade (próxima)
 - Dashboard completo do prestador (views, contatos, ranking por categoria)
-- Score Aldeia visível na busca
-- Admin cria novas comunidades
-- Otimização de queries
+- Score Aldeia em destaque na busca (badge colorido no card)
+- Evento `hire_completed` → incrementa `total_hires` → recalcula Score
+- Admin cria novas comunidades via API
+- Otimização de queries (índices adicionais, query plans)
 
 ## Padrões de código
 

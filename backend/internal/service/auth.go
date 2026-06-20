@@ -53,8 +53,9 @@ type RegisterPrestadorInput struct {
 }
 
 type TokenPair struct {
-	AccessToken  string
-	RefreshToken string
+	AccessToken  string    `json:"access_token"`
+	RefreshToken string    `json:"refresh_token"`
+	UserID       string    `json:"user_id"`
 }
 
 func (s *AuthService) RegisterMorador(ctx context.Context, in RegisterMoradorInput) (uuid.UUID, error) {
@@ -241,7 +242,7 @@ func (s *AuthService) issuePair(ctx context.Context, claims domain.Claims, devic
 		return nil, err
 	}
 
-	return &TokenPair{AccessToken: access, RefreshToken: rawRefresh}, nil
+	return &TokenPair{AccessToken: access, RefreshToken: rawRefresh, UserID: claims.UserID.String()}, nil
 }
 
 func tokenHash(raw string) string {

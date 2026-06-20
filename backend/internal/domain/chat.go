@@ -24,25 +24,24 @@ type Conversation struct {
 }
 
 type Message struct {
-	ID             uuid.UUID
-	ConversationID uuid.UUID
-	CommunityID    uuid.UUID
-	SenderID       uuid.UUID
-	Type           MessageType
-	Body           *string
-	ReadAt         *time.Time
-	CreatedAt      time.Time
+	ID             uuid.UUID   `json:"id"`
+	ConversationID uuid.UUID   `json:"conversation_id"`
+	SenderID       uuid.UUID   `json:"sender_id"`
+	Type           string      `json:"type"`
+	Body           *string     `json:"body,omitempty"`
+	MediaKey       *string     `json:"media_key,omitempty"`
+	Lat            *float64    `json:"lat,omitempty"`
+	Lng            *float64    `json:"lng,omitempty"`
+	ReadAt         *time.Time  `json:"read_at,omitempty"`
+	CreatedAt      time.Time   `json:"created_at"`
 }
 
 // WSMessage is the JSON frame sent over WebSocket.
 type WSMessage struct {
-	Type           string     `json:"type"`
-	ConversationID string     `json:"conversation_id,omitempty"`
-	ID             string     `json:"id,omitempty"`
-	SenderID       string     `json:"sender_id,omitempty"`
-	Body           string     `json:"body,omitempty"`
-	MediaKey       string     `json:"media_key,omitempty"`
-	Lat            float64    `json:"lat,omitempty"`
-	Lng            float64    `json:"lng,omitempty"`
-	CreatedAt      *time.Time `json:"created_at,omitempty"`
+	Type           string   `json:"type"`
+	ConversationID string   `json:"conversation_id,omitempty"`
+	Body           *string  `json:"body,omitempty"`
+	MediaKey       *string  `json:"media_key,omitempty"`
+	Lat            *float64 `json:"lat,omitempty"`
+	Lng            *float64 `json:"lng,omitempty"`
 }

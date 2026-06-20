@@ -11,12 +11,14 @@ import (
 
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/auth"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/config"
+	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/fcm"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/handler"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/platform/logger"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/platform/postgres"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/server"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/service"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/storage"
+	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/ws"
 )
 
 func main() {
@@ -39,6 +41,12 @@ func main() {
 		os.Exit(1)
 	}
 
+	fcmClient, err := fcm.New(ctx, cfg.FCMServiceAccount, log)
+	if err != nil {
+		log.Error("init fcm client", "error", err)
+		os.Exit(1)
+	}
+
 	j := auth.NewJWT(cfg.JWTSecret, cfg.JWTAccessExpiry, cfg.JWTRefreshExpiry)
 
 	authSvc := service.NewAuthService(db, j, cfg.JWTRefreshExpiry)
@@ -46,6 +54,9 @@ func main() {
 	providerSvc := service.NewProviderService(db)
 	ratingSvc := service.NewRatingService(db, providerSvc)
 	recSvc := service.NewRecommendationService(db, providerSvc)
+	chatSvc := service.NewChatService(db)
+
+	hub := ws.NewHub()
 
 	authH := handler.NewAuthHandler(authSvc)
 	approvalH := handler.NewApprovalHandler(userSvc)
@@ -56,11 +67,14 @@ func main() {
 	uploadH := handler.NewUploadHandler(s3Client)
 	adminH := handler.NewAdminHandler(db)
 	categoryH := handler.NewCategoryHandler(db)
+	chatH := handler.NewChatHandler(chatSvc)
+	wsH := ws.NewHandler(hub, chatSvc, fcmClient, j, log)
 
 	router := server.NewRouter(
 		log, j,
 		authH, providerH, ratingH, recH,
 		approvalH, requestH, uploadH, adminH, categoryH,
+		chatH, wsH,
 	)
 
 	srv := server.New(cfg.Port, router)

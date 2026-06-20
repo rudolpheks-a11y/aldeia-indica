@@ -1,6 +1,7 @@
 package server
 
 import (
+	"log/slog"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -9,7 +10,7 @@ import (
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/auth"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/handler"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/server/middleware"
-	"log/slog"
+	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/ws"
 )
 
 func NewRouter(
@@ -24,6 +25,8 @@ func NewRouter(
 	uploadH *handler.UploadHandler,
 	adminH *handler.AdminHandler,
 	categoryH *handler.CategoryHandler,
+	chatH *handler.ChatHandler,
+	wsH *ws.Handler,
 ) http.Handler {
 	r := chi.NewRouter()
 
@@ -39,6 +42,9 @@ func NewRouter(
 	r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusOK)
 	})
+
+	// WebSocket endpoint — auth via ?token= query param
+	r.Get("/ws/chat", wsH.ServeHTTP)
 
 	r.Route("/api/v1", func(r chi.Router) {
 		// Public
@@ -87,6 +93,12 @@ func NewRouter(
 			r.Put("/requests/{id}", requestH.UpdateStatus)
 			r.Post("/requests/{id}/responses", requestH.Respond)
 			r.Get("/requests/{id}/responses", requestH.ListResponses)
+
+			// Chat (REST)
+			r.Post("/chat/conversations", chatH.GetOrCreate)
+			r.Get("/chat/conversations", chatH.ListConversations)
+			r.Get("/chat/conversations/{id}/messages", chatH.ListMessages)
+			r.Post("/chat/conversations/{id}/read", chatH.MarkRead)
 
 			// Uploads
 			r.Post("/uploads/presign", uploadH.Presign)

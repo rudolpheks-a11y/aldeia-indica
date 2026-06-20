@@ -1,6 +1,7 @@
 package config
 
 import (
+	"encoding/base64"
 	"os"
 	"time"
 )
@@ -19,7 +20,7 @@ type Config struct {
 	AWSBucketPrivate   string
 	AWSEndpoint        string
 	CloudFrontBaseURL  string
-	FCMServiceAccount  string
+	FCMServiceAccount  []byte
 }
 
 func Load() *Config {
@@ -40,7 +41,7 @@ func Load() *Config {
 		AWSBucketPrivate:   getEnv("AWS_BUCKET_PRIVATE", "aldeia-private"),
 		AWSEndpoint:        getEnv("AWS_ENDPOINT", ""),
 		CloudFrontBaseURL:  getEnv("CLOUDFRONT_BASE_URL", ""),
-		FCMServiceAccount:  getEnv("FCM_SERVICE_ACCOUNT_JSON", ""),
+		FCMServiceAccount:  decodeFCM(getEnv("FCM_SERVICE_ACCOUNT_JSON", "")),
 	}
 }
 
@@ -49,6 +50,17 @@ func getEnv(key, fallback string) string {
 		return v
 	}
 	return fallback
+}
+
+func decodeFCM(v string) []byte {
+	if v == "" {
+		return nil
+	}
+	b, err := base64.StdEncoding.DecodeString(v)
+	if err != nil {
+		return []byte(v) // allow raw JSON for local dev
+	}
+	return b
 }
 
 func mustEnv(key string) string {

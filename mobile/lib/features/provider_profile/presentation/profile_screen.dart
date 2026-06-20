@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/profile_provider.dart';
+import '../../auth/providers/auth_provider.dart';
 import '../../../shared/widgets/star_rating_bar.dart';
 import '../../../shared/widgets/score_badge.dart';
 
@@ -294,9 +295,36 @@ class _Reviews extends ConsumerWidget {
   }
 }
 
-class _BottomActions extends StatelessWidget {
+class _BottomActions extends ConsumerStatefulWidget {
   final String providerId;
   const _BottomActions({required this.providerId});
+
+  @override
+  ConsumerState<_BottomActions> createState() => _BottomActionsState();
+}
+
+class _BottomActionsState extends ConsumerState<_BottomActions> {
+  bool _loading = false;
+
+  Future<void> _startChat() async {
+    setState(() => _loading = true);
+    try {
+      final api = ref.read(apiClientProvider);
+      final resp = await api.post('/chat/conversations', data: {
+        'other_user_id': widget.providerId,
+      });
+      final convId = resp.data['id'] as String;
+      if (mounted) context.push('/chat/$convId');
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro ao iniciar conversa: $e')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _loading = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -309,15 +337,21 @@ class _BottomActions extends StatelessWidget {
               child: OutlinedButton.icon(
                 icon: const Icon(Icons.star_rate),
                 label: const Text('Avaliar'),
-                onPressed: () => context.push('/rate/$providerId'),
+                onPressed: () => context.push('/rate/${widget.providerId}'),
               ),
             ),
             const SizedBox(width: 12),
             Expanded(
               child: ElevatedButton.icon(
-                icon: const Icon(Icons.chat_bubble_outline),
+                icon: _loading
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(
+                            strokeWidth: 2, color: Colors.white))
+                    : const Icon(Icons.chat_bubble_outline),
                 label: const Text('Contatar'),
-                onPressed: () {},
+                onPressed: _loading ? null : _startChat,
               ),
             ),
           ],
