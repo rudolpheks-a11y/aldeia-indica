@@ -267,12 +267,17 @@ Auth, aprovação, perfis, busca, avaliações, recomendações, pedidos, admin,
 - Flutter: botão "Contatar" no perfil cria conversa e navega para `/chat/:id`
 - Flutter: `chat_provider.dart` adiciona `is_mine` a cada mensagem com base no user_id salvo
 
-### Fase 3 — Analytics e Multi-comunidade (próxima)
-- Dashboard completo do prestador (views, contatos, ranking por categoria)
-- Score Aldeia em destaque na busca (badge colorido no card)
-- Evento `hire_completed` → incrementa `total_hires` → recalcula Score
-- Admin cria novas comunidades via API
-- Otimização de queries (índices adicionais, query plans)
+### Fase 3 — Analytics e Multi-comunidade (concluída)
+- `internal/service/analytics.go` — RecordEvent (fire-and-forget), DashboardSummary (30d stats + rank na categoria), HireCompleted (incrementa hires + recalcula Score)
+- Tracking automático: `profile_view` ao GET /providers/:id, `contact_initiated` ao criar conversa
+- `POST /providers/:id/hire` — morador confirma contratação, atualiza score automaticamente
+- `POST /admin/communities` — admin cria novas comunidades
+- `GET /communities` — lista pública para tela de login
+- Migration 000012 — índices para queries de analytics e ranking por categoria
+- Flutter: dashboard com dados reais (views/contatos/contratos 30d), ranking na categoria, Score badge colorido
+- Flutter: tela admin com tabs Usuários / Documentos / Comunidades, CRUD de comunidades
+- Flutter: rota `/admin` com proteção por role
+- Score badge já exibido nos cards de busca desde Fase 1 com dados reais do backend
 
 ## Padrões de código
 

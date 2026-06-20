@@ -13,11 +13,12 @@ import (
 )
 
 type ChatHandler struct {
-	svc *service.ChatService
+	svc       *service.ChatService
+	analytics *service.AnalyticsService
 }
 
-func NewChatHandler(svc *service.ChatService) *ChatHandler {
-	return &ChatHandler{svc: svc}
+func NewChatHandler(svc *service.ChatService, analytics *service.AnalyticsService) *ChatHandler {
+	return &ChatHandler{svc: svc, analytics: analytics}
 }
 
 // POST /chat/conversations — get or create a conversation with another user
@@ -46,6 +47,11 @@ func (h *ChatHandler) GetOrCreate(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
+
+	// Record contact_initiated if the other user is a provider
+	actorID := claims.UserID
+	go h.analytics.RecordEvent(r.Context(), claims.CommunityID, otherID, &actorID, service.EventContactInitiated)
+
 	jsonOK(w, conv)
 }
 

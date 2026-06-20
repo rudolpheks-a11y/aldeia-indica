@@ -12,11 +12,12 @@ import (
 )
 
 type ProviderHandler struct {
-	svc *service.ProviderService
+	svc      *service.ProviderService
+	analytics *service.AnalyticsService
 }
 
-func NewProviderHandler(svc *service.ProviderService) *ProviderHandler {
-	return &ProviderHandler{svc: svc}
+func NewProviderHandler(svc *service.ProviderService, analytics *service.AnalyticsService) *ProviderHandler {
+	return &ProviderHandler{svc: svc, analytics: analytics}
 }
 
 func (h *ProviderHandler) Search(w http.ResponseWriter, r *http.Request) {
@@ -56,6 +57,11 @@ func (h *ProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "not found", http.StatusNotFound)
 		return
 	}
+
+	// Record profile view fire-and-forget
+	actorID := claims.UserID
+	go h.analytics.RecordEvent(r.Context(), claims.CommunityID, providerID, &actorID, service.EventProfileView)
+
 	jsonOK(w, detail)
 }
 
@@ -122,14 +128,26 @@ func (h *ProviderHandler) DeletePhoto(w http.ResponseWriter, r *http.Request) {
 func (h *ProviderHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.ClaimsFrom(r.Context())
 
-	var stats struct {
-		ViewCount   int     `json:"view_count"`
-		ContactCount int    `json:"contact_count"`
-		AvgRating   float64 `json:"avg_rating"`
-		ScoreAldeia float64 `json:"score_aldeia"`
-		TotalHires  int     `json:"total_hires"`
+	stats, err := h.analytics.DashboardSummary(r.Context(), claims.CommunityID, claims.UserID)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
 	}
-	// TODO: expand with category rank in Phase 3
-	_ = claims
 	jsonOK(w, stats)
+}
+
+// HireCompleted — morador confirma contratação de um prestador
+func (h *ProviderHandler) HireCompleted(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
+	providerID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.analytics.HireCompleted(r.Context(), claims.CommunityID, providerID, claims.UserID, h.svc); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, map[string]string{"status": "ok"})
 }

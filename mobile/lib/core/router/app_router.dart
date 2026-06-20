@@ -14,6 +14,7 @@ import '../../features/chat/presentation/chat_screen.dart';
 import '../../features/service_requests/presentation/requests_feed_screen.dart';
 import '../../features/service_requests/presentation/create_request_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
+import '../../features/admin/presentation/admin_dashboard_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authProvider);
@@ -67,6 +68,9 @@ final routerProvider = Provider<GoRouter>((ref) {
           builder: (_, __) => const CreateRequestScreen()),
       GoRoute(
           path: '/dashboard', builder: (_, __) => const DashboardScreen()),
+      GoRoute(
+          path: '/admin',
+          builder: (_, __) => const AdminDashboardScreen()),
     ],
   );
 });

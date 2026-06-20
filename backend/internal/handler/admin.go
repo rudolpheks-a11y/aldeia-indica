@@ -173,3 +173,62 @@ func (h *AdminHandler) ReviewDocument(w http.ResponseWriter, r *http.Request) {
 	}
 	w.WriteHeader(http.StatusNoContent)
 }
+
+// CreateCommunity — superadmin creates a new community (no community_id scope needed)
+func (h *AdminHandler) CreateCommunity(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		Name  string `json:"name"`
+		Slug  string `json:"slug"`
+		City  string `json:"city"`
+		State string `json:"state"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		jsonError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	if in.Name == "" || in.Slug == "" {
+		jsonError(w, "name and slug required", http.StatusBadRequest)
+		return
+	}
+
+	var id uuid.UUID
+	err := h.db.QueryRow(r.Context(),
+		`INSERT INTO communities (name, slug, city, state) VALUES ($1,$2,$3,$4) RETURNING id`,
+		in.Name, in.Slug, in.City, in.State,
+	).Scan(&id)
+	if err != nil {
+		jsonError(w, "community already exists or db error", http.StatusConflict)
+		return
+	}
+	jsonOK(w, map[string]string{"id": id.String(), "slug": in.Slug})
+}
+
+// ListCommunities — returns all active communities (public, used on login screen)
+func (h *AdminHandler) ListCommunities(w http.ResponseWriter, r *http.Request) {
+	rows, err := h.db.Query(r.Context(),
+		`SELECT id, name, slug, city, state FROM communities WHERE is_active = true ORDER BY name`)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var list []map[string]any
+	for rows.Next() {
+		var c struct {
+			ID    uuid.UUID
+			Name  string
+			Slug  string
+			City  string
+			State string
+		}
+		rows.Scan(&c.ID, &c.Name, &c.Slug, &c.City, &c.State)
+		list = append(list, map[string]any{
+			"id": c.ID, "name": c.Name, "slug": c.Slug, "city": c.City, "state": c.State,
+		})
+	}
+	if list == nil {
+		list = []map[string]any{}
+	}
+	jsonOK(w, list)
+}

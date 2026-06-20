@@ -43,6 +43,9 @@ func NewRouter(
 		w.WriteHeader(http.StatusOK)
 	})
 
+	// Public communities list (used on login/register screen)
+	r.Get("/api/v1/communities", adminH.ListCommunities)
+
 	// WebSocket endpoint — auth via ?token= query param
 	r.Get("/ws/chat", wsH.ServeHTTP)
 
@@ -69,6 +72,7 @@ func NewRouter(
 			r.Put("/providers/me", providerH.UpdateMe)
 			r.Post("/providers/{id}/photos", providerH.AddPhoto)
 			r.Delete("/providers/{id}/photos/{photoID}", providerH.DeletePhoto)
+			r.Post("/providers/{id}/hire", providerH.HireCompleted)
 			r.Get("/dashboard/summary", providerH.Dashboard)
 
 			// Ratings
@@ -110,6 +114,7 @@ func NewRouter(
 				r.Put("/admin/users/{id}/status", adminH.UpdateUserStatus)
 				r.Get("/admin/documents", adminH.ListDocumentQueue)
 				r.Post("/admin/documents/{providerID}/review", adminH.ReviewDocument)
+				r.Post("/admin/communities", adminH.CreateCommunity)
 				r.Post("/approvals/{id}/resolve", approvalH.AdminResolve)
 			})
 		})

@@ -55,19 +55,20 @@ func main() {
 	ratingSvc := service.NewRatingService(db, providerSvc)
 	recSvc := service.NewRecommendationService(db, providerSvc)
 	chatSvc := service.NewChatService(db)
+	analyticsSvc := service.NewAnalyticsService(db)
 
 	hub := ws.NewHub()
 
 	authH := handler.NewAuthHandler(authSvc)
 	approvalH := handler.NewApprovalHandler(userSvc)
-	providerH := handler.NewProviderHandler(providerSvc)
+	providerH := handler.NewProviderHandler(providerSvc, analyticsSvc)
 	ratingH := handler.NewRatingHandler(ratingSvc)
 	recH := handler.NewRecommendationHandler(recSvc)
 	requestH := handler.NewRequestHandler(db)
 	uploadH := handler.NewUploadHandler(s3Client)
 	adminH := handler.NewAdminHandler(db)
 	categoryH := handler.NewCategoryHandler(db)
-	chatH := handler.NewChatHandler(chatSvc)
+	chatH := handler.NewChatHandler(chatSvc, analyticsSvc)
 	wsH := ws.NewHandler(hub, chatSvc, fcmClient, j, log)
 
 	router := server.NewRouter(
