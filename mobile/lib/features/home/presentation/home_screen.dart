@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../shared/widgets/contact_admin_button.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -18,6 +19,7 @@ class HomeScreen extends ConsumerWidget {
             icon: const Icon(Icons.chat_bubble_outline),
             onPressed: () => context.push('/conversations'),
           ),
+          const ContactAdminIconButton(),
           IconButton(
             tooltip: 'Sair',
             icon: const Icon(Icons.logout),
