@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/app_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
@@ -12,7 +13,7 @@ class DashboardScreen extends ConsumerWidget {
     final dashboard = ref.watch(_dashboardProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Meu Painel')),
+      appBar: AppBar(leading: const AppBackButton(), title: const Text('Meu Painel')),
       body: dashboard.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro: $e')),

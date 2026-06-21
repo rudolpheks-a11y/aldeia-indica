@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/app_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/profile_provider.dart';
@@ -16,7 +17,7 @@ class ProfileScreen extends ConsumerWidget {
     final profile = ref.watch(providerProfileProvider(providerId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Perfil do Prestador')),
+      appBar: AppBar(leading: const AppBackButton(), title: const Text('Perfil do Prestador')),
       body: profile.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro: $e')),

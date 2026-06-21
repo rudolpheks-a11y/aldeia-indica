@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/app_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../providers/chat_provider.dart';
 
@@ -34,7 +35,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
     final chat = ref.watch(chatProvider(widget.conversationId));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Conversa')),
+      appBar: AppBar(leading: const AppBackButton(), title: const Text('Conversa')),
       body: Column(
         children: [
           Expanded(

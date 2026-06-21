@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/app_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -12,7 +13,7 @@ class ConversationsScreen extends ConsumerWidget {
     final conversations = ref.watch(_conversationsProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Mensagens')),
+      appBar: AppBar(leading: const AppBackButton(), title: const Text('Mensagens')),
       body: conversations.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro: $e')),

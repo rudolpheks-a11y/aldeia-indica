@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../shared/widgets/app_back_button.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
 
@@ -12,6 +13,7 @@ class AdminDashboardScreen extends ConsumerWidget {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
+          leading: const AppBackButton(),
           title: const Text('Painel Admin'),
           bottom: const TabBar(tabs: [
             Tab(text: 'Usuários'),

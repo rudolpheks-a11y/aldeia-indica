@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/app_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
@@ -76,7 +77,7 @@ class _RegisterMoradorScreenState
     return LoadingOverlay(
       isLoading: isLoading,
       child: Scaffold(
-        appBar: AppBar(title: const Text('Cadastro de Morador')),
+        appBar: AppBar(leading: const AppBackButton(), title: const Text('Cadastro de Morador')),
         body: SingleChildScrollView(
           padding: const EdgeInsets.all(24),
           child: Form(

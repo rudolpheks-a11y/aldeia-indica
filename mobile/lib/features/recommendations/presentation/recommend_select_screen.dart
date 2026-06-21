@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/app_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../providers_list/providers/search_provider.dart';
@@ -29,7 +30,7 @@ class _RecommendSelectScreenState extends ConsumerState<RecommendSelectScreen> {
     final search = ref.watch(searchProvider);
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Recomende um prestador')),
+      appBar: AppBar(leading: const AppBackButton(), title: const Text('Recomende um prestador')),
       body: Column(
         children: [
           Padding(

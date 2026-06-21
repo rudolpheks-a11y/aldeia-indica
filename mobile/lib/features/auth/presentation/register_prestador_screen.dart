@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import '../../../shared/widgets/app_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
@@ -105,7 +106,7 @@ class _RegisterPrestadorScreenState
     final colorScheme = Theme.of(context).colorScheme;
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Cadastro de Prestador')),
+      appBar: AppBar(leading: const AppBackButton(), title: const Text('Cadastro de Prestador')),
       body: SingleChildScrollView(
         padding: const EdgeInsets.all(24),
         child: Form(

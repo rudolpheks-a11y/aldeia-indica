@@ -50,7 +50,7 @@ class HomeScreen extends ConsumerWidget {
                   children: [
                     _HomeTile(
                       icon: Icons.search,
-                      label: 'Encontre um\nprestador',
+                      label: 'Encontre um\nserviço',
                       color: AppColors.primary,
                       onTap: () => context.push('/search'),
                     ),
