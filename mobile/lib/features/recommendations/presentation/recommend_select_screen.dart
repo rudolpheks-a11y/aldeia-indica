@@ -1,17 +1,21 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/search_provider.dart';
-import 'provider_card.dart';
+import '../../providers_list/providers/search_provider.dart';
+import '../../providers_list/presentation/provider_card.dart';
 
-class SearchScreen extends ConsumerStatefulWidget {
-  const SearchScreen({super.key});
+/// Passo 1 do fluxo "Recomende um prestador": o morador escolhe quem avaliar.
+/// Reusa a mesma lista/busca da tela de busca; ao tocar, vai para a tela de
+/// nota em estrelas (/recommend/:id) em vez do perfil.
+class RecommendSelectScreen extends ConsumerStatefulWidget {
+  const RecommendSelectScreen({super.key});
 
   @override
-  ConsumerState<SearchScreen> createState() => _SearchScreenState();
+  ConsumerState<RecommendSelectScreen> createState() =>
+      _RecommendSelectScreenState();
 }
 
-class _SearchScreenState extends ConsumerState<SearchScreen> {
+class _RecommendSelectScreenState extends ConsumerState<RecommendSelectScreen> {
   final _searchCtrl = TextEditingController();
 
   @override
@@ -25,19 +29,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
     final search = ref.watch(searchProvider);
 
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('Aldeia Indica'),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.chat_bubble_outline),
-            onPressed: () => context.push('/conversations'),
-          ),
-          IconButton(
-            icon: const Icon(Icons.list_alt),
-            onPressed: () => context.push('/requests'),
-          ),
-        ],
-      ),
+      appBar: AppBar(title: const Text('Recomende um prestador')),
       body: Column(
         children: [
           Padding(
@@ -45,12 +37,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             child: TextField(
               controller: _searchCtrl,
               decoration: InputDecoration(
-                hintText: 'Buscar prestador ou serviço...',
+                hintText: 'Buscar prestador pelo nome...',
                 prefixIcon: const Icon(Icons.search),
-                suffixIcon: IconButton(
-                  icon: const Icon(Icons.tune),
-                  onPressed: () => _showFilters(context),
-                ),
                 filled: true,
                 fillColor: Colors.grey[100],
               ),
@@ -66,25 +54,18 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   : ListView.builder(
                       padding: const EdgeInsets.symmetric(horizontal: 12),
                       itemCount: providers.length,
-                      itemBuilder: (_, i) => ProviderCard(provider: providers[i]),
+                      itemBuilder: (_, i) => ProviderCard(
+                        provider: providers[i],
+                        onTap: () =>
+                            context.push('/recommend/${providers[i].userId}'),
+                      ),
                     ),
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Erro: $e')),
             ),
           ),
         ],
       ),
-    );
-  }
-
-  void _showFilters(BuildContext context) {
-    showModalBottomSheet(
-      context: context,
-      isScrollControlled: true,
-      shape: const RoundedRectangleBorder(
-          borderRadius: BorderRadius.vertical(top: Radius.circular(20))),
-      builder: (_) => const _FilterSheet(),
     );
   }
 }
@@ -123,45 +104,6 @@ class _CategoryChips extends ConsumerWidget {
                 )),
             loading: () => [],
             error: (_, __) => [],
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-class _FilterSheet extends ConsumerWidget {
-  const _FilterSheet();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final filters = ref.watch(searchFiltersProvider);
-
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text('Filtros',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          const Text('Ordenar por'),
-          const SizedBox(height: 8),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'score', label: Text('Score')),
-              ButtonSegment(value: 'rating', label: Text('Nota')),
-              ButtonSegment(value: 'recommendations', label: Text('Indicações')),
-            ],
-            selected: {filters.sort},
-            onSelectionChanged: (v) =>
-                ref.read(searchFiltersProvider.notifier).setSort(v.first),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Aplicar'),
           ),
         ],
       ),

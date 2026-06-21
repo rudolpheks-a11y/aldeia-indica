@@ -5,7 +5,10 @@ import '../../features/auth/presentation/register_morador_screen.dart';
 import '../../features/auth/presentation/register_prestador_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/approvals/presentation/pending_approval_screen.dart';
+import '../../features/home/presentation/home_screen.dart';
 import '../../features/providers_list/presentation/search_screen.dart';
+import '../../features/recommendations/presentation/recommend_select_screen.dart';
+import '../../features/recommendations/presentation/recommend_provider_screen.dart';
 import '../../features/provider_profile/presentation/profile_screen.dart';
 import '../../features/rating/presentation/rate_provider_screen.dart';
 import '../../features/chat/presentation/conversations_screen.dart';
@@ -23,7 +26,7 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authState = auth.valueOrNull;
       if (authState is AuthAuthenticated) {
-        if (state.matchedLocation == '/login') return '/search';
+        if (state.matchedLocation == '/login') return '/home';
         return null;
       }
       if (authState is AuthPending) return '/pending-approval';
@@ -45,7 +48,15 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/pending-approval',
           builder: (_, __) => const PendingApprovalScreen()),
+      GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
       GoRoute(path: '/search', builder: (_, __) => const SearchScreen()),
+      GoRoute(
+          path: '/recommend',
+          builder: (_, __) => const RecommendSelectScreen()),
+      GoRoute(
+          path: '/recommend/:id',
+          builder: (_, state) => RecommendProviderScreen(
+              providerId: state.pathParameters['id']!)),
       GoRoute(
           path: '/provider/:id',
           builder: (_, state) =>

@@ -6,8 +6,9 @@ import '../../../shared/widgets/score_badge.dart';
 
 class ProviderCard extends StatelessWidget {
   final ProviderSummary provider;
+  final VoidCallback? onTap;
 
-  const ProviderCard({super.key, required this.provider});
+  const ProviderCard({super.key, required this.provider, this.onTap});
 
   @override
   Widget build(BuildContext context) {
@@ -15,7 +16,7 @@ class ProviderCard extends StatelessWidget {
       margin: const EdgeInsets.only(bottom: 12),
       child: InkWell(
         borderRadius: BorderRadius.circular(16),
-        onTap: () => context.push('/provider/${provider.userId}'),
+        onTap: onTap ?? () => context.push('/provider/${provider.userId}'),
         child: Padding(
           padding: const EdgeInsets.all(16),
           child: Row(

@@ -8,12 +8,14 @@ class SearchFilters {
   final String city;
   final double minRating;
   final String sort;
+  final String query;
 
   const SearchFilters({
     this.categorySlug = '',
     this.city = '',
     this.minRating = 0,
     this.sort = 'score',
+    this.query = '',
   });
 
   SearchFilters copyWith({
@@ -21,12 +23,14 @@ class SearchFilters {
     String? city,
     double? minRating,
     String? sort,
+    String? query,
   }) =>
       SearchFilters(
         categorySlug: categorySlug ?? this.categorySlug,
         city: city ?? this.city,
         minRating: minRating ?? this.minRating,
         sort: sort ?? this.sort,
+        query: query ?? this.query,
       );
 }
 
@@ -38,6 +42,7 @@ class SearchFiltersNotifier extends Notifier<SearchFilters> {
   void setSort(String sort) => state = state.copyWith(sort: sort);
   void setCity(String city) => state = state.copyWith(city: city);
   void setMinRating(double r) => state = state.copyWith(minRating: r);
+  void setQuery(String q) => state = state.copyWith(query: q);
 }
 
 final searchFiltersProvider =
@@ -47,8 +52,6 @@ final searchFiltersProvider =
 class SearchNotifier extends AsyncNotifier<List<ProviderSummary>> {
   @override
   Future<List<ProviderSummary>> build() => _fetch();
-
-  void setQuery(String _) => ref.invalidateSelf();
 
   Future<List<ProviderSummary>> _fetch() async {
     final api = ref.watch(apiClientProvider);
@@ -63,9 +66,21 @@ class SearchNotifier extends AsyncNotifier<List<ProviderSummary>> {
 
     final resp = await api.get(ApiEndpoints.providers, params: params);
     final list = resp.data as List<dynamic>;
-    return list
+    var providers = list
         .map((e) => ProviderSummary.fromJson(e as Map<String, dynamic>))
         .toList();
+
+    // Busca por nome é filtrada no cliente: o backend /providers ainda não
+    // aceita parâmetro de texto (apenas category/city/min_rating/sort).
+    final q = filters.query.trim().toLowerCase();
+    if (q.isNotEmpty) {
+      providers = providers
+          .where((p) =>
+              p.fullName.toLowerCase().contains(q) ||
+              p.categories.any((c) => c.toLowerCase().contains(q)))
+          .toList();
+    }
+    return providers;
   }
 }
 
