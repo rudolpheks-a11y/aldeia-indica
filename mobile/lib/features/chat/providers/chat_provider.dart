@@ -14,25 +14,23 @@ final _currentUserIdProvider = FutureProvider<String?>((ref) async {
   return ref.watch(storageServiceProvider).getUserId();
 });
 
-class ChatNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
-  late String _conversationId;
+// FamilyAsyncNotifier receives the conversationId via build(arg)
+class ChatNotifier
+    extends FamilyAsyncNotifier<List<Map<String, dynamic>>, String> {
   StreamSubscription? _sub;
+  late String _conversationId;
 
   @override
-  Future<List<Map<String, dynamic>>> build() async => [];
-
-  Future<void> init(String conversationId) async {
-    _conversationId = conversationId;
+  Future<List<Map<String, dynamic>>> build(String arg) async {
+    _conversationId = arg;
     final myId = await ref.read(_currentUserIdProvider.future);
 
     final api = ref.read(apiClientProvider);
-    final resp = await api.get(ApiEndpoints.messages(conversationId));
+    final resp = await api.get(ApiEndpoints.messages(arg));
     final history = (resp.data as List<dynamic>)
         .cast<Map<String, dynamic>>()
         .map((m) => _withMine(m, myId))
         .toList();
-
-    state = AsyncValue.data(history);
 
     final ws = ref.read(wsServiceProvider);
     await ws.connect();
@@ -46,6 +44,8 @@ class ChatNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
     });
 
     ref.onDispose(() => _sub?.cancel());
+
+    return history;
   }
 
   void sendText(String text) {
@@ -65,8 +65,4 @@ class ChatNotifier extends AsyncNotifier<List<Map<String, dynamic>>> {
 }
 
 final chatProvider = AsyncNotifierProvider.family<ChatNotifier,
-    List<Map<String, dynamic>>, String>((ref, conversationId) {
-  final notifier = ChatNotifier();
-  Future.microtask(() => notifier.init(conversationId));
-  return notifier;
-});
+    List<Map<String, dynamic>>, String>(ChatNotifier.new);

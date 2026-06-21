@@ -53,7 +53,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       isLoading: isLoading,
       child: Scaffold(
         body: SafeArea(
-          child: Padding(
+          child: SingleChildScrollView(
             padding: const EdgeInsets.all(24),
             child: Form(
               key: _formKey,
@@ -61,6 +61,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
+                  const SizedBox(height: 40),
                   const Text(
                     'Aldeia Indica',
                     style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
@@ -141,3 +142,4 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     );
   }
 }
+
