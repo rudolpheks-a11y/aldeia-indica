@@ -7,17 +7,24 @@ const _comunidades = {
   'Aldeia da Serra': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
 };
 
-const _condominios = [
-  'Morada dos Pinheiros',
-  'Morada dos Pássaros',
-  'Morada das Flores',
-  'Morada dos Lagos',
-  'Morada das Estrelas',
-  'Condomínio Altavis',
-  'Morada da Serra',
-  'Morada da Aldeia',
-  'Morada das Nuvens',
-  'Mosaico da Aldeia',
+const _servicos = [
+  'Diarista',
+  'Mensalista',
+  'Cozinheira',
+  'Jardineiro',
+  'Encanador',
+  'Eletricista',
+  'Pedreiro',
+  'Serviços Gerais',
+  'Pintor',
+  'Personal Trainer',
+  'Massagista',
+  'Fisioterapeuta',
+  'Psicólogo',
+  'Enfermeira',
+  'Cuidadora',
+  'Babá',
+  'Motorista',
   'Outros',
 ];
 
@@ -35,21 +42,38 @@ class _RegisterPrestadorScreenState
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  final _bioCtrl = TextEditingController();
+  final _outrosCtrl = TextEditingController();
   String? _selectedCommunity;
-  String? _selectedCondominio;
+  final Set<String> _selectedServicos = {};
   int _years = 0;
 
   @override
   void dispose() {
-    for (final c in [_nameCtrl, _emailCtrl, _passwordCtrl, _bioCtrl]) {
+    for (final c in [_nameCtrl, _emailCtrl, _passwordCtrl, _outrosCtrl]) {
       c.dispose();
     }
     super.dispose();
   }
 
+  bool get _outrosSelecionado => _selectedServicos.contains('Outros');
+
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
+    if (_selectedServicos.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Selecione ao menos um serviço'),
+          backgroundColor: Colors.red,
+        ),
+      );
+      return;
+    }
+
+    final servicosList = _selectedServicos.where((s) => s != 'Outros').toList();
+    if (_outrosSelecionado && _outrosCtrl.text.trim().isNotEmpty) {
+      servicosList.add(_outrosCtrl.text.trim());
+    }
+
     final repo = ref.read(authRepositoryProvider);
     try {
       await repo.registerPrestador(
@@ -57,9 +81,9 @@ class _RegisterPrestadorScreenState
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
         fullName: _nameCtrl.text.trim(),
-        city: _selectedCondominio!,
+        city: 'Aldeia da Serra',
         yearsInNeighborhood: _years,
-        professionalBio: _bioCtrl.text.trim(),
+        professionalBio: servicosList.join(', '),
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -78,6 +102,8 @@ class _RegisterPrestadorScreenState
 
   @override
   Widget build(BuildContext context) {
+    final colorScheme = Theme.of(context).colorScheme;
+
     return Scaffold(
       appBar: AppBar(title: const Text('Cadastro de Prestador')),
       body: SingleChildScrollView(
@@ -119,16 +145,6 @@ class _RegisterPrestadorScreenState
                     v != null && v.length >= 6 ? null : 'Mínimo 6 caracteres',
               ),
               const SizedBox(height: 16),
-              DropdownButtonFormField<String>(
-                value: _selectedCondominio,
-                decoration: const InputDecoration(labelText: 'Condomínio'),
-                items: _condominios
-                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
-                    .toList(),
-                onChanged: (v) => setState(() => _selectedCondominio = v),
-                validator: (v) => v == null ? 'Selecione o condomínio' : null,
-              ),
-              const SizedBox(height: 16),
               Row(
                 children: [
                   const Text('Anos atuando no bairro:'),
@@ -143,15 +159,47 @@ class _RegisterPrestadorScreenState
                   ),
                 ],
               ),
-              const SizedBox(height: 16),
-              TextFormField(
-                controller: _bioCtrl,
-                maxLines: 3,
-                decoration: const InputDecoration(
-                  labelText: 'Descrição profissional',
-                  hintText: 'Conte sua experiência...',
-                ),
+              const SizedBox(height: 20),
+              const Text(
+                'Serviços oferecidos',
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600),
               ),
+              const SizedBox(height: 10),
+              Wrap(
+                spacing: 8,
+                runSpacing: 4,
+                children: _servicos.map((servico) {
+                  final selecionado = _selectedServicos.contains(servico);
+                  return FilterChip(
+                    label: Text(servico),
+                    selected: selecionado,
+                    selectedColor: colorScheme.primaryContainer,
+                    checkmarkColor: colorScheme.onPrimaryContainer,
+                    onSelected: (val) {
+                      setState(() {
+                        if (val) {
+                          _selectedServicos.add(servico);
+                        } else {
+                          _selectedServicos.remove(servico);
+                        }
+                      });
+                    },
+                  );
+                }).toList(),
+              ),
+              if (_outrosSelecionado) ...[
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _outrosCtrl,
+                  decoration: const InputDecoration(
+                    labelText: 'Descreva o serviço',
+                    hintText: 'Ex: Costureira, Chef de cozinha...',
+                  ),
+                  validator: (v) => _outrosSelecionado && v?.isEmpty == true
+                      ? 'Descreva o serviço'
+                      : null,
+                ),
+              ],
               const SizedBox(height: 32),
               ElevatedButton(
                 onPressed: _register,
