@@ -2,6 +2,21 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
+
+const _condominios = [
+  'Pinheiros',
+  'Estrelas',
+  'Pássaros',
+  'Altavis',
+  'Flores',
+  'Lagos',
+  'Morada da Serra',
+  'Mosaico',
+  'Morada das Nuvens',
+  'Morada da Aldeia',
+  'Outros',
+];
+
 class RegisterPrestadorScreen extends ConsumerStatefulWidget {
   const RegisterPrestadorScreen({super.key});
 
@@ -17,15 +32,14 @@ class _RegisterPrestadorScreenState
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  final _cityCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
+  String? _selectedCondominio;
   int _years = 0;
 
   @override
   void dispose() {
     for (final c in [
-      _communityCtrl, _nameCtrl, _emailCtrl,
-      _passwordCtrl, _cityCtrl, _bioCtrl
+      _communityCtrl, _nameCtrl, _emailCtrl, _passwordCtrl, _bioCtrl
     ]) {
       c.dispose();
     }
@@ -41,7 +55,7 @@ class _RegisterPrestadorScreenState
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
         fullName: _nameCtrl.text.trim(),
-        city: _cityCtrl.text.trim(),
+        city: _selectedCondominio!,
         yearsInNeighborhood: _years,
         professionalBio: _bioCtrl.text.trim(),
       );
@@ -73,7 +87,8 @@ class _RegisterPrestadorScreenState
             children: [
               TextFormField(
                 controller: _communityCtrl,
-                decoration: const InputDecoration(labelText: 'ID da Comunidade'),
+                decoration:
+                    const InputDecoration(labelText: 'ID da Comunidade'),
                 validator: (v) => v?.isEmpty == true ? 'Obrigatório' : null,
               ),
               const SizedBox(height: 16),
@@ -99,10 +114,14 @@ class _RegisterPrestadorScreenState
                     v != null && v.length >= 6 ? null : 'Mínimo 6 caracteres',
               ),
               const SizedBox(height: 16),
-              TextFormField(
-                controller: _cityCtrl,
-                decoration: const InputDecoration(labelText: 'Cidade onde mora'),
-                validator: (v) => v?.isEmpty == true ? 'Obrigatório' : null,
+              DropdownButtonFormField<String>(
+                value: _selectedCondominio,
+                decoration: const InputDecoration(labelText: 'Condomínio'),
+                items: _condominios
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedCondominio = v),
+                validator: (v) => v == null ? 'Selecione o condomínio' : null,
               ),
               const SizedBox(height: 16),
               Row(

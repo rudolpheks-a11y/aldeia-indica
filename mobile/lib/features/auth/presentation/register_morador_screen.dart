@@ -4,6 +4,20 @@ import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../../../shared/widgets/loading_overlay.dart';
 
+const _condominios = [
+  'Pinheiros',
+  'Estrelas',
+  'Pássaros',
+  'Altavis',
+  'Flores',
+  'Lagos',
+  'Morada da Serra',
+  'Mosaico',
+  'Morada das Nuvens',
+  'Morada da Aldeia',
+  'Outros',
+];
+
 class RegisterMoradorScreen extends ConsumerStatefulWidget {
   const RegisterMoradorScreen({super.key});
 
@@ -19,15 +33,11 @@ class _RegisterMoradorScreenState
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
-  final _addressCtrl = TextEditingController();
-  final _numberCtrl = TextEditingController();
+  String? _selectedCondominio;
 
   @override
   void dispose() {
-    for (final c in [
-      _communityCtrl, _nameCtrl, _emailCtrl,
-      _passwordCtrl, _addressCtrl, _numberCtrl
-    ]) {
+    for (final c in [_communityCtrl, _nameCtrl, _emailCtrl, _passwordCtrl]) {
       c.dispose();
     }
     super.dispose();
@@ -40,8 +50,8 @@ class _RegisterMoradorScreenState
           email: _emailCtrl.text.trim(),
           password: _passwordCtrl.text,
           fullName: _nameCtrl.text.trim(),
-          streetAddress: _addressCtrl.text.trim(),
-          houseNumber: _numberCtrl.text.trim(),
+          streetAddress: _selectedCondominio!,
+          houseNumber: '',
         );
   }
 
@@ -71,13 +81,15 @@ class _RegisterMoradorScreenState
               children: [
                 TextFormField(
                   controller: _communityCtrl,
-                  decoration: const InputDecoration(labelText: 'ID da Comunidade'),
+                  decoration:
+                      const InputDecoration(labelText: 'ID da Comunidade'),
                   validator: (v) => v?.isEmpty == true ? 'Obrigatório' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _nameCtrl,
-                  decoration: const InputDecoration(labelText: 'Nome completo'),
+                  decoration:
+                      const InputDecoration(labelText: 'Nome completo'),
                   validator: (v) => v?.isEmpty == true ? 'Obrigatório' : null,
                 ),
                 const SizedBox(height: 16),
@@ -97,16 +109,15 @@ class _RegisterMoradorScreenState
                       v != null && v.length >= 6 ? null : 'Mínimo 6 caracteres',
                 ),
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _addressCtrl,
-                  decoration: const InputDecoration(labelText: 'Rua / Avenida'),
-                  validator: (v) => v?.isEmpty == true ? 'Obrigatório' : null,
-                ),
-                const SizedBox(height: 16),
-                TextFormField(
-                  controller: _numberCtrl,
-                  decoration: const InputDecoration(labelText: 'Número / Casa'),
-                  validator: (v) => v?.isEmpty == true ? 'Obrigatório' : null,
+                DropdownButtonFormField<String>(
+                  value: _selectedCondominio,
+                  decoration: const InputDecoration(labelText: 'Condomínio'),
+                  items: _condominios
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedCondominio = v),
+                  validator: (v) =>
+                      v == null ? 'Selecione o condomínio' : null,
                 ),
                 const SizedBox(height: 32),
                 ElevatedButton(
