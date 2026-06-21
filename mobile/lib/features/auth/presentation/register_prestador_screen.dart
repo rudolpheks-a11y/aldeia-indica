@@ -18,6 +18,7 @@ const _condominios = [
   'Morada da Aldeia',
   'Morada das Nuvens',
   'Mosaico da Aldeia',
+  'Outros',
 ];
 
 class RegisterPrestadorScreen extends ConsumerStatefulWidget {

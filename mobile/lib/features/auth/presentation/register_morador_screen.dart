@@ -19,6 +19,7 @@ const _condominios = [
   'Morada da Aldeia',
   'Morada das Nuvens',
   'Mosaico da Aldeia',
+  'Outros',
 ];
 
 class RegisterMoradorScreen extends ConsumerStatefulWidget {
