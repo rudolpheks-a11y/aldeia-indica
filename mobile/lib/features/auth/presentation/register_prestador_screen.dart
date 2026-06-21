@@ -189,15 +189,27 @@ class _RegisterPrestadorScreenState
               ),
               if (_outrosSelecionado) ...[
                 const SizedBox(height: 16),
-                TextFormField(
-                  controller: _outrosCtrl,
-                  decoration: const InputDecoration(
-                    labelText: 'Descreva o serviço',
-                    hintText: 'Ex: Costureira, Chef de cozinha...',
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Theme.of(context).colorScheme.primaryContainer.withOpacity(0.3),
+                    borderRadius: BorderRadius.circular(12),
+                    border: Border.all(
+                      color: Theme.of(context).colorScheme.primary,
+                    ),
                   ),
-                  validator: (v) => _outrosSelecionado && v?.isEmpty == true
-                      ? 'Descreva o serviço'
-                      : null,
+                  child: TextFormField(
+                    controller: _outrosCtrl,
+                    autofocus: true,
+                    decoration: const InputDecoration(
+                      labelText: 'Qual serviço você oferece?',
+                      hintText: 'Ex: Costureira, Chef de cozinha...',
+                      border: InputBorder.none,
+                    ),
+                    validator: (v) => _outrosSelecionado && (v == null || v.isEmpty)
+                        ? 'Descreva o serviço'
+                        : null,
+                  ),
                 ),
               ],
               const SizedBox(height: 32),
