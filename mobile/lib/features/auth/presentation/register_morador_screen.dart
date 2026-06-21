@@ -4,6 +4,10 @@ import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../../../shared/widgets/loading_overlay.dart';
 
+const _comunidades = {
+  'Aldeia da Serra': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+};
+
 const _condominios = [
   'Pinheiros',
   'Estrelas',
@@ -29,15 +33,15 @@ class RegisterMoradorScreen extends ConsumerStatefulWidget {
 class _RegisterMoradorScreenState
     extends ConsumerState<RegisterMoradorScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _communityCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  String? _selectedCommunity;
   String? _selectedCondominio;
 
   @override
   void dispose() {
-    for (final c in [_communityCtrl, _nameCtrl, _emailCtrl, _passwordCtrl]) {
+    for (final c in [_nameCtrl, _emailCtrl, _passwordCtrl]) {
       c.dispose();
     }
     super.dispose();
@@ -46,7 +50,7 @@ class _RegisterMoradorScreenState
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
     await ref.read(authProvider.notifier).registerMorador(
-          communityId: _communityCtrl.text.trim(),
+          communityId: _comunidades[_selectedCommunity!]!,
           email: _emailCtrl.text.trim(),
           password: _passwordCtrl.text,
           fullName: _nameCtrl.text.trim(),
@@ -79,11 +83,14 @@ class _RegisterMoradorScreenState
             key: _formKey,
             child: Column(
               children: [
-                TextFormField(
-                  controller: _communityCtrl,
-                  decoration:
-                      const InputDecoration(labelText: 'ID da Comunidade'),
-                  validator: (v) => v?.isEmpty == true ? 'Obrigatório' : null,
+                DropdownButtonFormField<String>(
+                  value: _selectedCommunity,
+                  decoration: const InputDecoration(labelText: 'Comunidade'),
+                  items: _comunidades.keys
+                      .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                      .toList(),
+                  onChanged: (v) => setState(() => _selectedCommunity = v),
+                  validator: (v) => v == null ? 'Selecione a comunidade' : null,
                 ),
                 const SizedBox(height: 16),
                 TextFormField(

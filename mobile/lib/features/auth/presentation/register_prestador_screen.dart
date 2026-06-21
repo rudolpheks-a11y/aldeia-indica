@@ -3,6 +3,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 
+const _comunidades = {
+  'Aldeia da Serra': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+};
+
 const _condominios = [
   'Pinheiros',
   'Estrelas',
@@ -28,19 +32,17 @@ class RegisterPrestadorScreen extends ConsumerStatefulWidget {
 class _RegisterPrestadorScreenState
     extends ConsumerState<RegisterPrestadorScreen> {
   final _formKey = GlobalKey<FormState>();
-  final _communityCtrl = TextEditingController();
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _bioCtrl = TextEditingController();
+  String? _selectedCommunity;
   String? _selectedCondominio;
   int _years = 0;
 
   @override
   void dispose() {
-    for (final c in [
-      _communityCtrl, _nameCtrl, _emailCtrl, _passwordCtrl, _bioCtrl
-    ]) {
+    for (final c in [_nameCtrl, _emailCtrl, _passwordCtrl, _bioCtrl]) {
       c.dispose();
     }
     super.dispose();
@@ -51,7 +53,7 @@ class _RegisterPrestadorScreenState
     final repo = ref.read(authRepositoryProvider);
     try {
       await repo.registerPrestador(
-        communityId: _communityCtrl.text.trim(),
+        communityId: _comunidades[_selectedCommunity!]!,
         email: _emailCtrl.text.trim(),
         password: _passwordCtrl.text,
         fullName: _nameCtrl.text.trim(),
@@ -85,11 +87,14 @@ class _RegisterPrestadorScreenState
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              TextFormField(
-                controller: _communityCtrl,
-                decoration:
-                    const InputDecoration(labelText: 'ID da Comunidade'),
-                validator: (v) => v?.isEmpty == true ? 'Obrigatório' : null,
+              DropdownButtonFormField<String>(
+                value: _selectedCommunity,
+                decoration: const InputDecoration(labelText: 'Comunidade'),
+                items: _comunidades.keys
+                    .map((c) => DropdownMenuItem(value: c, child: Text(c)))
+                    .toList(),
+                onChanged: (v) => setState(() => _selectedCommunity = v),
+                validator: (v) => v == null ? 'Selecione a comunidade' : null,
               ),
               const SizedBox(height: 16),
               TextFormField(
