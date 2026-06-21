@@ -1,0 +1,11 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" fill="none" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Aldeia Indica">
+  <!-- Ícone do app (full-bleed; o SO aplica a máscara/arredondamento) -->
+  <rect x="0" y="0" width="1024" height="1024" fill="#1B5E20" />
+  <circle cx="512" cy="332" r="104" fill="#FFB300" />
+  <path d="M 96 808 L 360 456 L 512 672 L 664 456 L 928 808 Z" fill="#2E7D32" />
+  <path d="M 208 808 L 432 568 L 512 696 L 592 568 L 816 808 Z" fill="#4CAF50" />
+  <path d="M 376 608 L 512 472 L 648 608 Z" fill="#F9FBF9" />
+  <rect x="424" y="608" width="176" height="200" fill="#F9FBF9" />
+  <circle cx="512" cy="568" r="24" fill="#FFB300" />
+  <rect x="480" y="696" width="64" height="112" rx="12" fill="#F57F17" />
+</svg>
