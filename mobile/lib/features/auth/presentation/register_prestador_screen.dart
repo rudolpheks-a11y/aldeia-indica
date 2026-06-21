@@ -8,17 +8,16 @@ const _comunidades = {
 };
 
 const _condominios = [
-  'Pinheiros',
-  'Estrelas',
-  'Pássaros',
-  'Altavis',
-  'Flores',
-  'Lagos',
+  'Morada dos Pinheiros',
+  'Morada dos Pássaros',
+  'Morada das Flores',
+  'Morada dos Lagos',
+  'Morada das Estrelas',
+  'Condomínio Altavis',
   'Morada da Serra',
-  'Mosaico',
-  'Morada das Nuvens',
   'Morada da Aldeia',
-  'Outros',
+  'Morada das Nuvens',
+  'Mosaico da Aldeia',
 ];
 
 class RegisterPrestadorScreen extends ConsumerStatefulWidget {
