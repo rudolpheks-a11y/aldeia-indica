@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_svg/flutter_svg.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../../../shared/widgets/loading_overlay.dart';
@@ -64,19 +65,13 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                 mainAxisAlignment: MainAxisAlignment.center,
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  const SizedBox(height: 40),
-                  const Text(
-                    'Aldeia Indica',
-                    style: TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
-                    textAlign: TextAlign.center,
+                  const SizedBox(height: 32),
+                  SvgPicture.asset(
+                    'assets/branding/logo-stacked.svg',
+                    height: 200,
+                    semanticsLabel: 'Aldeia Indica',
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'Rede de Confiança da sua Comunidade',
-                    style: TextStyle(fontSize: 14, color: Colors.grey),
-                    textAlign: TextAlign.center,
-                  ),
-                  const SizedBox(height: 40),
+                  const SizedBox(height: 32),
                   DropdownButtonFormField<String>(
                     value: _selectedCommunity,
                     decoration: const InputDecoration(
