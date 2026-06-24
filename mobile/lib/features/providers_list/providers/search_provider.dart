@@ -43,6 +43,7 @@ class SearchFiltersNotifier extends Notifier<SearchFilters> {
   void setCity(String city) => state = state.copyWith(city: city);
   void setMinRating(double r) => state = state.copyWith(minRating: r);
   void setQuery(String q) => state = state.copyWith(query: q);
+  void selectService(String slug) => state = SearchFilters(categorySlug: slug);
 }
 
 final searchFiltersProvider =
@@ -92,4 +93,48 @@ final categoriesProvider = FutureProvider((ref) async {
   final api = ref.watch(apiClientProvider);
   final resp = await api.get(ApiEndpoints.categories);
   return (resp.data as List<dynamic>).cast<Map<String, dynamic>>();
+});
+
+class ServiceCategory {
+  final String slug;
+  final String namePt;
+  final String? iconName;
+  final int providerCount;
+
+  const ServiceCategory({
+    required this.slug,
+    required this.namePt,
+    this.iconName,
+    required this.providerCount,
+  });
+}
+
+final serviceCategoriesProvider = FutureProvider<List<ServiceCategory>>((ref) async {
+  final api = ref.watch(apiClientProvider);
+
+  final results = await Future.wait([
+    api.get(ApiEndpoints.categories),
+    api.get(ApiEndpoints.providers, params: {'sort': 'score', 'limit': '200'}),
+  ]);
+
+  final cats = (results[0].data as List<dynamic>).cast<Map<String, dynamic>>();
+  final providers = (results[1].data as List<dynamic>)
+      .map((e) => ProviderSummary.fromJson(e as Map<String, dynamic>))
+      .toList();
+
+  final countByName = <String, int>{};
+  for (final p in providers) {
+    for (final cat in p.categories) {
+      countByName[cat] = (countByName[cat] ?? 0) + 1;
+    }
+  }
+
+  return cats
+      .map((c) => ServiceCategory(
+            slug: c['slug'] as String,
+            namePt: c['name_pt'] as String,
+            iconName: c['icon_name'] as String?,
+            providerCount: countByName[c['name_pt']] ?? 0,
+          ))
+      .toList();
 });

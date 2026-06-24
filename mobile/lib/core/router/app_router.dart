@@ -7,6 +7,7 @@ import '../../features/auth/providers/auth_provider.dart';
 import '../../features/approvals/presentation/pending_approval_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/providers_list/presentation/search_screen.dart';
+import '../../features/providers_list/presentation/service_picker_screen.dart';
 import '../../features/recommendations/presentation/recommend_select_screen.dart';
 import '../../features/recommendations/presentation/recommend_provider_screen.dart';
 import '../../features/provider_profile/presentation/profile_screen.dart';
@@ -49,6 +50,7 @@ final routerProvider = Provider<GoRouter>((ref) {
           path: '/pending-approval',
           builder: (_, __) => const PendingApprovalScreen()),
       GoRoute(path: '/home', builder: (_, __) => const HomeScreen()),
+      GoRoute(path: '/service-picker', builder: (_, __) => const ServicePickerScreen()),
       GoRoute(path: '/search', builder: (_, __) => const SearchScreen()),
       GoRoute(
           path: '/recommend',

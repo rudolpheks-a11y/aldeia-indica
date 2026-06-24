@@ -28,6 +28,11 @@ func (h *ProviderHandler) Search(w http.ResponseWriter, r *http.Request) {
 	minTenure, _ := strconv.Atoi(q.Get("min_tenure"))
 	page, _ := strconv.Atoi(q.Get("page"))
 
+	limit := 20
+	if l, err := strconv.Atoi(q.Get("limit")); err == nil && l > 0 && l <= 200 {
+		limit = l
+	}
+
 	results, err := h.svc.Search(r.Context(), claims.CommunityID, service.SearchFilters{
 		CategorySlug: q.Get("category"),
 		City:         q.Get("city"),
@@ -35,7 +40,7 @@ func (h *ProviderHandler) Search(w http.ResponseWriter, r *http.Request) {
 		MinTenure:    minTenure,
 		Sort:         q.Get("sort"),
 		Page:         page,
-		Limit:        20,
+		Limit:        limit,
 	})
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
