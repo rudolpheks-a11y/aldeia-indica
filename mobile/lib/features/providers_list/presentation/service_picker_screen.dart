@@ -5,11 +5,26 @@ import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/app_back_button.dart';
 import '../providers/search_provider.dart';
 
-class ServicePickerScreen extends ConsumerWidget {
+class ServicePickerScreen extends ConsumerStatefulWidget {
   const ServicePickerScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ServicePickerScreen> createState() =>
+      _ServicePickerScreenState();
+}
+
+class _ServicePickerScreenState extends ConsumerState<ServicePickerScreen> {
+  final _ctrl = TextEditingController();
+  String _query = '';
+
+  @override
+  void dispose() {
+    _ctrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final categoriesAsync = ref.watch(serviceCategoriesProvider);
 
     return Scaffold(
@@ -17,85 +32,125 @@ class ServicePickerScreen extends ConsumerWidget {
         leading: const AppBackButton(),
         title: const Text('Encontre um serviço'),
       ),
-      body: categoriesAsync.when(
-        loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro ao carregar serviços: $e')),
-        data: (categories) => GridView.builder(
-          padding: const EdgeInsets.all(16),
-          gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-            crossAxisCount: 2,
-            crossAxisSpacing: 12,
-            mainAxisSpacing: 12,
-            childAspectRatio: 1.1,
+      body: Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
+            child: TextField(
+              controller: _ctrl,
+              autofocus: true,
+              decoration: InputDecoration(
+                hintText: 'Buscar serviço...',
+                prefixIcon: const Icon(Icons.search),
+                suffixIcon: _query.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _ctrl.clear();
+                          setState(() => _query = '');
+                        },
+                      )
+                    : null,
+                filled: true,
+                fillColor: Colors.grey[100],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
+              ),
+              onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+            ),
           ),
-          itemCount: categories.length,
-          itemBuilder: (_, i) => _ServiceTile(category: categories[i]),
-        ),
+          Expanded(
+            child: categoriesAsync.when(
+              loading: () =>
+                  const Center(child: CircularProgressIndicator()),
+              error: (e, _) =>
+                  Center(child: Text('Erro ao carregar serviços: $e')),
+              data: (categories) {
+                final filtered = _query.isEmpty
+                    ? categories
+                    : categories
+                        .where((c) =>
+                            c.namePt.toLowerCase().contains(_query))
+                        .toList();
+
+                if (filtered.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'Nenhum prestador encontrado',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) => _CategoryTile(category: filtered[i]),
+                );
+              },
+            ),
+          ),
+        ],
       ),
     );
   }
 }
 
-class _ServiceTile extends ConsumerWidget {
+class _CategoryTile extends ConsumerWidget {
   final ServiceCategory category;
-
-  const _ServiceTile({required this.category});
+  const _CategoryTile({required this.category});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final hasProviders = category.providerCount > 0;
-    final color = hasProviders ? AppColors.primary : Colors.grey[400]!;
 
-    return Material(
-      color: color,
-      borderRadius: BorderRadius.circular(20),
-      clipBehavior: Clip.antiAlias,
-      child: InkWell(
-        onTap: hasProviders
-            ? () {
-                ref
-                    .read(searchFiltersProvider.notifier)
-                    .selectService(category.slug);
-                context.push('/search');
-              }
-            : null,
-        child: Padding(
-          padding: const EdgeInsets.all(16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Icon(
-                _iconFor(category.iconName),
-                color: Colors.white,
-                size: 36,
-              ),
-              const Spacer(),
-              Text(
-                category.namePt,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                  fontWeight: FontWeight.w600,
-                  height: 1.2,
-                ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
-              ),
-              const SizedBox(height: 4),
-              Text(
-                hasProviders
-                    ? '${category.providerCount} prestador${category.providerCount > 1 ? 'es' : ''}'
-                    : 'Nenhum prestador\nencontrado',
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.85),
-                  fontSize: 12,
-                  height: 1.3,
-                ),
-              ),
-            ],
-          ),
+    return ListTile(
+      leading: Container(
+        width: 44,
+        height: 44,
+        decoration: BoxDecoration(
+          color: hasProviders
+              ? AppColors.primary.withValues(alpha: 0.12)
+              : Colors.grey[200],
+          borderRadius: BorderRadius.circular(12),
+        ),
+        child: Icon(
+          _iconFor(category.iconName),
+          color: hasProviders ? AppColors.primary : Colors.grey[400],
+          size: 24,
         ),
       ),
+      title: Text(
+        category.namePt,
+        style: TextStyle(
+          fontWeight: FontWeight.w600,
+          color: hasProviders ? AppColors.textPrimary : Colors.grey[400],
+        ),
+      ),
+      subtitle: Text(
+        hasProviders
+            ? '${category.providerCount} prestador${category.providerCount > 1 ? 'es' : ''}'
+            : 'Nenhum prestador encontrado',
+        style: TextStyle(
+          fontSize: 12,
+          color: hasProviders ? AppColors.textSecondary : Colors.grey[400],
+        ),
+      ),
+      trailing: hasProviders
+          ? const Icon(Icons.chevron_right, color: AppColors.primary)
+          : null,
+      onTap: hasProviders
+          ? () {
+              ref
+                  .read(searchFiltersProvider.notifier)
+                  .selectService(category.slug);
+              context.push('/search');
+            }
+          : null,
     );
   }
 
