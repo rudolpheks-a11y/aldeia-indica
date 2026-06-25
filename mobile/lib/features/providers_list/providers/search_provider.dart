@@ -109,6 +109,15 @@ class ServiceCategory {
   });
 }
 
+final allProvidersProvider = FutureProvider<List<ProviderSummary>>((ref) async {
+  final api = ref.watch(apiClientProvider);
+  final resp = await api.get(ApiEndpoints.providers,
+      params: {'sort': 'score', 'limit': '200'});
+  return (resp.data as List<dynamic>)
+      .map((e) => ProviderSummary.fromJson(e as Map<String, dynamic>))
+      .toList();
+});
+
 final serviceCategoriesProvider = FutureProvider<List<ServiceCategory>>((ref) async {
   final api = ref.watch(apiClientProvider);
 

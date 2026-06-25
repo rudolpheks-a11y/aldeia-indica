@@ -1,13 +1,11 @@
 import 'package:flutter/material.dart';
-import '../../../shared/widgets/app_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../../shared/widgets/app_back_button.dart';
+import '../../providers_list/data/models/provider_summary.dart';
 import '../../providers_list/providers/search_provider.dart';
-import '../../providers_list/presentation/provider_card.dart';
 
-/// Passo 1 do fluxo "Recomende um prestador": o morador escolhe quem avaliar.
-/// Reusa a mesma lista/busca da tela de busca; ao tocar, vai para a tela de
-/// nota em estrelas (/recommend/:id) em vez do perfil.
 class RecommendSelectScreen extends ConsumerStatefulWidget {
   const RecommendSelectScreen({super.key});
 
@@ -16,53 +14,85 @@ class RecommendSelectScreen extends ConsumerStatefulWidget {
       _RecommendSelectScreenState();
 }
 
-class _RecommendSelectScreenState extends ConsumerState<RecommendSelectScreen> {
-  final _searchCtrl = TextEditingController();
+class _RecommendSelectScreenState
+    extends ConsumerState<RecommendSelectScreen> {
+  final _ctrl = TextEditingController();
+  String _query = '';
 
   @override
   void dispose() {
-    _searchCtrl.dispose();
+    _ctrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final search = ref.watch(searchProvider);
+    final async = ref.watch(allProvidersProvider);
 
     return Scaffold(
-      appBar: AppBar(leading: const AppBackButton(), title: const Text('Recomende um prestador')),
+      appBar: AppBar(
+        leading: const AppBackButton(),
+        title: const Text('Recomende um prestador'),
+      ),
       body: Column(
         children: [
           Padding(
-            padding: const EdgeInsets.all(12),
+            padding: const EdgeInsets.fromLTRB(16, 12, 16, 8),
             child: TextField(
-              controller: _searchCtrl,
+              controller: _ctrl,
+              autofocus: true,
               decoration: InputDecoration(
                 hintText: 'Buscar prestador pelo nome...',
                 prefixIcon: const Icon(Icons.search),
+                suffixIcon: _query.isNotEmpty
+                    ? IconButton(
+                        icon: const Icon(Icons.clear),
+                        onPressed: () {
+                          _ctrl.clear();
+                          setState(() => _query = '');
+                        },
+                      )
+                    : null,
                 filled: true,
                 fillColor: Colors.grey[100],
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(14),
+                  borderSide: BorderSide.none,
+                ),
               ),
-              onChanged: (v) =>
-                  ref.read(searchFiltersProvider.notifier).setQuery(v),
+              onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
             ),
           ),
-          _CategoryChips(),
           Expanded(
-            child: search.when(
-              data: (providers) => providers.isEmpty
-                  ? const Center(child: Text('Nenhum prestador encontrado'))
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      itemCount: providers.length,
-                      itemBuilder: (_, i) => ProviderCard(
-                        provider: providers[i],
-                        onTap: () =>
-                            context.push('/recommend/${providers[i].userId}'),
-                      ),
-                    ),
+            child: async.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Erro: $e')),
+              data: (providers) {
+                final filtered = _query.isEmpty
+                    ? providers
+                    : providers
+                        .where((p) =>
+                            p.fullName.toLowerCase().contains(_query))
+                        .toList();
+
+                if (filtered.isEmpty) {
+                  return const Center(
+                    child: Text(
+                      'Nenhum prestador encontrado',
+                      style: TextStyle(color: AppColors.textSecondary),
+                    ),
+                  );
+                }
+
+                return ListView.separated(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+                  itemCount: filtered.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (_, i) =>
+                      _ProviderTile(provider: filtered[i]),
+                );
+              },
             ),
           ),
         ],
@@ -71,43 +101,47 @@ class _RecommendSelectScreenState extends ConsumerState<RecommendSelectScreen> {
   }
 }
 
-class _CategoryChips extends ConsumerWidget {
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final categories = ref.watch(categoriesProvider);
-    final selected = ref.watch(searchFiltersProvider).categorySlug;
+class _ProviderTile extends StatelessWidget {
+  final ProviderSummary provider;
+  const _ProviderTile({required this.provider});
 
-    return SizedBox(
-      height: 44,
-      child: ListView(
-        scrollDirection: Axis.horizontal,
-        padding: const EdgeInsets.symmetric(horizontal: 12),
-        children: [
-          Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: FilterChip(
-              label: const Text('Todos'),
-              selected: selected == '',
-              onSelected: (_) =>
-                  ref.read(searchFiltersProvider.notifier).setCategory(''),
-            ),
+  @override
+  Widget build(BuildContext context) {
+    final initials = provider.fullName
+        .split(' ')
+        .take(2)
+        .map((w) => w.isNotEmpty ? w[0].toUpperCase() : '')
+        .join();
+
+    return ListTile(
+      contentPadding: const EdgeInsets.symmetric(horizontal: 0, vertical: 4),
+      leading: CircleAvatar(
+        radius: 26,
+        backgroundColor: AppColors.primary.withValues(alpha: 0.12),
+        child: Text(
+          initials,
+          style: const TextStyle(
+            color: AppColors.primary,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
           ),
-          ...categories.when(
-            data: (cats) => cats.map((c) => Padding(
-                  padding: const EdgeInsets.only(right: 8),
-                  child: FilterChip(
-                    label: Text(c['name_pt'] as String),
-                    selected: selected == c['slug'],
-                    onSelected: (_) => ref
-                        .read(searchFiltersProvider.notifier)
-                        .setCategory(c['slug'] as String),
-                  ),
-                )),
-            loading: () => [],
-            error: (_, __) => [],
-          ),
-        ],
+        ),
       ),
+      title: Text(
+        provider.fullName,
+        style: const TextStyle(fontWeight: FontWeight.w600),
+      ),
+      subtitle: provider.categories.isNotEmpty
+          ? Text(
+              provider.categories.join(' · '),
+              style:
+                  const TextStyle(fontSize: 12, color: AppColors.textSecondary),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+            )
+          : null,
+      trailing: const Icon(Icons.chevron_right, color: AppColors.primary),
+      onTap: () => context.push('/recommend/${provider.userId}'),
     );
   }
 }
