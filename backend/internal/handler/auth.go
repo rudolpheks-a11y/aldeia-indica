@@ -167,6 +167,58 @@ func (h *AuthHandler) Logout(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *AuthHandler) ForgotPassword(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		CommunityID string `json:"community_id"`
+		Email       string `json:"email"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		jsonError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+
+	communityID, err := uuid.Parse(in.CommunityID)
+	if err != nil {
+		jsonError(w, "invalid community_id", http.StatusBadRequest)
+		return
+	}
+
+	_ = h.svc.RequestPasswordReset(r.Context(), communityID, in.Email)
+	// Always respond with 200 to avoid email enumeration
+	jsonOK(w, map[string]string{"message": "if the email exists, a code was sent"})
+}
+
+func (h *AuthHandler) ResetPassword(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		CommunityID string `json:"community_id"`
+		Email       string `json:"email"`
+		Code        string `json:"code"`
+		NewPassword string `json:"new_password"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		jsonError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+
+	communityID, err := uuid.Parse(in.CommunityID)
+	if err != nil {
+		jsonError(w, "invalid community_id", http.StatusBadRequest)
+		return
+	}
+
+	if len(in.NewPassword) < 6 {
+		jsonError(w, "password must be at least 6 characters", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.svc.ResetPassword(r.Context(), communityID, in.Email, in.Code, in.NewPassword); err != nil {
+		jsonError(w, "invalid or expired code", http.StatusBadRequest)
+		return
+	}
+
+	jsonOK(w, map[string]string{"message": "password updated"})
+}
+
 func jsonOK(w http.ResponseWriter, data any) {
 	w.Header().Set("Content-Type", "application/json")
 	json.NewEncoder(w).Encode(data)

@@ -7,29 +7,33 @@ import (
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"math/big"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/auth"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/domain"
+	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/email"
 	"golang.org/x/crypto/bcrypt"
 )
 
 var (
-	ErrInvalidCredentials = errors.New("invalid email or password")
-	ErrUserPending        = errors.New("account pending approval")
-	ErrUserSuspended      = errors.New("account suspended")
+	ErrInvalidCredentials  = errors.New("invalid email or password")
+	ErrUserPending         = errors.New("account pending approval")
+	ErrUserSuspended       = errors.New("account suspended")
+	ErrInvalidResetCode    = errors.New("invalid or expired reset code")
 )
 
 type AuthService struct {
 	db            *pgxpool.Pool
 	jwt           *auth.JWT
 	refreshExpiry time.Duration
+	email         *email.Client
 }
 
-func NewAuthService(db *pgxpool.Pool, j *auth.JWT, refreshExpiry time.Duration) *AuthService {
-	return &AuthService{db: db, jwt: j, refreshExpiry: refreshExpiry}
+func NewAuthService(db *pgxpool.Pool, j *auth.JWT, refreshExpiry time.Duration, emailClient *email.Client) *AuthService {
+	return &AuthService{db: db, jwt: j, refreshExpiry: refreshExpiry, email: emailClient}
 }
 
 type RegisterMoradorInput struct {
@@ -248,4 +252,117 @@ func (s *AuthService) issuePair(ctx context.Context, claims domain.Claims, devic
 func tokenHash(raw string) string {
 	h := sha256.Sum256([]byte(raw))
 	return base64.URLEncoding.EncodeToString(h[:])
+}
+
+func (s *AuthService) RequestPasswordReset(ctx context.Context, communityID uuid.UUID, emailAddr string) error {
+	var userID uuid.UUID
+	err := s.db.QueryRow(ctx,
+		`SELECT id FROM users WHERE community_id = $1 AND email = $2`,
+		communityID, emailAddr,
+	).Scan(&userID)
+	if err != nil {
+		// Don't reveal whether the email exists
+		return nil
+	}
+
+	code, err := generateResetCode()
+	if err != nil {
+		return fmt.Errorf("generate code: %w", err)
+	}
+	hash := codeHash(code)
+
+	_, err = s.db.Exec(ctx,
+		`INSERT INTO password_reset_tokens (user_id, code_hash, expires_at)
+		 VALUES ($1, $2, $3)`,
+		userID, hash, time.Now().Add(30*time.Minute),
+	)
+	if err != nil {
+		return fmt.Errorf("store reset token: %w", err)
+	}
+
+	return s.email.Send(ctx, email.Message{
+		To:      emailAddr,
+		Subject: "Código de recuperação de senha — Aldeia Indica",
+		HTML:    resetEmailHTML(code),
+	})
+}
+
+func (s *AuthService) ResetPassword(ctx context.Context, communityID uuid.UUID, emailAddr, code, newPassword string) error {
+	var userID uuid.UUID
+	err := s.db.QueryRow(ctx,
+		`SELECT id FROM users WHERE community_id = $1 AND email = $2`,
+		communityID, emailAddr,
+	).Scan(&userID)
+	if err != nil {
+		return ErrInvalidResetCode
+	}
+
+	hash := codeHash(code)
+	var tokenID uuid.UUID
+	err = s.db.QueryRow(ctx,
+		`SELECT id FROM password_reset_tokens
+		 WHERE user_id = $1 AND code_hash = $2 AND used_at IS NULL AND expires_at > now()`,
+		userID, hash,
+	).Scan(&tokenID)
+	if err != nil {
+		return ErrInvalidResetCode
+	}
+
+	newHash, err := bcrypt.GenerateFromPassword([]byte(newPassword), bcrypt.DefaultCost)
+	if err != nil {
+		return fmt.Errorf("hash password: %w", err)
+	}
+
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx,
+		`UPDATE users SET password_hash = $1 WHERE id = $2`,
+		string(newHash), userID,
+	)
+	if err != nil {
+		return fmt.Errorf("update password: %w", err)
+	}
+
+	_, err = tx.Exec(ctx,
+		`UPDATE password_reset_tokens SET used_at = now() WHERE user_id = $1`,
+		userID,
+	)
+	if err != nil {
+		return fmt.Errorf("invalidate tokens: %w", err)
+	}
+
+	return tx.Commit(ctx)
+}
+
+func generateResetCode() (string, error) {
+	max := big.NewInt(1_000_000)
+	n, err := rand.Int(rand.Reader, max)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("%06d", n.Int64()), nil
+}
+
+func codeHash(code string) string {
+	h := sha256.Sum256([]byte(code))
+	return base64.URLEncoding.EncodeToString(h[:])
+}
+
+func resetEmailHTML(code string) string {
+	return fmt.Sprintf(`<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
+  <h2 style="color:#1B5E20">Aldeia Indica</h2>
+  <p>Você solicitou a recuperação da sua senha.</p>
+  <p>Seu código de recuperação é:</p>
+  <p style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#1B5E20;margin:24px 0">%s</p>
+  <p>Digite esse código no app para criar uma nova senha.<br>
+  O código expira em <strong>30 minutos</strong>.</p>
+  <p style="color:#999;font-size:12px">Se você não solicitou isso, ignore este e-mail.</p>
+</body>
+</html>`, code)
 }

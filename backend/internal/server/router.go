@@ -55,6 +55,8 @@ func NewRouter(
 		r.Post("/auth/register/prestador", authH.RegisterPrestador)
 		r.Post("/auth/login", authH.Login)
 		r.Post("/auth/refresh", authH.Refresh)
+		r.Post("/auth/forgot-password", authH.ForgotPassword)
+		r.Post("/auth/reset-password", authH.ResetPassword)
 		r.Get("/categories", categoryH.List)
 
 		// Invite validation (public)

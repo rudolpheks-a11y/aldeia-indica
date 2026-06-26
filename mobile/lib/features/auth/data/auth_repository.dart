@@ -75,6 +75,30 @@ class AuthRepository {
     return (resp.data as Map<String, dynamic>)['user_id'] as String;
   }
 
+  Future<void> forgotPassword({
+    required String communityId,
+    required String email,
+  }) async {
+    await _api.post(ApiEndpoints.forgotPassword, data: {
+      'community_id': communityId,
+      'email': email,
+    });
+  }
+
+  Future<void> resetPassword({
+    required String communityId,
+    required String email,
+    required String code,
+    required String newPassword,
+  }) async {
+    await _api.post(ApiEndpoints.resetPassword, data: {
+      'community_id': communityId,
+      'email': email,
+      'code': code,
+      'new_password': newPassword,
+    });
+  }
+
   Future<void> logout() async {
     final refreshToken = await _storage.getRefreshToken();
     if (refreshToken != null) {

@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import '../../features/auth/presentation/login_screen.dart';
 import '../../features/auth/presentation/register_morador_screen.dart';
 import '../../features/auth/presentation/register_prestador_screen.dart';
+import '../../features/auth/presentation/forgot_password_screen.dart';
+import '../../features/auth/presentation/reset_password_screen.dart';
 import '../../features/auth/providers/auth_provider.dart';
 import '../../features/approvals/presentation/pending_approval_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
@@ -33,7 +35,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       if (authState is AuthPending) return '/pending-approval';
       if (authState is AuthUnauthenticated) {
         if (state.matchedLocation.startsWith('/login') ||
-            state.matchedLocation.startsWith('/register')) return null;
+            state.matchedLocation.startsWith('/register') ||
+            state.matchedLocation.startsWith('/forgot-password') ||
+            state.matchedLocation.startsWith('/reset-password')) return null;
         return '/login';
       }
       return null;
@@ -46,6 +50,18 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/register/prestador',
           builder: (_, __) => const RegisterPrestadorScreen()),
+      GoRoute(
+          path: '/forgot-password',
+          builder: (_, __) => const ForgotPasswordScreen()),
+      GoRoute(
+          path: '/reset-password',
+          builder: (_, state) {
+            final extra = state.extra as Map<String, String>? ?? {};
+            return ResetPasswordScreen(
+              communityId: extra['communityId'] ?? '',
+              email: extra['email'] ?? '',
+            );
+          }),
       GoRoute(
           path: '/pending-approval',
           builder: (_, __) => const PendingApprovalScreen()),

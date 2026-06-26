@@ -21,6 +21,8 @@ type Config struct {
 	AWSEndpoint        string
 	CloudFrontBaseURL  string
 	FCMServiceAccount  []byte
+	ResendAPIKey       string
+	FromEmail          string
 }
 
 func Load() *Config {
@@ -42,6 +44,8 @@ func Load() *Config {
 		AWSEndpoint:        getEnv("AWS_ENDPOINT", ""),
 		CloudFrontBaseURL:  getEnv("CLOUDFRONT_BASE_URL", ""),
 		FCMServiceAccount:  decodeFCM(getEnv("FCM_SERVICE_ACCOUNT_JSON", "")),
+		ResendAPIKey:       getEnv("RESEND_API_KEY", ""),
+		FromEmail:          getEnv("FROM_EMAIL", "no-reply@aldeiaindica.com.br"),
 	}
 }
 

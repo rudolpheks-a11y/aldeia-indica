@@ -11,6 +11,7 @@ import (
 
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/auth"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/config"
+	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/email"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/fcm"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/handler"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/platform/logger"
@@ -49,7 +50,9 @@ func main() {
 
 	j := auth.NewJWT(cfg.JWTSecret, cfg.JWTAccessExpiry, cfg.JWTRefreshExpiry)
 
-	authSvc := service.NewAuthService(db, j, cfg.JWTRefreshExpiry)
+	emailClient := email.New(cfg.ResendAPIKey, cfg.FromEmail, log)
+
+	authSvc := service.NewAuthService(db, j, cfg.JWTRefreshExpiry, emailClient)
 	userSvc := service.NewUserService(db)
 	providerSvc := service.NewProviderService(db)
 	ratingSvc := service.NewRatingService(db, providerSvc)
