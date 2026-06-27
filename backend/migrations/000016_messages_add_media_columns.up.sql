@@ -1,0 +1,4 @@
+ALTER TABLE messages
+    ADD COLUMN IF NOT EXISTS media_key TEXT,
+    ADD COLUMN IF NOT EXISTS lat       FLOAT8,
+    ADD COLUMN IF NOT EXISTS lng       FLOAT8;

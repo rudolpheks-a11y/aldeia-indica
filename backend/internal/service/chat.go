@@ -102,7 +102,7 @@ func (s *ChatService) LoadHistory(ctx context.Context, conversationID uuid.UUID,
 		limit = 50
 	}
 	rows, err := s.db.Query(ctx, `
-		SELECT id, conversation_id, sender_id, message_type, body, media_key, lat, lng, read_at, created_at
+		SELECT id, conversation_id, sender_id, type, body, media_key, lat, lng, read_at, created_at
 		FROM messages
 		WHERE conversation_id = $1
 		ORDER BY created_at DESC
@@ -128,8 +128,8 @@ func (s *ChatService) PersistMessage(ctx context.Context, msg *domain.Message) e
 	msg.ID = uuid.New()
 	msg.CreatedAt = time.Now()
 	_, err := s.db.Exec(ctx,
-		`INSERT INTO messages (id, conversation_id, sender_id, message_type, body, media_key, lat, lng)
-		 VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
+		`INSERT INTO messages (id, conversation_id, community_id, sender_id, type, body, media_key, lat, lng)
+		 SELECT $1, $2, community_id, $3, $4, $5, $6, $7, $8 FROM conversations WHERE id = $2`,
 		msg.ID, msg.ConversationID, msg.SenderID, msg.Type, msg.Body, msg.MediaKey, msg.Lat, msg.Lng,
 	)
 	return err

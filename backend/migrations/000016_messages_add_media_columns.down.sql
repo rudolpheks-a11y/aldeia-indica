@@ -1,0 +1,4 @@
+ALTER TABLE messages
+    DROP COLUMN IF EXISTS lng,
+    DROP COLUMN IF EXISTS lat,
+    DROP COLUMN IF EXISTS media_key;
