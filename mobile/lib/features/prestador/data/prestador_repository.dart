@@ -1,6 +1,31 @@
 import '../../../core/services/api_client.dart';
 import '../../../core/constants/api_endpoints.dart';
 
+class AvailabilitySlot {
+  final int dayOfWeek; // 0=Dom … 6=Sáb
+  final String startTime; // "08:00"
+  final String endTime;   // "18:00"
+
+  const AvailabilitySlot({
+    required this.dayOfWeek,
+    required this.startTime,
+    required this.endTime,
+  });
+
+  factory AvailabilitySlot.fromJson(Map<String, dynamic> json) =>
+      AvailabilitySlot(
+        dayOfWeek: json['day_of_week'] as int,
+        startTime: json['start_time'] as String,
+        endTime: json['end_time'] as String,
+      );
+
+  Map<String, dynamic> toJson() => {
+        'day_of_week': dayOfWeek,
+        'start_time': startTime,
+        'end_time': endTime,
+      };
+}
+
 class PrestadorProfile {
   final String userId;
   final String fullName;
@@ -11,6 +36,7 @@ class PrestadorProfile {
   final String? transportType;
   final List<String> categorySlugs;
   final List<String> categories;
+  final List<AvailabilitySlot> availability;
 
   PrestadorProfile({
     required this.userId,
@@ -22,6 +48,7 @@ class PrestadorProfile {
     this.transportType,
     required this.categorySlugs,
     required this.categories,
+    required this.availability,
   });
 
   factory PrestadorProfile.fromJson(Map<String, dynamic> json) =>
@@ -39,6 +66,10 @@ class PrestadorProfile {
             [],
         categories: (json['categories'] as List<dynamic>?)
                 ?.map((e) => e as String)
+                .toList() ??
+            [],
+        availability: (json['availability'] as List<dynamic>?)
+                ?.map((e) => AvailabilitySlot.fromJson(e as Map<String, dynamic>))
                 .toList() ??
             [],
       );
@@ -64,6 +95,12 @@ class PrestadorRepository {
       'needs_transport': needsTransport,
       if (needsTransport && transportType != null) 'transport_type': transportType,
       if (!needsTransport) 'transport_type': null,
+    });
+  }
+
+  Future<void> updateAvailability(List<AvailabilitySlot> slots) async {
+    await _api.put(ApiEndpoints.providerMeAvailability, data: {
+      'slots': slots.map((s) => s.toJson()).toList(),
     });
   }
 

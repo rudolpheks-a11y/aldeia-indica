@@ -117,6 +117,48 @@ func (s *ProviderService) getCategories(ctx context.Context, providerID uuid.UUI
 	return cats
 }
 
+func (s *ProviderService) getAvailability(ctx context.Context, providerID uuid.UUID) []AvailabilitySlot {
+	rows, _ := s.db.Query(ctx,
+		`SELECT day_of_week, start_time, end_time
+		 FROM provider_availability WHERE provider_id = $1 ORDER BY day_of_week`,
+		providerID,
+	)
+	defer rows.Close()
+	var slots []AvailabilitySlot
+	for rows.Next() {
+		var sl AvailabilitySlot
+		rows.Scan(&sl.DayOfWeek, &sl.StartTime, &sl.EndTime)
+		slots = append(slots, sl)
+	}
+	return slots
+}
+
+func (s *ProviderService) UpdateAvailability(ctx context.Context, communityID, userID uuid.UUID, slots []AvailabilitySlot) error {
+	tx, err := s.db.Begin(ctx)
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback(ctx)
+
+	_, err = tx.Exec(ctx, `DELETE FROM provider_availability WHERE provider_id=$1`, userID)
+	if err != nil {
+		return err
+	}
+
+	for _, sl := range slots {
+		_, err = tx.Exec(ctx,
+			`INSERT INTO provider_availability (provider_id, community_id, day_of_week, start_time, end_time)
+			 VALUES ($1, $2, $3, $4, $5)`,
+			userID, communityID, sl.DayOfWeek, sl.StartTime, sl.EndTime,
+		)
+		if err != nil {
+			return err
+		}
+	}
+
+	return tx.Commit(ctx)
+}
+
 func (s *ProviderService) getCategorySlugs(ctx context.Context, providerID uuid.UUID) []string {
 	rows, _ := s.db.Query(ctx,
 		`SELECT sc.slug FROM provider_services ps
@@ -134,6 +176,12 @@ func (s *ProviderService) getCategorySlugs(ctx context.Context, providerID uuid.
 	return slugs
 }
 
+type AvailabilitySlot struct {
+	DayOfWeek int    `json:"day_of_week"` // 0=Dom … 6=Sáb
+	StartTime string `json:"start_time"`  // "08:00"
+	EndTime   string `json:"end_time"`    // "18:00"
+}
+
 type ProviderDetail struct {
 	ProviderSummary
 	ProfessionalBio *string                `json:"professional_bio"`
@@ -142,6 +190,7 @@ type ProviderDetail struct {
 	NeedsTransport  bool                   `json:"needs_transport"`
 	TransportType   *string                `json:"transport_type"`
 	CategorySlugs   []string               `json:"category_slugs"`
+	Availability    []AvailabilitySlot     `json:"availability"`
 	Photos          []domain.ProviderPhoto `json:"photos"`
 }
 
@@ -169,6 +218,7 @@ func (s *ProviderService) Get(ctx context.Context, communityID, providerID uuid.
 	}
 	d.Categories = s.getCategories(ctx, providerID)
 	d.CategorySlugs = s.getCategorySlugs(ctx, providerID)
+	d.Availability = s.getAvailability(ctx, providerID)
 	d.Photos = s.getPhotos(ctx, providerID)
 	return &d, nil
 }

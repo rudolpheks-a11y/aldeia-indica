@@ -110,6 +110,24 @@ func (h *ProviderHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
+func (h *ProviderHandler) UpdateMyAvailability(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
+
+	var in struct {
+		Slots []service.AvailabilitySlot `json:"slots"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		jsonError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.svc.UpdateAvailability(r.Context(), claims.CommunityID, claims.UserID, in.Slots); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
 func (h *ProviderHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.ClaimsFrom(r.Context())
 

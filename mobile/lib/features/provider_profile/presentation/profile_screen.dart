@@ -31,6 +31,8 @@ class ProfileScreen extends ConsumerWidget {
               const Divider(),
               _Categories(p: p),
               const Divider(),
+              _Availability(p: p),
+              const Divider(),
               _Photos(p: p),
               const Divider(),
               _RecommendedBy(providerId: providerId),
@@ -157,6 +159,63 @@ class _Categories extends StatelessWidget {
                       backgroundColor: Colors.green[50],
                     ))
                 .toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _Availability extends StatelessWidget {
+  final dynamic p;
+  const _Availability({required this.p});
+
+  static const _dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
+
+  @override
+  Widget build(BuildContext context) {
+    final slots = (p['availability'] as List<dynamic>?)
+            ?.cast<Map<String, dynamic>>() ??
+        [];
+    if (slots.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          const Text('Disponibilidade',
+              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+          const SizedBox(height: 12),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: slots.map((sl) {
+              final day = _dayNames[sl['day_of_week'] as int];
+              final start = (sl['start_time'] as String).substring(0, 5);
+              final end = (sl['end_time'] as String).substring(0, 5);
+              return Container(
+                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                decoration: BoxDecoration(
+                  color: Colors.green[50],
+                  borderRadius: BorderRadius.circular(20),
+                  border: Border.all(color: Colors.green[200]!),
+                ),
+                child: Row(
+                  mainAxisSize: MainAxisSize.min,
+                  children: [
+                    Text(day,
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            fontSize: 13,
+                            color: Color(0xFF1B5E20))),
+                    const SizedBox(width: 6),
+                    Text('$start–$end',
+                        style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                  ],
+                ),
+              );
+            }).toList(),
           ),
         ],
       ),

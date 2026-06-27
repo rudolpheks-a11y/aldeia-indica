@@ -123,6 +123,12 @@ class HomeScreen extends ConsumerWidget {
           color: AppColors.secondary,
           onTap: () => context.push('/prestador/anuncio'),
         ),
+        _HomeTile(
+          icon: Icons.calendar_month_rounded,
+          label: 'Minha\nagenda',
+          color: AppColors.success,
+          onTap: () => context.push('/prestador/agenda'),
+        ),
       ];
 }
 

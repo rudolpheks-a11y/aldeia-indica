@@ -19,6 +19,7 @@ class ApiEndpoints {
   static const String categories = '/categories';
   static const String providers = '/providers';
   static const String providerMe = '/providers/me';
+  static const String providerMeAvailability = '/providers/me/availability';
   static String providerById(String id) => '/providers/$id';
   static String providerPhotos(String id) => '/providers/$id/photos';
 

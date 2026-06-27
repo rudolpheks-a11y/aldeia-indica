@@ -22,6 +22,7 @@ import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/admin/presentation/admin_dashboard_screen.dart';
 import '../../features/prestador/presentation/skills_screen.dart';
 import '../../features/prestador/presentation/anuncio_screen.dart';
+import '../../features/prestador/presentation/agenda_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authProvider);
@@ -107,6 +108,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/prestador/anuncio',
           builder: (_, __) => const AnuncioScreen()),
+      GoRoute(
+          path: '/prestador/agenda',
+          builder: (_, __) => const AgendaScreen()),
     ],
   );
 });
