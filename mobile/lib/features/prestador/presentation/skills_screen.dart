@@ -19,6 +19,14 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
   String? _transportType;
   bool _loaded = false;
   bool _saving = false;
+  String _query = '';
+  final _searchCtrl = TextEditingController();
+
+  @override
+  void dispose() {
+    _searchCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -51,18 +59,58 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
   }
 
   Widget _buildBody(BuildContext context, List<ServiceCategory> categories) {
+    final filtered = _query.isEmpty
+        ? categories
+        : categories
+            .where((c) => c.namePt.toLowerCase().contains(_query))
+            .toList();
+
     return Column(
       children: [
+        Padding(
+          padding: const EdgeInsets.fromLTRB(16, 12, 16, 4),
+          child: TextField(
+            controller: _searchCtrl,
+            decoration: InputDecoration(
+              hintText: 'Buscar serviço...',
+              prefixIcon: const Icon(Icons.search),
+              suffixIcon: _query.isNotEmpty
+                  ? IconButton(
+                      icon: const Icon(Icons.clear),
+                      onPressed: () {
+                        _searchCtrl.clear();
+                        setState(() => _query = '');
+                      },
+                    )
+                  : null,
+              filled: true,
+              fillColor: Colors.grey[100],
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(14),
+                borderSide: BorderSide.none,
+              ),
+              contentPadding: const EdgeInsets.symmetric(vertical: 0),
+            ),
+            onChanged: (v) => setState(() => _query = v.trim().toLowerCase()),
+          ),
+        ),
         Expanded(
           child: ListView(
-            padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
+            padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             children: [
-              Text(
-                'Selecione os serviços que você oferece:',
-                style: Theme.of(context).textTheme.titleMedium,
-              ),
-              const SizedBox(height: 8),
-              ...categories.map((cat) => CheckboxListTile(
+              if (_query.isEmpty) ...[
+                Text(
+                  'Selecione os serviços que você oferece:',
+                  style: Theme.of(context).textTheme.titleMedium,
+                ),
+                const SizedBox(height: 4),
+              ],
+              if (filtered.isEmpty)
+                const Padding(
+                  padding: EdgeInsets.symmetric(vertical: 24),
+                  child: Center(child: Text('Nenhum serviço encontrado.')),
+                ),
+              ...filtered.map((cat) => CheckboxListTile(
                     value: _selectedSlugs.contains(cat.slug),
                     onChanged: (v) => setState(() {
                       if (v == true) {
@@ -75,6 +123,7 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
                     activeColor: AppColors.primary,
                     contentPadding: EdgeInsets.zero,
                   )),
+              if (_query.isEmpty) ...[
               const Divider(height: 32),
               Text(
                 'Necessidade de transporte:',
@@ -111,6 +160,8 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
                 ),
               ],
               const SizedBox(height: 24),
+              ], // fim if (_query.isEmpty) — seção de transporte
+              if (_query.isNotEmpty) const SizedBox(height: 16),
             ],
           ),
         ),
