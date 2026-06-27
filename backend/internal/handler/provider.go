@@ -70,14 +70,26 @@ func (h *ProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 	jsonOK(w, detail)
 }
 
+func (h *ProviderHandler) GetMe(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
+	detail, err := h.svc.GetMe(r.Context(), claims.CommunityID, claims.UserID)
+	if err != nil {
+		jsonError(w, "not found", http.StatusNotFound)
+		return
+	}
+	jsonOK(w, detail)
+}
+
 func (h *ProviderHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.ClaimsFrom(r.Context())
 
 	var in struct {
-		City                string   `json:"city"`
-		YearsInNeighborhood int      `json:"years_in_neighborhood"`
-		ProfessionalBio     string   `json:"professional_bio"`
-		CategorySlugs       []string `json:"category_slugs"`
+		City                *string   `json:"city"`
+		YearsInNeighborhood *int      `json:"years_in_neighborhood"`
+		ProfessionalBio     *string   `json:"professional_bio"`
+		CategorySlugs       *[]string `json:"category_slugs"`
+		NeedsTransport      *bool     `json:"needs_transport"`
+		TransportType       *string   `json:"transport_type"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		jsonError(w, "invalid body", http.StatusBadRequest)
@@ -89,6 +101,8 @@ func (h *ProviderHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		YearsInNeighborhood: in.YearsInNeighborhood,
 		ProfessionalBio:     in.ProfessionalBio,
 		CategorySlugs:       in.CategorySlugs,
+		NeedsTransport:      in.NeedsTransport,
+		TransportType:       in.TransportType,
 	}); err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return

@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import '../../../core/services/api_client.dart';
 import '../../../core/services/storage_service.dart';
 import '../../../core/constants/api_endpoints.dart';
@@ -30,6 +32,8 @@ class AuthRepository {
     if (tokens.userId.isNotEmpty) {
       await _storage.saveUserId(tokens.userId);
     }
+    final role = extractRole(tokens.accessToken);
+    if (role.isNotEmpty) await _storage.saveRole(role);
     return tokens;
   }
 
@@ -97,6 +101,22 @@ class AuthRepository {
       'code': code,
       'new_password': newPassword,
     });
+  }
+
+  static String extractRole(String jwt) {
+    try {
+      final parts = jwt.split('.');
+      if (parts.length != 3) return '';
+      String payload = parts[1].replaceAll('-', '+').replaceAll('_', '/');
+      while (payload.length % 4 != 0) {
+        payload += '=';
+      }
+      final decoded = base64Decode(payload);
+      final map = jsonDecode(utf8.decode(decoded)) as Map<String, dynamic>;
+      return map['role'] as String? ?? '';
+    } catch (_) {
+      return '';
+    }
   }
 
   Future<void> logout() async {

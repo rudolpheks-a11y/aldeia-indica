@@ -70,6 +70,7 @@ func NewRouter(
 
 			// Providers
 			r.Get("/providers", providerH.Search)
+			r.Get("/providers/me", providerH.GetMe)
 			r.Get("/providers/{id}", providerH.Get)
 			r.Put("/providers/me", providerH.UpdateMe)
 			r.Post("/providers/{id}/photos", providerH.AddPhoto)

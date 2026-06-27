@@ -117,11 +117,31 @@ func (s *ProviderService) getCategories(ctx context.Context, providerID uuid.UUI
 	return cats
 }
 
+func (s *ProviderService) getCategorySlugs(ctx context.Context, providerID uuid.UUID) []string {
+	rows, _ := s.db.Query(ctx,
+		`SELECT sc.slug FROM provider_services ps
+		 JOIN service_categories sc ON sc.id = ps.category_id
+		 WHERE ps.provider_id = $1 ORDER BY sc.sort_order`,
+		providerID,
+	)
+	defer rows.Close()
+	var slugs []string
+	for rows.Next() {
+		var s string
+		rows.Scan(&s)
+		slugs = append(slugs, s)
+	}
+	return slugs
+}
+
 type ProviderDetail struct {
 	ProviderSummary
-	ProfessionalBio *string           `json:"professional_bio"`
-	TotalClients    int               `json:"total_clients"`
-	TotalHires      int               `json:"total_hires"`
+	ProfessionalBio *string                `json:"professional_bio"`
+	TotalClients    int                    `json:"total_clients"`
+	TotalHires      int                    `json:"total_hires"`
+	NeedsTransport  bool                   `json:"needs_transport"`
+	TransportType   *string                `json:"transport_type"`
+	CategorySlugs   []string               `json:"category_slugs"`
 	Photos          []domain.ProviderPhoto `json:"photos"`
 }
 
@@ -131,7 +151,8 @@ func (s *ProviderService) Get(ctx context.Context, communityID, providerID uuid.
 		`SELECT u.id, u.full_name, u.avatar_key,
 		        pp.city, pp.years_in_neighborhood, pp.score_aldeia,
 		        pp.avg_rating, pp.recommendation_count,
-		        pp.professional_bio, pp.total_clients, pp.total_hires
+		        pp.professional_bio, pp.total_clients, pp.total_hires,
+		        pp.needs_transport, pp.transport_type
 		 FROM provider_profiles pp
 		 JOIN users u ON u.id = pp.user_id
 		 WHERE pp.community_id = $1 AND pp.user_id = $2`,
@@ -141,13 +162,19 @@ func (s *ProviderService) Get(ctx context.Context, communityID, providerID uuid.
 		&d.City, &d.YearsInNeighborhood, &d.ScoreAldeia,
 		&d.AvgRating, &d.RecommendationCount,
 		&d.ProfessionalBio, &d.TotalClients, &d.TotalHires,
+		&d.NeedsTransport, &d.TransportType,
 	)
 	if err != nil {
 		return nil, err
 	}
 	d.Categories = s.getCategories(ctx, providerID)
+	d.CategorySlugs = s.getCategorySlugs(ctx, providerID)
 	d.Photos = s.getPhotos(ctx, providerID)
 	return &d, nil
+}
+
+func (s *ProviderService) GetMe(ctx context.Context, communityID, userID uuid.UUID) (*ProviderDetail, error) {
+	return s.Get(ctx, communityID, userID)
 }
 
 func (s *ProviderService) getPhotos(ctx context.Context, providerID uuid.UUID) []domain.ProviderPhoto {
@@ -167,10 +194,12 @@ func (s *ProviderService) getPhotos(ctx context.Context, providerID uuid.UUID) [
 }
 
 type UpdateProviderInput struct {
-	City                string
-	YearsInNeighborhood int
-	ProfessionalBio     string
-	CategorySlugs       []string
+	City                *string
+	YearsInNeighborhood *int
+	ProfessionalBio     *string
+	CategorySlugs       *[]string
+	NeedsTransport      *bool
+	TransportType       *string
 }
 
 func (s *ProviderService) UpdateMe(ctx context.Context, communityID, userID uuid.UUID, in UpdateProviderInput) error {
@@ -180,28 +209,38 @@ func (s *ProviderService) UpdateMe(ctx context.Context, communityID, userID uuid
 	}
 	defer tx.Rollback(ctx)
 
+	// Patch-style: COALESCE keeps existing value when field is nil.
+	// transport_type is updated only when needs_transport is explicitly set.
 	_, err = tx.Exec(ctx,
-		`UPDATE provider_profiles SET city=$1, years_in_neighborhood=$2, professional_bio=$3, updated_at=now()
-		 WHERE user_id=$4 AND community_id=$5`,
-		in.City, in.YearsInNeighborhood, in.ProfessionalBio, userID, communityID,
+		`UPDATE provider_profiles SET
+		    city                 = COALESCE($1, city),
+		    years_in_neighborhood = COALESCE($2, years_in_neighborhood),
+		    professional_bio     = COALESCE($3, professional_bio),
+		    needs_transport      = COALESCE($4, needs_transport),
+		    transport_type       = CASE WHEN $4 IS NOT NULL THEN $5 ELSE transport_type END,
+		    updated_at           = now()
+		 WHERE user_id=$6 AND community_id=$7`,
+		in.City, in.YearsInNeighborhood, in.ProfessionalBio,
+		in.NeedsTransport, in.TransportType, userID, communityID,
 	)
 	if err != nil {
 		return err
 	}
 
-	_, err = tx.Exec(ctx, `DELETE FROM provider_services WHERE provider_id=$1`, userID)
-	if err != nil {
-		return err
-	}
-
-	for _, slug := range in.CategorySlugs {
-		_, err = tx.Exec(ctx,
-			`INSERT INTO provider_services (provider_id, category_id, community_id)
-			 SELECT $1, id, $2 FROM service_categories WHERE slug=$3`,
-			userID, communityID, slug,
-		)
+	if in.CategorySlugs != nil {
+		_, err = tx.Exec(ctx, `DELETE FROM provider_services WHERE provider_id=$1`, userID)
 		if err != nil {
-			return fmt.Errorf("insert category %s: %w", slug, err)
+			return err
+		}
+		for _, slug := range *in.CategorySlugs {
+			_, err = tx.Exec(ctx,
+				`INSERT INTO provider_services (provider_id, category_id, community_id)
+				 SELECT $1, id, $2 FROM service_categories WHERE slug=$3`,
+				userID, communityID, slug,
+			)
+			if err != nil {
+				return fmt.Errorf("insert category %s: %w", slug, err)
+			}
 		}
 	}
 

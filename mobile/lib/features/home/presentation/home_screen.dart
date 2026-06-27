@@ -10,6 +10,10 @@ class HomeScreen extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
+    final auth = ref.watch(authProvider).valueOrNull;
+    final isPrestador =
+        auth is AuthAuthenticated && auth.role == 'prestador';
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Aldeia Indica'),
@@ -58,7 +62,7 @@ class HomeScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text(
-                'O que você precisa hoje?',
+                isPrestador ? 'Gerencie seu perfil' : 'O que você precisa hoje?',
                 style: Theme.of(context).textTheme.headlineSmall,
               ),
               const SizedBox(height: 4),
@@ -73,26 +77,9 @@ class HomeScreen extends ConsumerWidget {
                   crossAxisSpacing: 16,
                   mainAxisSpacing: 16,
                   childAspectRatio: 1,
-                  children: [
-                    _HomeTile(
-                      icon: Icons.search,
-                      label: 'Encontre um\nserviço',
-                      color: AppColors.primary,
-                      onTap: () => context.push('/service-picker'),
-                    ),
-                    _HomeTile(
-                      icon: Icons.star_rounded,
-                      label: 'Recomende um\nprestador',
-                      color: AppColors.secondary,
-                      onTap: () => context.push('/recommend'),
-                    ),
-                    _HomeTile(
-                      icon: Icons.person_add_alt_1,
-                      label: 'Cadastre um\nprestador',
-                      color: AppColors.success,
-                      onTap: () => context.push('/register/prestador'),
-                    ),
-                  ],
+                  children: isPrestador
+                      ? _prestadorTiles(context)
+                      : _moradorTiles(context),
                 ),
               ),
             ],
@@ -101,6 +88,42 @@ class HomeScreen extends ConsumerWidget {
       ),
     );
   }
+
+  List<Widget> _moradorTiles(BuildContext context) => [
+        _HomeTile(
+          icon: Icons.search,
+          label: 'Encontre um\nserviço',
+          color: AppColors.primary,
+          onTap: () => context.push('/service-picker'),
+        ),
+        _HomeTile(
+          icon: Icons.star_rounded,
+          label: 'Recomende um\nprestador',
+          color: AppColors.secondary,
+          onTap: () => context.push('/recommend'),
+        ),
+        _HomeTile(
+          icon: Icons.person_add_alt_1,
+          label: 'Cadastre um\nprestador',
+          color: AppColors.success,
+          onTap: () => context.push('/register/prestador'),
+        ),
+      ];
+
+  List<Widget> _prestadorTiles(BuildContext context) => [
+        _HomeTile(
+          icon: Icons.checklist_rounded,
+          label: 'Cadastre suas\nhabilidades',
+          color: AppColors.primary,
+          onTap: () => context.push('/prestador/skills'),
+        ),
+        _HomeTile(
+          icon: Icons.campaign_rounded,
+          label: 'Anuncie seu\ntrabalho',
+          color: AppColors.secondary,
+          onTap: () => context.push('/prestador/anuncio'),
+        ),
+      ];
 }
 
 class _HomeTile extends StatelessWidget {

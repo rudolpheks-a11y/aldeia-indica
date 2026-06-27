@@ -24,7 +24,8 @@ class AuthInitial extends AuthState {}
 class AuthLoading extends AuthState {}
 class AuthAuthenticated extends AuthState {
   final String userId;
-  const AuthAuthenticated(this.userId);
+  final String role;
+  const AuthAuthenticated(this.userId, {this.role = ''});
 }
 class AuthUnauthenticated extends AuthState {}
 class AuthPending extends AuthState {}
@@ -36,8 +37,13 @@ class AuthError extends AuthState {
 class AuthNotifier extends AsyncNotifier<AuthState> {
   @override
   Future<AuthState> build() async {
-    final token = await ref.watch(storageServiceProvider).getAccessToken();
-    if (token != null) return const AuthAuthenticated('');
+    final storage = ref.watch(storageServiceProvider);
+    final token = await storage.getAccessToken();
+    if (token != null) {
+      final userId = await storage.getUserId() ?? '';
+      final role = await storage.getRole() ?? '';
+      return AuthAuthenticated(userId, role: role);
+    }
     return AuthUnauthenticated();
   }
 
@@ -48,12 +54,13 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
   }) async {
     state = const AsyncValue.loading();
     try {
-      await ref.read(authRepositoryProvider).login(
+      final tokens = await ref.read(authRepositoryProvider).login(
             communityId: communityId,
             email: email,
             password: password,
           );
-      state = AsyncValue.data(const AuthAuthenticated(''));
+      final role = AuthRepository.extractRole(tokens.accessToken);
+      state = AsyncValue.data(AuthAuthenticated(tokens.userId, role: role));
     } catch (e) {
       state = AsyncValue.data(AuthError(e.toString()));
     }

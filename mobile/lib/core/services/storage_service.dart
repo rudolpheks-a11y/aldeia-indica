@@ -5,6 +5,7 @@ class StorageService {
   static const _refreshKey = 'refresh_token';
   static const _communityKey = 'community_id';
   static const _userIdKey = 'user_id';
+  static const _roleKey = 'role';
 
   final FlutterSecureStorage _storage;
 
@@ -30,6 +31,10 @@ class StorageService {
   Future<void> saveUserId(String id) =>
       _storage.write(key: _userIdKey, value: id);
   Future<String?> getUserId() => _storage.read(key: _userIdKey);
+
+  Future<void> saveRole(String role) =>
+      _storage.write(key: _roleKey, value: role);
+  Future<String?> getRole() => _storage.read(key: _roleKey);
 
   Future<void> clear() => _storage.deleteAll();
 }
