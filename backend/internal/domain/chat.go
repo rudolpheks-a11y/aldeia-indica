@@ -15,12 +15,12 @@ const (
 )
 
 type Conversation struct {
-	ID             uuid.UUID
-	CommunityID    uuid.UUID
-	ParticipantA   uuid.UUID
-	ParticipantB   uuid.UUID
-	LastMessageAt  *time.Time
-	CreatedAt      time.Time
+	ID            uuid.UUID  `json:"id"`
+	CommunityID   uuid.UUID  `json:"community_id"`
+	ParticipantA  uuid.UUID  `json:"participant_a"`
+	ParticipantB  uuid.UUID  `json:"participant_b"`
+	LastMessageAt *time.Time `json:"last_message_at"`
+	CreatedAt     time.Time  `json:"created_at"`
 }
 
 type Message struct {
