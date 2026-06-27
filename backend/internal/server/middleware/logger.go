@@ -1,7 +1,9 @@
 package middleware
 
 import (
+	"bufio"
 	"log/slog"
+	"net"
 	"net/http"
 	"time"
 )
@@ -30,4 +32,9 @@ type responseWriter struct {
 func (rw *responseWriter) WriteHeader(code int) {
 	rw.status = code
 	rw.ResponseWriter.WriteHeader(code)
+}
+
+// Hijack forwards to the underlying ResponseWriter so WebSocket upgrade works.
+func (rw *responseWriter) Hijack() (net.Conn, *bufio.ReadWriter, error) {
+	return rw.ResponseWriter.(http.Hijacker).Hijack()
 }

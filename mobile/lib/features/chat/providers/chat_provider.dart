@@ -36,8 +36,11 @@ class ChatNotifier
     await ws.connect();
 
     _sub = ws.messages.listen((msg) {
+      // Server echoes messages with content type ("text","image","location"),
+      // not the frame type ("message") used when sending.
+      const msgContentTypes = {'text', 'image', 'location'};
       if (msg['conversation_id'] == _conversationId &&
-          msg['type'] == 'message') {
+          msgContentTypes.contains(msg['type'])) {
         final current = state.valueOrNull ?? [];
         state = AsyncValue.data([_withMine(msg, myId), ...current]);
       }
