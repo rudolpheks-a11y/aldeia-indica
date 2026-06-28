@@ -66,6 +66,12 @@ func (h *RatingHandler) ListByProvider(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	// Prestador não pode ver suas próprias avaliações individuais (preserva anonimato dos avaliadores)
+	if claims.UserID == providerID {
+		jsonError(w, "providers cannot view their own individual ratings", http.StatusForbidden)
+		return
+	}
+
 	page, _ := strconv.Atoi(r.URL.Query().Get("page"))
 	ratings, err := h.svc.ListByProvider(r.Context(), claims.CommunityID, providerID, page, 20)
 	if err != nil {

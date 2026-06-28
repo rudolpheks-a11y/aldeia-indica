@@ -1,23 +1,29 @@
 import 'package:flutter/material.dart';
-import '../../../shared/widgets/app_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
-import '../providers/profile_provider.dart';
-import '../../auth/providers/auth_provider.dart';
+import '../../../shared/widgets/app_back_button.dart';
 import '../../../shared/widgets/star_rating_bar.dart';
 import '../../../shared/widgets/score_badge.dart';
+import '../../../core/constants/app_colors.dart';
+import '../../auth/providers/auth_provider.dart';
+import '../providers/profile_provider.dart';
 
 class ProfileScreen extends ConsumerWidget {
   final String providerId;
-
   const ProfileScreen({super.key, required this.providerId});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final profile = ref.watch(providerProfileProvider(providerId));
+    final auth = ref.watch(authProvider).valueOrNull;
+    final isSelf =
+        auth is AuthAuthenticated && auth.userId == providerId;
 
     return Scaffold(
-      appBar: AppBar(leading: const AppBackButton(), title: const Text('Perfil do Prestador')),
+      appBar: AppBar(
+        leading: const AppBackButton(),
+        title: const Text('Perfil do Prestador'),
+      ),
       body: profile.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro: $e')),
@@ -26,6 +32,7 @@ class ProfileScreen extends ConsumerWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               _Header(p: p),
+              _Seals(p: p),
               const Divider(),
               _InfoSection(p: p),
               const Divider(),
@@ -37,7 +44,7 @@ class ProfileScreen extends ConsumerWidget {
               const Divider(),
               _RecommendedBy(providerId: providerId),
               const Divider(),
-              _Reviews(providerId: providerId),
+              if (!isSelf) _Reviews(providerId: providerId),
               const SizedBox(height: 80),
             ],
           ),
@@ -49,7 +56,7 @@ class ProfileScreen extends ConsumerWidget {
 }
 
 class _Header extends StatelessWidget {
-  final dynamic p;
+  final Map<String, dynamic> p;
   const _Header({required this.p});
 
   @override
@@ -80,8 +87,7 @@ class _Header extends StatelessWidget {
                     StarRatingBar(
                         rating: (p['avg_rating'] as num).toDouble()),
                     const SizedBox(width: 4),
-                    Text(
-                        (p['avg_rating'] as num).toStringAsFixed(1),
+                    Text((p['avg_rating'] as num).toStringAsFixed(1),
                         style: const TextStyle(fontSize: 14)),
                   ]),
               ],
@@ -94,8 +100,59 @@ class _Header extends StatelessWidget {
   }
 }
 
+class _Seals extends StatelessWidget {
+  final Map<String, dynamic> p;
+  const _Seals({required this.p});
+
+  static const _sealLabel = {
+    'bem_avaliado': ('Bem avaliado', Icons.star_rounded, Color(0xFFF57F17)),
+    'muito_indicado': ('Muito indicado', Icons.thumb_up_rounded, Color(0xFF1B5E20)),
+    'veterano': ('Veterano', Icons.military_tech_rounded, Color(0xFF5D4037)),
+    'completo': ('Perfil completo', Icons.verified_rounded, Color(0xFF1565C0)),
+  };
+
+  @override
+  Widget build(BuildContext context) {
+    final seals = (p['seals'] as List<dynamic>?)?.cast<String>() ?? [];
+    if (seals.isEmpty) return const SizedBox.shrink();
+
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 0, 16, 12),
+      child: Wrap(
+        spacing: 8,
+        runSpacing: 6,
+        children: seals.map((s) {
+          final meta = _sealLabel[s];
+          if (meta == null) return const SizedBox.shrink();
+          final (label, icon, color) = meta;
+          return Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+            decoration: BoxDecoration(
+              color: color.withOpacity(0.10),
+              borderRadius: BorderRadius.circular(20),
+              border: Border.all(color: color.withOpacity(0.4)),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(icon, size: 14, color: color),
+                const SizedBox(width: 4),
+                Text(label,
+                    style: TextStyle(
+                        fontSize: 12,
+                        fontWeight: FontWeight.w600,
+                        color: color)),
+              ],
+            ),
+          );
+        }).toList(),
+      ),
+    );
+  }
+}
+
 class _InfoSection extends StatelessWidget {
-  final dynamic p;
+  final Map<String, dynamic> p;
   const _InfoSection({required this.p});
 
   @override
@@ -136,7 +193,7 @@ class _InfoRow extends StatelessWidget {
 }
 
 class _Categories extends StatelessWidget {
-  final dynamic p;
+  final Map<String, dynamic> p;
   const _Categories({required this.p});
 
   @override
@@ -167,7 +224,7 @@ class _Categories extends StatelessWidget {
 }
 
 class _Availability extends StatelessWidget {
-  final dynamic p;
+  final Map<String, dynamic> p;
   const _Availability({required this.p});
 
   static const _dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
@@ -195,7 +252,8 @@ class _Availability extends StatelessWidget {
               final start = (sl['start_time'] as String).substring(0, 5);
               final end = (sl['end_time'] as String).substring(0, 5);
               return Container(
-                padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
                   color: Colors.green[50],
                   borderRadius: BorderRadius.circular(20),
@@ -211,7 +269,8 @@ class _Availability extends StatelessWidget {
                             color: Color(0xFF1B5E20))),
                     const SizedBox(width: 6),
                     Text('$start–$end',
-                        style: const TextStyle(fontSize: 12, color: Colors.black87)),
+                        style: const TextStyle(
+                            fontSize: 12, color: Colors.black87)),
                   ],
                 ),
               );
@@ -224,7 +283,7 @@ class _Availability extends StatelessWidget {
 }
 
 class _Photos extends StatelessWidget {
-  final dynamic p;
+  final Map<String, dynamic> p;
   const _Photos({required this.p});
 
   @override
@@ -268,32 +327,26 @@ class _RecommendedBy extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final recs = ref.watch(recommendationsProvider(providerId));
+    final countAsync = ref.watch(recommendationCountProvider(providerId));
     return Padding(
       padding: const EdgeInsets.all(16),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          const Text('Indicado por',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          recs.when(
-            data: (list) => list.isEmpty
-                ? const Text('Sem indicações ainda',
-                    style: TextStyle(color: Colors.grey))
-                : Column(
-                    children: list
-                        .take(3)
-                        .map((r) => Text(
-                              '✓ ${r['full_name']}',
-                              style: const TextStyle(fontSize: 14),
-                            ))
-                        .toList(),
+      child: countAsync.when(
+        data: (count) => count == 0
+            ? const SizedBox.shrink()
+            : Row(
+                children: [
+                  const Icon(Icons.thumb_up_rounded,
+                      size: 18, color: AppColors.primary),
+                  const SizedBox(width: 8),
+                  Text(
+                    'Recomendado por $count ${count == 1 ? 'morador' : 'moradores'}',
+                    style: const TextStyle(
+                        fontSize: 14, fontWeight: FontWeight.w500),
                   ),
-            loading: () => const SizedBox.shrink(),
-            error: (_, __) => const SizedBox.shrink(),
-          ),
-        ],
+                ],
+              ),
+        loading: () => const SizedBox.shrink(),
+        error: (_, __) => const SizedBox.shrink(),
       ),
     );
   }
@@ -332,7 +385,8 @@ class _Reviews extends ConsumerWidget {
                                         fontWeight: FontWeight.bold)),
                                 const Spacer(),
                                 StarRatingBar(
-                                    rating: (r['overall'] as num).toDouble(),
+                                    rating:
+                                        (r['overall'] as num).toDouble(),
                                     size: 14),
                               ]),
                               if (r['comment'] != null) ...[
@@ -370,9 +424,8 @@ class _BottomActionsState extends ConsumerState<_BottomActions> {
     setState(() => _loading = true);
     try {
       final api = ref.read(apiClientProvider);
-      final resp = await api.post('/chat/conversations', data: {
-        'other_user_id': widget.providerId,
-      });
+      final resp = await api.post('/chat/conversations',
+          data: {'other_user_id': widget.providerId});
       final convId = resp.data['id'] as String;
       if (mounted) context.push('/chat/$convId');
     } catch (e) {
@@ -388,6 +441,11 @@ class _BottomActionsState extends ConsumerState<_BottomActions> {
 
   @override
   Widget build(BuildContext context) {
+    final auth = ref.watch(authProvider).valueOrNull;
+    final isSelf =
+        auth is AuthAuthenticated && auth.userId == widget.providerId;
+    if (isSelf) return const SizedBox.shrink();
+
     return SafeArea(
       child: Padding(
         padding: const EdgeInsets.all(12),

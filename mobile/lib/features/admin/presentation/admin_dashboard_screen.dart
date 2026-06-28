@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/widgets/app_back_button.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../bulletin/providers/bulletin_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
 
 class AdminDashboardScreen extends ConsumerWidget {
@@ -10,7 +11,7 @@ class AdminDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           leading: const AppBackButton(),
@@ -18,12 +19,14 @@ class AdminDashboardScreen extends ConsumerWidget {
           bottom: const TabBar(tabs: [
             Tab(text: 'Usuários'),
             Tab(text: 'Documentos'),
+            Tab(text: 'Mural'),
             Tab(text: 'Comunidades'),
           ]),
         ),
         body: const TabBarView(children: [
           _UsersTab(),
           _DocumentsTab(),
+          _BulletinTab(),
           _CommunitiesTab(),
         ]),
       ),
@@ -125,6 +128,83 @@ class _DocumentsTab extends ConsumerWidget {
         data: {'approve': approve},
       );
       ref.invalidate(_documentsProvider);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e')),
+        );
+      }
+    }
+  }
+}
+
+class _BulletinTab extends ConsumerWidget {
+  const _BulletinTab();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final pending = ref.watch(bulletinPendingProvider);
+    return pending.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Erro: $e')),
+      data: (list) => list.isEmpty
+          ? const Center(child: Text('Nenhum aviso pendente'))
+          : ListView.builder(
+              padding: const EdgeInsets.all(12),
+              itemCount: list.length,
+              itemBuilder: (_, i) {
+                final p = list[i];
+                return Card(
+                  child: Padding(
+                    padding: const EdgeInsets.all(12),
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(p['author_name'] as String,
+                            style: const TextStyle(
+                                fontWeight: FontWeight.bold, fontSize: 13)),
+                        const SizedBox(height: 6),
+                        Text(p['content'] as String,
+                            style: const TextStyle(fontSize: 14)),
+                        const SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.end,
+                          children: [
+                            OutlinedButton.icon(
+                              icon: const Icon(Icons.close,
+                                  color: Colors.red, size: 16),
+                              label: const Text('Rejeitar',
+                                  style: TextStyle(color: Colors.red)),
+                              onPressed: () => _review(
+                                  context, ref, p['id'] as String,
+                                  approve: false),
+                            ),
+                            const SizedBox(width: 8),
+                            ElevatedButton.icon(
+                              icon: const Icon(Icons.check, size: 16),
+                              label: const Text('Aprovar'),
+                              onPressed: () => _review(
+                                  context, ref, p['id'] as String,
+                                  approve: true),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+    );
+  }
+
+  Future<void> _review(BuildContext context, WidgetRef ref, String id,
+      {required bool approve}) async {
+    try {
+      await ref
+          .read(bulletinRepoProvider)
+          .review(id, approve: approve);
+      ref.invalidate(bulletinPendingProvider);
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(

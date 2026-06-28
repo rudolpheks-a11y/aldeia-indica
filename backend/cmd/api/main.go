@@ -59,6 +59,7 @@ func main() {
 	recSvc := service.NewRecommendationService(db, providerSvc)
 	chatSvc := service.NewChatService(db)
 	analyticsSvc := service.NewAnalyticsService(db)
+	bulletinSvc := service.NewBulletinService(db)
 
 	hub := ws.NewHub()
 
@@ -72,13 +73,14 @@ func main() {
 	adminH := handler.NewAdminHandler(db)
 	categoryH := handler.NewCategoryHandler(db)
 	chatH := handler.NewChatHandler(chatSvc, analyticsSvc)
+	bulletinH := handler.NewBulletinHandler(bulletinSvc)
 	wsH := ws.NewHandler(hub, chatSvc, fcmClient, j, log)
 
 	router := server.NewRouter(
 		log, j,
 		authH, providerH, ratingH, recH,
 		approvalH, requestH, uploadH, adminH, categoryH,
-		chatH, wsH,
+		chatH, bulletinH, wsH,
 	)
 
 	srv := server.New(cfg.Port, router)

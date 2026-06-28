@@ -9,6 +9,7 @@ class SearchFilters {
   final double minRating;
   final String sort;
   final String query;
+  final int dayOfWeek; // -1 = sem filtro, 0-6 = dia da semana
 
   const SearchFilters({
     this.categorySlug = '',
@@ -16,6 +17,7 @@ class SearchFilters {
     this.minRating = 0,
     this.sort = 'score',
     this.query = '',
+    this.dayOfWeek = -1,
   });
 
   SearchFilters copyWith({
@@ -24,6 +26,7 @@ class SearchFilters {
     double? minRating,
     String? sort,
     String? query,
+    int? dayOfWeek,
   }) =>
       SearchFilters(
         categorySlug: categorySlug ?? this.categorySlug,
@@ -31,6 +34,7 @@ class SearchFilters {
         minRating: minRating ?? this.minRating,
         sort: sort ?? this.sort,
         query: query ?? this.query,
+        dayOfWeek: dayOfWeek ?? this.dayOfWeek,
       );
 }
 
@@ -43,6 +47,7 @@ class SearchFiltersNotifier extends Notifier<SearchFilters> {
   void setCity(String city) => state = state.copyWith(city: city);
   void setMinRating(double r) => state = state.copyWith(minRating: r);
   void setQuery(String q) => state = state.copyWith(query: q);
+  void setDayOfWeek(int day) => state = state.copyWith(dayOfWeek: day);
   void selectService(String slug) => state = SearchFilters(categorySlug: slug);
 }
 
@@ -62,6 +67,7 @@ class SearchNotifier extends AsyncNotifier<List<ProviderSummary>> {
       if (filters.categorySlug.isNotEmpty) 'category': filters.categorySlug,
       if (filters.city.isNotEmpty) 'city': filters.city,
       if (filters.minRating > 0) 'min_rating': filters.minRating,
+      if (filters.dayOfWeek >= 0) 'day_of_week': filters.dayOfWeek,
       'sort': filters.sort,
     };
 
@@ -71,8 +77,7 @@ class SearchNotifier extends AsyncNotifier<List<ProviderSummary>> {
         .map((e) => ProviderSummary.fromJson(e as Map<String, dynamic>))
         .toList();
 
-    // Busca por nome é filtrada no cliente: o backend /providers ainda não
-    // aceita parâmetro de texto (apenas category/city/min_rating/sort).
+    // Busca por nome filtrada no cliente (backend não tem param de texto ainda).
     final q = filters.query.trim().toLowerCase();
     if (q.isNotEmpty) {
       providers = providers
@@ -93,6 +98,15 @@ final categoriesProvider = FutureProvider((ref) async {
   final api = ref.watch(apiClientProvider);
   final resp = await api.get(ApiEndpoints.categories);
   return (resp.data as List<dynamic>).cast<Map<String, dynamic>>();
+});
+
+final featuredProvidersProvider =
+    FutureProvider<List<ProviderSummary>>((ref) async {
+  final api = ref.watch(apiClientProvider);
+  final resp = await api.get(ApiEndpoints.providersFeatured);
+  return (resp.data as List<dynamic>)
+      .map((e) => ProviderSummary.fromJson(e as Map<String, dynamic>))
+      .toList();
 });
 
 class ServiceCategory {
@@ -118,7 +132,8 @@ final allProvidersProvider = FutureProvider<List<ProviderSummary>>((ref) async {
       .toList();
 });
 
-final serviceCategoriesProvider = FutureProvider<List<ServiceCategory>>((ref) async {
+final serviceCategoriesProvider =
+    FutureProvider<List<ServiceCategory>>((ref) async {
   final api = ref.watch(apiClientProvider);
 
   final results = await Future.wait([

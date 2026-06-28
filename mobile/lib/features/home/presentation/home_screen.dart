@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../providers_list/providers/search_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/contact_admin_button.dart';
 
@@ -40,10 +41,8 @@ class HomeScreen extends ConsumerWidget {
                     ),
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, true),
-                      child: const Text(
-                        'Sair',
-                        style: TextStyle(color: Colors.red),
-                      ),
+                      child: const Text('Sair',
+                          style: TextStyle(color: Colors.red)),
                     ),
                   ],
                 ),
@@ -56,80 +55,180 @@ class HomeScreen extends ConsumerWidget {
         ],
       ),
       body: SafeArea(
-        child: Padding(
-          padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                isPrestador ? 'Gerencie seu perfil' : 'O que você precisa hoje?',
-                style: Theme.of(context).textTheme.headlineSmall,
-              ),
-              const SizedBox(height: 4),
-              const Text(
-                'A rede de confiança do seu bairro.',
-                style: TextStyle(color: AppColors.textSecondary, fontSize: 14),
-              ),
-              const SizedBox(height: 24),
-              Expanded(
-                child: GridView.count(
-                  crossAxisCount: 2,
-                  crossAxisSpacing: 16,
-                  mainAxisSpacing: 16,
-                  childAspectRatio: 1,
-                  children: isPrestador
-                      ? _prestadorTiles(context)
-                      : _moradorTiles(context),
-                ),
-              ),
-            ],
-          ),
-        ),
+        child: isPrestador
+            ? _PrestadorHome(context: context)
+            : _MoradorHome(context: context),
       ),
     );
   }
+}
 
-  List<Widget> _moradorTiles(BuildContext context) => [
-        _HomeTile(
-          icon: Icons.search,
-          label: 'Encontre um\nserviço',
-          color: AppColors.primary,
-          onTap: () => context.push('/service-picker'),
-        ),
-        _HomeTile(
-          icon: Icons.star_rounded,
-          label: 'Recomende um\nprestador',
-          color: AppColors.secondary,
-          onTap: () => context.push('/recommend'),
-        ),
-        _HomeTile(
-          icon: Icons.person_add_alt_1,
-          label: 'Cadastre um\nprestador',
-          color: AppColors.success,
-          onTap: () => context.push('/register/prestador'),
-        ),
-      ];
+class _MoradorHome extends ConsumerWidget {
+  final BuildContext context;
+  const _MoradorHome({required this.context});
 
-  List<Widget> _prestadorTiles(BuildContext context) => [
-        _HomeTile(
-          icon: Icons.checklist_rounded,
-          label: 'Cadastre suas\nhabilidades',
-          color: AppColors.primary,
-          onTap: () => context.push('/prestador/skills'),
-        ),
-        _HomeTile(
-          icon: Icons.campaign_rounded,
-          label: 'Anuncie seu\ntrabalho',
-          color: AppColors.secondary,
-          onTap: () => context.push('/prestador/anuncio'),
-        ),
-        _HomeTile(
-          icon: Icons.calendar_month_rounded,
-          label: 'Minha\nagenda',
-          color: AppColors.success,
-          onTap: () => context.push('/prestador/agenda'),
-        ),
-      ];
+  @override
+  Widget build(BuildContext ctx, WidgetRef ref) {
+    final featured = ref.watch(featuredProvidersProvider);
+
+    return SingleChildScrollView(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('O que você precisa hoje?',
+              style: Theme.of(ctx).textTheme.headlineSmall),
+          const SizedBox(height: 4),
+          const Text('A rede de confiança do seu bairro.',
+              style:
+                  TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+          const SizedBox(height: 24),
+          GridView.count(
+            shrinkWrap: true,
+            physics: const NeverScrollableScrollPhysics(),
+            crossAxisCount: 2,
+            crossAxisSpacing: 16,
+            mainAxisSpacing: 16,
+            childAspectRatio: 1,
+            children: [
+              _HomeTile(
+                icon: Icons.search,
+                label: 'Encontre um\nserviço',
+                color: AppColors.primary,
+                onTap: () => context.push('/service-picker'),
+              ),
+              _HomeTile(
+                icon: Icons.star_rounded,
+                label: 'Recomende um\nprestador',
+                color: AppColors.secondary,
+                onTap: () => context.push('/recommend'),
+              ),
+              _HomeTile(
+                icon: Icons.person_add_alt_1,
+                label: 'Cadastre um\nprestador',
+                color: AppColors.success,
+                onTap: () => context.push('/register/prestador'),
+              ),
+              _HomeTile(
+                icon: Icons.campaign_rounded,
+                label: 'Mural de\navisos',
+                color: const Color(0xFF6A1B9A),
+                onTap: () => context.push('/bulletin'),
+              ),
+            ],
+          ),
+          const SizedBox(height: 32),
+          featured.when(
+            data: (list) {
+              if (list.isEmpty) return const SizedBox.shrink();
+              return Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Row(
+                    children: [
+                      const Icon(Icons.bolt_rounded,
+                          color: AppColors.accent, size: 20),
+                      const SizedBox(width: 6),
+                      Text('Em destaque hoje',
+                          style: Theme.of(ctx)
+                              .textTheme
+                              .titleMedium
+                              ?.copyWith(fontWeight: FontWeight.bold)),
+                    ],
+                  ),
+                  const SizedBox(height: 12),
+                  ...list.map((p) => Card(
+                        margin: const EdgeInsets.only(bottom: 10),
+                        child: ListTile(
+                          leading: CircleAvatar(
+                            backgroundColor: AppColors.primary,
+                            child: Text(
+                              p.fullName[0].toUpperCase(),
+                              style: const TextStyle(
+                                  color: Colors.white,
+                                  fontWeight: FontWeight.bold),
+                            ),
+                          ),
+                          title: Text(p.fullName,
+                              style: const TextStyle(
+                                  fontWeight: FontWeight.w600)),
+                          subtitle: Text(
+                            p.categories.isNotEmpty
+                                ? p.categories.take(2).join(', ')
+                                : p.city,
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          trailing: p.seals.isNotEmpty
+                              ? const Icon(Icons.verified_rounded,
+                                  color: AppColors.primary, size: 18)
+                              : null,
+                          onTap: () =>
+                              context.push('/provider/${p.userId}'),
+                        ),
+                      )),
+                ],
+              );
+            },
+            loading: () => const SizedBox.shrink(),
+            error: (_, __) => const SizedBox.shrink(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PrestadorHome extends StatelessWidget {
+  final BuildContext context;
+  const _PrestadorHome({required this.context});
+
+  @override
+  Widget build(BuildContext ctx) {
+    return Padding(
+      padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text('Gerencie seu perfil',
+              style: Theme.of(ctx).textTheme.headlineSmall),
+          const SizedBox(height: 4),
+          const Text('A rede de confiança do seu bairro.',
+              style:
+                  TextStyle(color: AppColors.textSecondary, fontSize: 14)),
+          const SizedBox(height: 24),
+          Expanded(
+            child: GridView.count(
+              crossAxisCount: 2,
+              crossAxisSpacing: 16,
+              mainAxisSpacing: 16,
+              childAspectRatio: 1,
+              children: [
+                _HomeTile(
+                  icon: Icons.checklist_rounded,
+                  label: 'Cadastre suas\nhabilidades',
+                  color: AppColors.primary,
+                  onTap: () => context.push('/prestador/skills'),
+                ),
+                _HomeTile(
+                  icon: Icons.campaign_rounded,
+                  label: 'Anuncie seu\ntrabalho',
+                  color: AppColors.secondary,
+                  onTap: () => context.push('/prestador/anuncio'),
+                ),
+                _HomeTile(
+                  icon: Icons.calendar_month_rounded,
+                  label: 'Minha\nagenda',
+                  color: AppColors.success,
+                  onTap: () => context.push('/prestador/agenda'),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
 }
 
 class _HomeTile extends StatelessWidget {

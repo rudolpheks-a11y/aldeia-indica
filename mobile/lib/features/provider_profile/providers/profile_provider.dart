@@ -9,11 +9,13 @@ final providerProfileProvider =
   return resp.data as Map<String, dynamic>;
 });
 
-final recommendationsProvider =
-    FutureProvider.family<List<Map<String, dynamic>>, String>((ref, id) async {
+// Retorna apenas o count — identidade dos indicadores é preservada.
+final recommendationCountProvider =
+    FutureProvider.family<int, String>((ref, id) async {
   final api = ref.watch(apiClientProvider);
   final resp = await api.get(ApiEndpoints.recommendationsByProvider(id));
-  return (resp.data as List<dynamic>).cast<Map<String, dynamic>>();
+  final data = resp.data as Map<String, dynamic>;
+  return data['count'] as int? ?? 0;
 });
 
 final ratingsProvider =

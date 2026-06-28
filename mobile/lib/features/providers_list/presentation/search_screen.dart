@@ -2,8 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../shared/widgets/app_back_button.dart';
+import '../../../core/constants/app_colors.dart';
 import '../providers/search_provider.dart';
 import 'provider_card.dart';
+
+const _days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
 class SearchScreen extends ConsumerStatefulWidget {
   const SearchScreen({super.key});
@@ -60,7 +63,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   ref.read(searchFiltersProvider.notifier).setQuery(v),
             ),
           ),
-          _CategoryChips(),
+          const _CategoryChips(),
+          const _DayChips(),
           Expanded(
             child: search.when(
               data: (providers) => providers.isEmpty
@@ -70,8 +74,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       itemCount: providers.length,
                       itemBuilder: (_, i) => ProviderCard(provider: providers[i]),
                     ),
-              loading: () =>
-                  const Center(child: CircularProgressIndicator()),
+              loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Erro: $e')),
             ),
           ),
@@ -92,6 +95,8 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
 }
 
 class _CategoryChips extends ConsumerWidget {
+  const _CategoryChips();
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final categories = ref.watch(categoriesProvider);
@@ -126,6 +131,50 @@ class _CategoryChips extends ConsumerWidget {
             loading: () => [],
             error: (_, __) => [],
           ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DayChips extends ConsumerWidget {
+  const _DayChips();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final selectedDay = ref.watch(searchFiltersProvider).dayOfWeek;
+
+    return SizedBox(
+      height: 40,
+      child: ListView(
+        scrollDirection: Axis.horizontal,
+        padding: const EdgeInsets.symmetric(horizontal: 12),
+        children: [
+          Padding(
+            padding: const EdgeInsets.only(right: 8),
+            child: FilterChip(
+              label: const Text('Qualquer dia'),
+              selected: selectedDay == -1,
+              selectedColor: AppColors.primary.withOpacity(0.15),
+              checkmarkColor: AppColors.primary,
+              onSelected: (_) =>
+                  ref.read(searchFiltersProvider.notifier).setDayOfWeek(-1),
+            ),
+          ),
+          ...List.generate(7, (i) {
+            return Padding(
+              padding: const EdgeInsets.only(right: 8),
+              child: FilterChip(
+                label: Text(_days[i]),
+                selected: selectedDay == i,
+                selectedColor: AppColors.primary.withOpacity(0.15),
+                checkmarkColor: AppColors.primary,
+                onSelected: (_) => ref
+                    .read(searchFiltersProvider.notifier)
+                    .setDayOfWeek(selectedDay == i ? -1 : i),
+              ),
+            );
+          }),
         ],
       ),
     );

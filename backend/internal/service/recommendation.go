@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -17,11 +16,9 @@ func NewRecommendationService(db *pgxpool.Pool, providerSvc *ProviderService) *R
 	return &RecommendationService{db: db, providerSvc: providerSvc}
 }
 
-type Recommender struct {
-	UserID    uuid.UUID `json:"user_id"`
-	FullName  string    `json:"full_name"`
-	AvatarKey *string   `json:"avatar_key"`
-	CreatedAt time.Time `json:"created_at"`
+// RecommendationCount expõe apenas o total — identidade dos indicadores é preservada.
+type RecommendationCount struct {
+	Count int `json:"count"`
 }
 
 func (s *RecommendationService) Create(ctx context.Context, communityID, providerID, recommenderID uuid.UUID) error {
@@ -86,24 +83,11 @@ func (s *RecommendationService) Delete(ctx context.Context, communityID, provide
 	return s.providerSvc.RecomputeScore(ctx, providerID)
 }
 
-func (s *RecommendationService) ListByProvider(ctx context.Context, communityID, providerID uuid.UUID) ([]Recommender, error) {
-	rows, err := s.db.Query(ctx,
-		`SELECT u.id, u.full_name, u.avatar_key, rec.created_at
-		 FROM recommendations rec JOIN users u ON u.id = rec.recommender_id
-		 WHERE rec.community_id=$1 AND rec.provider_id=$2
-		 ORDER BY rec.created_at DESC`,
+func (s *RecommendationService) ListByProvider(ctx context.Context, communityID, providerID uuid.UUID) (*RecommendationCount, error) {
+	var rc RecommendationCount
+	err := s.db.QueryRow(ctx,
+		`SELECT COUNT(*) FROM recommendations WHERE community_id=$1 AND provider_id=$2`,
 		communityID, providerID,
-	)
-	if err != nil {
-		return nil, err
-	}
-	defer rows.Close()
-
-	var result []Recommender
-	for rows.Next() {
-		var r Recommender
-		rows.Scan(&r.UserID, &r.FullName, &r.AvatarKey, &r.CreatedAt)
-		result = append(result, r)
-	}
-	return result, rows.Err()
+	).Scan(&rc.Count)
+	return &rc, err
 }

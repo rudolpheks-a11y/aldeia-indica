@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -22,28 +23,30 @@ type SearchFilters struct {
 	City         string
 	MinRating    float64
 	MinTenure    int
+	DayOfWeek    int // -1 = sem filtro, 0-6 = dia da semana
 	Sort         string
 	Page         int
 	Limit        int
 }
 
 type ProviderSummary struct {
-	UserID              uuid.UUID  `json:"user_id"`
-	FullName            string     `json:"full_name"`
-	AvatarKey           *string    `json:"avatar_key"`
-	City                string     `json:"city"`
-	YearsInNeighborhood int        `json:"years_in_neighborhood"`
-	ScoreAldeia         float64    `json:"score_aldeia"`
-	AvgRating           *float64   `json:"avg_rating"`
-	RecommendationCount int        `json:"recommendation_count"`
-	Categories          []string   `json:"categories"`
+	UserID              uuid.UUID `json:"user_id"`
+	FullName            string    `json:"full_name"`
+	AvatarKey           *string   `json:"avatar_key"`
+	City                string    `json:"city"`
+	YearsInNeighborhood int       `json:"years_in_neighborhood"`
+	ScoreAldeia         float64   `json:"score_aldeia"`
+	AvgRating           *float64  `json:"avg_rating"`
+	RecommendationCount int       `json:"recommendation_count"`
+	Categories          []string  `json:"categories"`
+	Seals               []string  `json:"seals"`
 }
 
 func (s *ProviderService) Search(ctx context.Context, communityID uuid.UUID, f SearchFilters) ([]ProviderSummary, error) {
 	if f.Limit == 0 {
 		f.Limit = 20
 	}
-	offset := (f.Page) * f.Limit
+	offset := f.Page * f.Limit
 
 	sortCol := "pp.score_aldeia DESC"
 	switch f.Sort {
@@ -72,12 +75,15 @@ func (s *ProviderService) Search(ctx context.Context, communityID uuid.UUID, f S
 		  AND ($3 = '' OR pp.city ILIKE '%%' || $3 || '%%')
 		  AND ($4 = 0 OR pp.avg_rating >= $4)
 		  AND ($5 = 0 OR pp.years_in_neighborhood >= $5)
+		  AND ($6 = -1 OR EXISTS (
+		        SELECT 1 FROM provider_availability pa
+		        WHERE pa.provider_id = pp.user_id AND pa.day_of_week = $6))
 		ORDER BY %s
-		LIMIT $6 OFFSET $7
+		LIMIT $7 OFFSET $8
 	`, sortCol)
 
 	rows, err := s.db.Query(ctx, query,
-		communityID, f.CategorySlug, f.City, f.MinRating, f.MinTenure, f.Limit, offset,
+		communityID, f.CategorySlug, f.City, f.MinRating, f.MinTenure, f.DayOfWeek, f.Limit, offset,
 	)
 	if err != nil {
 		return nil, err
@@ -95,9 +101,98 @@ func (s *ProviderService) Search(ctx context.Context, communityID uuid.UUID, f S
 			return nil, err
 		}
 		p.Categories = s.getCategories(ctx, p.UserID)
+		p.Seals = s.computeSeals(ctx, p.UserID, p.RecommendationCount, p.AvgRating, s.totalClients(ctx, p.UserID))
 		results = append(results, p)
 	}
 	return results, rows.Err()
+}
+
+// Featured retorna até 3 prestadores em destaque para o dia atual.
+// Elegível: is_visible=true + pelo menos 1 critério de selo atingido.
+// Rotatividade determinística via MD5(user_id || current_date).
+func (s *ProviderService) Featured(ctx context.Context, communityID uuid.UUID) ([]ProviderSummary, error) {
+	rows, err := s.db.Query(ctx, `
+		SELECT u.id, u.full_name, u.avatar_key,
+		       pp.city, pp.years_in_neighborhood, pp.score_aldeia,
+		       pp.avg_rating, pp.recommendation_count
+		FROM provider_profiles pp
+		JOIN users u ON u.id = pp.user_id
+		WHERE pp.community_id = $1
+		  AND pp.is_visible = true
+		  AND (
+		        (pp.avg_rating >= 4.2 AND pp.total_clients >= 5)
+		     OR pp.recommendation_count >= 3
+		     OR u.created_at <= now() - interval '12 months'
+		     OR (
+		          pp.professional_bio IS NOT NULL
+		          AND EXISTS (SELECT 1 FROM provider_services WHERE provider_id = pp.user_id)
+		          AND EXISTS (SELECT 1 FROM provider_availability WHERE provider_id = pp.user_id)
+		          AND EXISTS (SELECT 1 FROM provider_photos WHERE provider_id = pp.user_id)
+		        )
+		  )
+		ORDER BY MD5(pp.user_id::text || current_date::text)
+		LIMIT 3
+	`, communityID)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []ProviderSummary
+	for rows.Next() {
+		var p ProviderSummary
+		if err := rows.Scan(
+			&p.UserID, &p.FullName, &p.AvatarKey,
+			&p.City, &p.YearsInNeighborhood, &p.ScoreAldeia,
+			&p.AvgRating, &p.RecommendationCount,
+		); err != nil {
+			return nil, err
+		}
+		p.Categories = s.getCategories(ctx, p.UserID)
+		p.Seals = s.computeSeals(ctx, p.UserID, p.RecommendationCount, p.AvgRating, s.totalClients(ctx, p.UserID))
+		results = append(results, p)
+	}
+	return results, rows.Err()
+}
+
+// computeSeals calcula dinamicamente os selos do prestador.
+func (s *ProviderService) computeSeals(ctx context.Context, providerID uuid.UUID, recCount int, avgRating *float64, ratingCount int) []string {
+	var seals []string
+
+	if avgRating != nil && *avgRating >= 4.2 && ratingCount >= 5 {
+		seals = append(seals, "bem_avaliado")
+	}
+	if recCount >= 3 {
+		seals = append(seals, "muito_indicado")
+	}
+
+	var createdAt time.Time
+	_ = s.db.QueryRow(ctx, `SELECT created_at FROM users WHERE id=$1`, providerID).Scan(&createdAt)
+	if !createdAt.IsZero() && time.Since(createdAt) >= 365*24*time.Hour {
+		seals = append(seals, "veterano")
+	}
+
+	var hasBio, hasCat, hasAvail, hasPhoto bool
+	_ = s.db.QueryRow(ctx,
+		`SELECT
+		    pp.professional_bio IS NOT NULL,
+		    EXISTS (SELECT 1 FROM provider_services WHERE provider_id=$1),
+		    EXISTS (SELECT 1 FROM provider_availability WHERE provider_id=$1),
+		    EXISTS (SELECT 1 FROM provider_photos WHERE provider_id=$1)
+		 FROM provider_profiles pp WHERE pp.user_id=$1`,
+		providerID,
+	).Scan(&hasBio, &hasCat, &hasAvail, &hasPhoto)
+	if hasBio && hasCat && hasAvail && hasPhoto {
+		seals = append(seals, "completo")
+	}
+
+	return seals
+}
+
+func (s *ProviderService) totalClients(ctx context.Context, providerID uuid.UUID) int {
+	var n int
+	_ = s.db.QueryRow(ctx, `SELECT total_clients FROM provider_profiles WHERE user_id=$1`, providerID).Scan(&n)
+	return n
 }
 
 func (s *ProviderService) getCategories(ctx context.Context, providerID uuid.UUID) []string {
@@ -220,11 +315,32 @@ func (s *ProviderService) Get(ctx context.Context, communityID, providerID uuid.
 	d.CategorySlugs = s.getCategorySlugs(ctx, providerID)
 	d.Availability = s.getAvailability(ctx, providerID)
 	d.Photos = s.getPhotos(ctx, providerID)
+	d.Seals = s.computeSeals(ctx, providerID, d.RecommendationCount, d.AvgRating, d.TotalClients)
 	return &d, nil
 }
 
 func (s *ProviderService) GetMe(ctx context.Context, communityID, userID uuid.UUID) (*ProviderDetail, error) {
 	return s.Get(ctx, communityID, userID)
+}
+
+// RatingSummary é o que o prestador pode ver sobre suas próprias avaliações.
+type RatingSummary struct {
+	AvgRating *float64 `json:"avg_rating"`
+	Count     int      `json:"count"`
+}
+
+func (s *ProviderService) MyRatingSummary(ctx context.Context, communityID, providerID uuid.UUID) (*RatingSummary, error) {
+	var rs RatingSummary
+	err := s.db.QueryRow(ctx,
+		`SELECT pp.avg_rating, pp.total_clients
+		 FROM provider_profiles pp
+		 WHERE pp.community_id=$1 AND pp.user_id=$2`,
+		communityID, providerID,
+	).Scan(&rs.AvgRating, &rs.Count)
+	if err != nil {
+		return nil, err
+	}
+	return &rs, nil
 }
 
 func (s *ProviderService) getPhotos(ctx context.Context, providerID uuid.UUID) []domain.ProviderPhoto {

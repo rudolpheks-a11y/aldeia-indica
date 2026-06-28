@@ -8,6 +8,7 @@ class ProviderSummary {
   final double? avgRating;
   final int recommendationCount;
   final List<String> categories;
+  final List<String> seals;
 
   ProviderSummary({
     required this.userId,
@@ -19,6 +20,7 @@ class ProviderSummary {
     this.avgRating,
     required this.recommendationCount,
     required this.categories,
+    this.seals = const [],
   });
 
   factory ProviderSummary.fromJson(Map<String, dynamic> json) =>
@@ -34,6 +36,10 @@ class ProviderSummary {
             : null,
         recommendationCount: json['recommendation_count'] as int,
         categories: (json['categories'] as List<dynamic>?)
+                ?.map((e) => e as String)
+                .toList() ??
+            [],
+        seals: (json['seals'] as List<dynamic>?)
                 ?.map((e) => e as String)
                 .toList() ??
             [],

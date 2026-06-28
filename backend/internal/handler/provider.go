@@ -28,6 +28,11 @@ func (h *ProviderHandler) Search(w http.ResponseWriter, r *http.Request) {
 	minTenure, _ := strconv.Atoi(q.Get("min_tenure"))
 	page, _ := strconv.Atoi(q.Get("page"))
 
+	dayOfWeek := -1
+	if d, err := strconv.Atoi(q.Get("day_of_week")); err == nil && d >= 0 && d <= 6 {
+		dayOfWeek = d
+	}
+
 	limit := 20
 	if l, err := strconv.Atoi(q.Get("limit")); err == nil && l > 0 && l <= 200 {
 		limit = l
@@ -38,6 +43,7 @@ func (h *ProviderHandler) Search(w http.ResponseWriter, r *http.Request) {
 		City:         q.Get("city"),
 		MinRating:    minRating,
 		MinTenure:    minTenure,
+		DayOfWeek:    dayOfWeek,
 		Sort:         q.Get("sort"),
 		Page:         page,
 		Limit:        limit,
@@ -47,6 +53,26 @@ func (h *ProviderHandler) Search(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonOK(w, results)
+}
+
+func (h *ProviderHandler) Featured(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
+	results, err := h.svc.Featured(r.Context(), claims.CommunityID)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, results)
+}
+
+func (h *ProviderHandler) MyRatingSummary(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
+	summary, err := h.svc.MyRatingSummary(r.Context(), claims.CommunityID, claims.UserID)
+	if err != nil {
+		jsonError(w, "not found", http.StatusNotFound)
+		return
+	}
+	jsonOK(w, summary)
 }
 
 func (h *ProviderHandler) Get(w http.ResponseWriter, r *http.Request) {

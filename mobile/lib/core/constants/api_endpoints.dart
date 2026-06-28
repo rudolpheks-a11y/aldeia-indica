@@ -50,5 +50,12 @@ class ApiEndpoints {
   static const String communities = '/communities';
   static const String adminCommunities = '/admin/communities';
 
+  static const String providersFeatured = '/providers/featured';
+  static const String providerMeRatingsSummary = '/providers/me/ratings/summary';
+
+  static const String bulletin = '/bulletin';
+  static const String adminBulletinPending = '/admin/bulletin/pending';
+  static String adminBulletinReview(String id) => '/admin/bulletin/$id/review';
+
   static const String wsChat = '/ws/chat';
 }

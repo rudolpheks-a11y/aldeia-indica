@@ -26,6 +26,7 @@ func NewRouter(
 	adminH *handler.AdminHandler,
 	categoryH *handler.CategoryHandler,
 	chatH *handler.ChatHandler,
+	bulletinH *handler.BulletinHandler,
 	wsH *ws.Handler,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -70,7 +71,9 @@ func NewRouter(
 
 			// Providers
 			r.Get("/providers", providerH.Search)
+			r.Get("/providers/featured", providerH.Featured)
 			r.Get("/providers/me", providerH.GetMe)
+			r.Get("/providers/me/ratings/summary", providerH.MyRatingSummary)
 			r.Put("/providers/me/availability", providerH.UpdateMyAvailability)
 			r.Get("/providers/{id}", providerH.Get)
 			r.Put("/providers/me", providerH.UpdateMe)
@@ -78,6 +81,10 @@ func NewRouter(
 			r.Delete("/providers/{id}/photos/{photoID}", providerH.DeletePhoto)
 			r.Post("/providers/{id}/hire", providerH.HireCompleted)
 			r.Get("/dashboard/summary", providerH.Dashboard)
+
+			// Mural de avisos (apenas moradores lêem e postam)
+			r.Get("/bulletin", bulletinH.ListApproved)
+			r.Post("/bulletin", bulletinH.Create)
 
 			// Ratings
 			r.Post("/ratings", ratingH.Create)
@@ -120,6 +127,8 @@ func NewRouter(
 				r.Post("/admin/documents/{providerID}/review", adminH.ReviewDocument)
 				r.Post("/admin/communities", adminH.CreateCommunity)
 				r.Post("/approvals/{id}/resolve", approvalH.AdminResolve)
+				r.Get("/admin/bulletin/pending", bulletinH.ListPending)
+				r.Post("/admin/bulletin/{id}/review", bulletinH.Review)
 			})
 		})
 	})
