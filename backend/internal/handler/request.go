@@ -91,6 +91,7 @@ func (h *RequestHandler) Create(w http.ResponseWriter, r *http.Request) {
 }
 
 func (h *RequestHandler) Get(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
 	requestID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		jsonError(w, "invalid id", http.StatusBadRequest)
@@ -103,8 +104,8 @@ func (h *RequestHandler) Get(w http.ResponseWriter, r *http.Request) {
 		 FROM service_requests sr
 		 JOIN users u ON u.id = sr.requester_id
 		 LEFT JOIN service_categories sc ON sc.id = sr.category_id
-		 WHERE sr.id=$1`,
-		requestID,
+		 WHERE sr.id=$1 AND sr.community_id=$2`,
+		requestID, claims.CommunityID,
 	)
 	var id uuid.UUID
 	var requester, category, title, description, status string
@@ -139,30 +140,56 @@ func (h *RequestHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 
 func (h *RequestHandler) Respond(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.ClaimsFrom(r.Context())
-	requestID, _ := uuid.Parse(chi.URLParam(r, "id"))
+	requestID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
 
 	var in struct {
 		Message string `json:"message"`
 	}
-	json.NewDecoder(r.Body).Decode(&in)
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		jsonError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
 
-	h.db.Exec(r.Context(),
+	// INSERT ... SELECT ties the insert to a request that actually belongs
+	// to the caller's community — a foreign request_id inserts zero rows.
+	tag, err := h.db.Exec(r.Context(),
 		`INSERT INTO service_request_responses (request_id, community_id, provider_id, message)
-		 VALUES ($1,$2,$3,$4)`,
-		requestID, claims.CommunityID, claims.UserID, in.Message,
+		 SELECT id, community_id, $2, $3 FROM service_requests WHERE id=$1 AND community_id=$4`,
+		requestID, claims.UserID, in.Message, claims.CommunityID,
 	)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		jsonError(w, "request not found", http.StatusNotFound)
+		return
+	}
 	w.WriteHeader(http.StatusCreated)
 }
 
 func (h *RequestHandler) ListResponses(w http.ResponseWriter, r *http.Request) {
-	requestID, _ := uuid.Parse(chi.URLParam(r, "id"))
+	claims, _ := middleware.ClaimsFrom(r.Context())
+	requestID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
 
-	rows, _ := h.db.Query(r.Context(),
+	rows, err := h.db.Query(r.Context(),
 		`SELECT u.full_name, srr.message, srr.created_at
 		 FROM service_request_responses srr JOIN users u ON u.id = srr.provider_id
-		 WHERE srr.request_id=$1 ORDER BY srr.created_at ASC`,
-		requestID,
+		 WHERE srr.request_id=$1 AND srr.community_id=$2 ORDER BY srr.created_at ASC`,
+		requestID, claims.CommunityID,
 	)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
 	defer rows.Close()
 
 	var result []map[string]any

@@ -2,7 +2,6 @@ package main
 
 import (
 	"context"
-	"log/slog"
 	"net/http"
 	"os"
 	"os/signal"
@@ -54,7 +53,7 @@ func main() {
 
 	authSvc := service.NewAuthService(db, j, cfg.JWTRefreshExpiry, emailClient)
 	userSvc := service.NewUserService(db)
-	providerSvc := service.NewProviderService(db)
+	providerSvc := service.NewProviderService(db, log)
 	ratingSvc := service.NewRatingService(db, providerSvc)
 	recSvc := service.NewRecommendationService(db, providerSvc)
 	chatSvc := service.NewChatService(db)
@@ -104,6 +103,4 @@ func main() {
 		log.Error("shutdown error", "error", err)
 	}
 	log.Info("server stopped")
-
-	_ = slog.Default()
 }

@@ -1,7 +1,9 @@
 package handler
 
 import (
+	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -44,6 +46,10 @@ func (h *ChatHandler) GetOrCreate(w http.ResponseWriter, r *http.Request) {
 
 	conv, err := h.svc.GetOrCreateConversation(r.Context(), claims.CommunityID, claims.UserID, otherID)
 	if err != nil {
+		if errors.Is(err, service.ErrCrossCommunity) {
+			jsonError(w, "user does not belong to your community", http.StatusForbidden)
+			return
+		}
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -71,9 +77,14 @@ func (h *ChatHandler) ListConversations(w http.ResponseWriter, r *http.Request) 
 
 // GET /chat/conversations/{id}/messages
 func (h *ChatHandler) ListMessages(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
 	convID, err := uuid.Parse(chi.URLParam(r, "id"))
 	if err != nil {
 		jsonError(w, "invalid conversation id", http.StatusBadRequest)
+		return
+	}
+
+	if err := h.assertParticipant(r.Context(), w, convID, claims.UserID); err != nil {
 		return
 	}
 
@@ -97,9 +108,28 @@ func (h *ChatHandler) MarkRead(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "invalid conversation id", http.StatusBadRequest)
 		return
 	}
+	if err := h.assertParticipant(r.Context(), w, convID, claims.UserID); err != nil {
+		return
+	}
 	if err := h.svc.MarkRead(r.Context(), convID, claims.UserID); err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
+}
+
+// assertParticipant confirms the conversation exists (404 otherwise) and that
+// userID is one of its two participants (403 otherwise). Writes the error
+// response itself and returns a non-nil error when the caller should stop.
+func (h *ChatHandler) assertParticipant(ctx context.Context, w http.ResponseWriter, convID, userID uuid.UUID) error {
+	pA, pB, err := h.svc.ListParticipants(ctx, convID)
+	if err != nil {
+		jsonError(w, "not found", http.StatusNotFound)
+		return err
+	}
+	if userID != pA && userID != pB {
+		jsonError(w, "forbidden", http.StatusForbidden)
+		return errors.New("not a participant")
+	}
+	return nil
 }

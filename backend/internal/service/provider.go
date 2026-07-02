@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"log/slog"
 	"time"
 
 	"github.com/google/uuid"
@@ -11,11 +12,12 @@ import (
 )
 
 type ProviderService struct {
-	db *pgxpool.Pool
+	db  *pgxpool.Pool
+	log *slog.Logger
 }
 
-func NewProviderService(db *pgxpool.Pool) *ProviderService {
-	return &ProviderService{db: db}
+func NewProviderService(db *pgxpool.Pool, log *slog.Logger) *ProviderService {
+	return &ProviderService{db: db, log: log}
 }
 
 type SearchFilters struct {
@@ -100,11 +102,16 @@ func (s *ProviderService) Search(ctx context.Context, communityID uuid.UUID, f S
 		); err != nil {
 			return nil, err
 		}
-		p.Categories = s.getCategories(ctx, p.UserID)
-		p.Seals = s.computeSeals(ctx, p.UserID, p.RecommendationCount, p.AvgRating, s.totalClients(ctx, p.UserID))
 		results = append(results, p)
 	}
-	return results, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if err := s.attachExtras(ctx, results); err != nil {
+		return nil, err
+	}
+	return results, nil
 }
 
 // Featured retorna até 3 prestadores em destaque para o dia atual.
@@ -148,32 +155,132 @@ func (s *ProviderService) Featured(ctx context.Context, communityID uuid.UUID) (
 		); err != nil {
 			return nil, err
 		}
-		p.Categories = s.getCategories(ctx, p.UserID)
-		p.Seals = s.computeSeals(ctx, p.UserID, p.RecommendationCount, p.AvgRating, s.totalClients(ctx, p.UserID))
 		results = append(results, p)
 	}
-	return results, rows.Err()
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if err := s.attachExtras(ctx, results); err != nil {
+		return nil, err
+	}
+	return results, nil
 }
 
-// computeSeals calcula dinamicamente os selos do prestador.
-func (s *ProviderService) computeSeals(ctx context.Context, providerID uuid.UUID, recCount int, avgRating *float64, ratingCount int) []string {
-	var seals []string
-
-	if avgRating != nil && *avgRating >= 4.2 && ratingCount >= 5 {
-		seals = append(seals, "bem_avaliado")
+// attachExtras batch-loads categories and seal-computation inputs for a page
+// of search results in two queries total (instead of the ~4 queries per
+// provider this used to run in a loop — see BACKEND_AUDIT.md P1-3/P2-2).
+// Mutates results in place.
+func (s *ProviderService) attachExtras(ctx context.Context, results []ProviderSummary) error {
+	if len(results) == 0 {
+		return nil
 	}
-	if recCount >= 3 {
-		seals = append(seals, "muito_indicado")
+	ids := make([]uuid.UUID, len(results))
+	for i, p := range results {
+		ids[i] = p.UserID
 	}
 
+	categories, err := s.batchCategories(ctx, ids)
+	if err != nil {
+		return err
+	}
+	extras, err := s.batchSealExtras(ctx, ids)
+	if err != nil {
+		return err
+	}
+
+	for i := range results {
+		p := &results[i]
+		p.Categories = categories[p.UserID]
+		e := extras[p.UserID]
+		p.Seals = sealsFromFacts(p.RecommendationCount, p.AvgRating, e.totalClients, e.createdAt, e.hasBio, e.hasCat, e.hasAvail, e.hasPhoto)
+	}
+	return nil
+}
+
+// batchCategories loads provider_services for every id in one query, grouped
+// by provider. Rows arrive ordered by (provider_id, sc.sort_order), so
+// appending in scan order preserves the same per-provider ordering that
+// getCategories (single-provider) produces.
+func (s *ProviderService) batchCategories(ctx context.Context, providerIDs []uuid.UUID) (map[uuid.UUID][]string, error) {
+	rows, err := s.db.Query(ctx,
+		`SELECT ps.provider_id, sc.name_pt
+		 FROM provider_services ps
+		 JOIN service_categories sc ON sc.id = ps.category_id
+		 WHERE ps.provider_id = ANY($1)
+		 ORDER BY ps.provider_id, sc.sort_order`,
+		providerIDs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make(map[uuid.UUID][]string, len(providerIDs))
+	for rows.Next() {
+		var id uuid.UUID
+		var name string
+		if err := rows.Scan(&id, &name); err != nil {
+			return nil, err
+		}
+		out[id] = append(out[id], name)
+	}
+	return out, rows.Err()
+}
+
+type providerSealExtras struct {
+	totalClients int
+	createdAt    time.Time
+	hasBio       bool
+	hasCat       bool
+	hasAvail     bool
+	hasPhoto     bool
+}
+
+// batchSealExtras loads, in one query, exactly the facts computeSeals/
+// sealsFromFacts needs per provider (mirrors the two single-provider queries
+// in computeSeals below, merged into one and batched over providerIDs).
+func (s *ProviderService) batchSealExtras(ctx context.Context, providerIDs []uuid.UUID) (map[uuid.UUID]providerSealExtras, error) {
+	rows, err := s.db.Query(ctx,
+		`SELECT pp.user_id, pp.total_clients, u.created_at,
+		        pp.professional_bio IS NOT NULL,
+		        EXISTS (SELECT 1 FROM provider_services WHERE provider_id = pp.user_id),
+		        EXISTS (SELECT 1 FROM provider_availability WHERE provider_id = pp.user_id),
+		        EXISTS (SELECT 1 FROM provider_photos WHERE provider_id = pp.user_id)
+		 FROM provider_profiles pp
+		 JOIN users u ON u.id = pp.user_id
+		 WHERE pp.user_id = ANY($1)`,
+		providerIDs,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	out := make(map[uuid.UUID]providerSealExtras, len(providerIDs))
+	for rows.Next() {
+		var id uuid.UUID
+		var e providerSealExtras
+		if err := rows.Scan(&id, &e.totalClients, &e.createdAt, &e.hasBio, &e.hasCat, &e.hasAvail, &e.hasPhoto); err != nil {
+			return nil, err
+		}
+		out[id] = e
+	}
+	return out, rows.Err()
+}
+
+// computeSeals calcula os selos de um único prestador (usado no detalhe —
+// GET /providers/{id} — que não está em loop, então uma query por
+// prestador aqui é aceitável). A mesma lógica de decisão vive em
+// sealsFromFacts, compartilhada com o caminho batelado de busca/destaque.
+func (s *ProviderService) computeSeals(ctx context.Context, providerID uuid.UUID, recCount int, avgRating *float64, totalClients int) []string {
 	var createdAt time.Time
-	_ = s.db.QueryRow(ctx, `SELECT created_at FROM users WHERE id=$1`, providerID).Scan(&createdAt)
-	if !createdAt.IsZero() && time.Since(createdAt) >= 365*24*time.Hour {
-		seals = append(seals, "veterano")
+	if err := s.db.QueryRow(ctx, `SELECT created_at FROM users WHERE id=$1`, providerID).Scan(&createdAt); err != nil {
+		s.log.Error("compute seals: load created_at", "provider", providerID, "error", err)
 	}
 
 	var hasBio, hasCat, hasAvail, hasPhoto bool
-	_ = s.db.QueryRow(ctx,
+	if err := s.db.QueryRow(ctx,
 		`SELECT
 		    pp.professional_bio IS NOT NULL,
 		    EXISTS (SELECT 1 FROM provider_services WHERE provider_id=$1),
@@ -181,7 +288,30 @@ func (s *ProviderService) computeSeals(ctx context.Context, providerID uuid.UUID
 		    EXISTS (SELECT 1 FROM provider_photos WHERE provider_id=$1)
 		 FROM provider_profiles pp WHERE pp.user_id=$1`,
 		providerID,
-	).Scan(&hasBio, &hasCat, &hasAvail, &hasPhoto)
+	).Scan(&hasBio, &hasCat, &hasAvail, &hasPhoto); err != nil {
+		s.log.Error("compute seals: load completeness facts", "provider", providerID, "error", err)
+	}
+
+	return sealsFromFacts(recCount, avgRating, totalClients, createdAt, hasBio, hasCat, hasAvail, hasPhoto)
+}
+
+// sealsFromFacts is the pure seal-decision logic, shared between the
+// single-provider path (computeSeals above) and the batched search/featured
+// path (attachExtras), which loads the same facts via batchSealExtras.
+// Keeping this identical in both places is what guarantees the batched
+// rewrite doesn't change what seals a provider gets.
+func sealsFromFacts(recCount int, avgRating *float64, totalClients int, createdAt time.Time, hasBio, hasCat, hasAvail, hasPhoto bool) []string {
+	var seals []string
+
+	if avgRating != nil && *avgRating >= 4.2 && totalClients >= 5 {
+		seals = append(seals, "bem_avaliado")
+	}
+	if recCount >= 3 {
+		seals = append(seals, "muito_indicado")
+	}
+	if !createdAt.IsZero() && time.Since(createdAt) >= 365*24*time.Hour {
+		seals = append(seals, "veterano")
+	}
 	if hasBio && hasCat && hasAvail && hasPhoto {
 		seals = append(seals, "completo")
 	}
@@ -189,40 +319,48 @@ func (s *ProviderService) computeSeals(ctx context.Context, providerID uuid.UUID
 	return seals
 }
 
-func (s *ProviderService) totalClients(ctx context.Context, providerID uuid.UUID) int {
-	var n int
-	_ = s.db.QueryRow(ctx, `SELECT total_clients FROM provider_profiles WHERE user_id=$1`, providerID).Scan(&n)
-	return n
-}
-
 func (s *ProviderService) getCategories(ctx context.Context, providerID uuid.UUID) []string {
-	rows, _ := s.db.Query(ctx,
+	rows, err := s.db.Query(ctx,
 		`SELECT sc.name_pt FROM provider_services ps
 		 JOIN service_categories sc ON sc.id = ps.category_id
 		 WHERE ps.provider_id = $1 ORDER BY sc.sort_order`,
 		providerID,
 	)
+	if err != nil {
+		s.log.Error("get categories", "provider", providerID, "error", err)
+		return nil
+	}
 	defer rows.Close()
 	var cats []string
 	for rows.Next() {
 		var c string
-		rows.Scan(&c)
+		if err := rows.Scan(&c); err != nil {
+			s.log.Error("get categories: scan", "provider", providerID, "error", err)
+			return cats
+		}
 		cats = append(cats, c)
 	}
 	return cats
 }
 
 func (s *ProviderService) getAvailability(ctx context.Context, providerID uuid.UUID) []AvailabilitySlot {
-	rows, _ := s.db.Query(ctx,
+	rows, err := s.db.Query(ctx,
 		`SELECT day_of_week, start_time, end_time
 		 FROM provider_availability WHERE provider_id = $1 ORDER BY day_of_week`,
 		providerID,
 	)
+	if err != nil {
+		s.log.Error("get availability", "provider", providerID, "error", err)
+		return nil
+	}
 	defer rows.Close()
 	var slots []AvailabilitySlot
 	for rows.Next() {
 		var sl AvailabilitySlot
-		rows.Scan(&sl.DayOfWeek, &sl.StartTime, &sl.EndTime)
+		if err := rows.Scan(&sl.DayOfWeek, &sl.StartTime, &sl.EndTime); err != nil {
+			s.log.Error("get availability: scan", "provider", providerID, "error", err)
+			return slots
+		}
 		slots = append(slots, sl)
 	}
 	return slots
@@ -255,18 +393,25 @@ func (s *ProviderService) UpdateAvailability(ctx context.Context, communityID, u
 }
 
 func (s *ProviderService) getCategorySlugs(ctx context.Context, providerID uuid.UUID) []string {
-	rows, _ := s.db.Query(ctx,
+	rows, err := s.db.Query(ctx,
 		`SELECT sc.slug FROM provider_services ps
 		 JOIN service_categories sc ON sc.id = ps.category_id
 		 WHERE ps.provider_id = $1 ORDER BY sc.sort_order`,
 		providerID,
 	)
+	if err != nil {
+		s.log.Error("get category slugs", "provider", providerID, "error", err)
+		return nil
+	}
 	defer rows.Close()
 	var slugs []string
 	for rows.Next() {
-		var s string
-		rows.Scan(&s)
-		slugs = append(slugs, s)
+		var slug string
+		if err := rows.Scan(&slug); err != nil {
+			s.log.Error("get category slugs: scan", "provider", providerID, "error", err)
+			return slugs
+		}
+		slugs = append(slugs, slug)
 	}
 	return slugs
 }
@@ -344,16 +489,23 @@ func (s *ProviderService) MyRatingSummary(ctx context.Context, communityID, prov
 }
 
 func (s *ProviderService) getPhotos(ctx context.Context, providerID uuid.UUID) []domain.ProviderPhoto {
-	rows, _ := s.db.Query(ctx,
+	rows, err := s.db.Query(ctx,
 		`SELECT id, provider_id, s3_key, caption, sort_order, uploaded_at
 		 FROM provider_photos WHERE provider_id = $1 ORDER BY sort_order, uploaded_at`,
 		providerID,
 	)
+	if err != nil {
+		s.log.Error("get photos", "provider", providerID, "error", err)
+		return nil
+	}
 	defer rows.Close()
 	var photos []domain.ProviderPhoto
 	for rows.Next() {
 		var p domain.ProviderPhoto
-		rows.Scan(&p.ID, &p.ProviderID, &p.S3Key, &p.Caption, &p.SortOrder, &p.UploadedAt)
+		if err := rows.Scan(&p.ID, &p.ProviderID, &p.S3Key, &p.Caption, &p.SortOrder, &p.UploadedAt); err != nil {
+			s.log.Error("get photos: scan", "provider", providerID, "error", err)
+			return photos
+		}
 		photos = append(photos, p)
 	}
 	return photos

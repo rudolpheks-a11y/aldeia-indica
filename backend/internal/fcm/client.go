@@ -8,12 +8,15 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"golang.org/x/oauth2"
 	"golang.org/x/oauth2/google"
 )
 
 const fcmScope = "https://www.googleapis.com/auth/firebase.messaging"
+
+const httpTimeout = 10 * time.Second
 
 type Client struct {
 	projectID   string
@@ -44,7 +47,7 @@ func New(ctx context.Context, serviceAccountJSON []byte, log *slog.Logger) (*Cli
 	return &Client{
 		projectID:   sa.ProjectID,
 		tokenSource: creds.TokenSource,
-		http:        &http.Client{},
+		http:        &http.Client{Timeout: httpTimeout},
 		log:         log,
 	}, nil
 }

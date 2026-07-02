@@ -7,9 +7,11 @@ COPY . .
 RUN go build -ldflags="-w -s" -o api ./cmd/api
 
 FROM alpine:latest
-RUN apk --no-cache add ca-certificates tzdata
+RUN apk --no-cache add ca-certificates tzdata \
+    && adduser -D -u 1000 app
 WORKDIR /app
 COPY --from=builder /app/api .
 COPY --from=builder /app/migrations ./migrations
+USER app
 EXPOSE 8080
 CMD ["./api"]

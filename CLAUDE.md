@@ -36,7 +36,6 @@ aldeia-indica/
 make run            # sobe o servidor
 make migrate-up     # aplica migrations (requer DATABASE_URL no env)
 make migrate-down   # reverte 1 migration
-make generate       # regenera queries sqlc
 
 # Docker
 docker compose up postgres minio -d   # banco + storage em background
@@ -51,7 +50,7 @@ docker compose up postgres minio -d   # banco + storage em background
 ## Arquitetura do backend
 
 ```
-handler → service → repository (gerado por sqlc) → PostgreSQL
+handler → service (SQL direto via pgx/v5) → PostgreSQL
                ↓
            domain/     ← tipos puros, sem imports externos
 ```
@@ -85,3 +84,4 @@ Repositório: https://github.com/rudolpheks-a11y/aldeia-indica
 - [docs/conventions.md](docs/conventions.md) — Padrões de código Go e Flutter, paleta de cores, pacotes relevantes
 - [docs/phases.md](docs/phases.md) — Histórico de fases (1–4) e próximos passos
 - [docs/setup.md](docs/setup.md) — Variáveis de ambiente, primeiro setup, comandos Flutter completos, usuários de teste
+- [docs/audits/](docs/audits/) — Relatórios pontuais de auditoria/security review (não são referência permanente)

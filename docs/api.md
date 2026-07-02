@@ -9,10 +9,10 @@ Base: `/api/v1/...` | Auth: `Authorization: Bearer <access_token>`
 | Auth | `POST /auth/register/morador`, `POST /auth/register/prestador`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/forgot-password`, `POST /auth/reset-password` |
 | Aprovação | `GET /approvals/pending`, `POST /approvals/:id/vote`, `POST /approvals/:id/resolve` |
 | Convites | `POST /invites`, `GET /invites/:token`, `POST /invites/:token/use` |
-| Prestadores | `GET /providers` (search), `GET /providers/me`, `GET /providers/:id`, `PUT /providers/me`, `PUT /providers/me/availability`, `POST /providers/:id/photos`, `DELETE /providers/:id/photos/:photoID`, `POST /providers/:id/hire` |
+| Prestadores | `GET /providers` (search), `GET /providers/me`, `GET /providers/:id`, `PUT /providers/me`, `PUT /providers/me/availability`, `POST /providers/:id/photos` (self only — `:id` must match o token), `DELETE /providers/:id/photos/:photoID`, `POST /providers/:id/hire` |
 | Categorias | `GET /categories` (público) |
 | Avaliações | `POST /ratings`, `GET /ratings/provider/:id` |
-| Recomendações | `POST /recommendations`, `DELETE /recommendations/:id`, `GET /recommendations/provider/:id` |
+| Recomendações | `POST /recommendations`, `DELETE /recommendations` (provider_id no body), `GET /recommendations/provider/:id` |
 | Pedidos | `GET /requests`, `POST /requests`, `GET /requests/:id`, `PUT /requests/:id`, `POST /requests/:id/responses`, `GET /requests/:id/responses` |
 | Chat | `POST /chat/conversations`, `GET /chat/conversations`, `GET /chat/conversations/:id/messages`, `POST /chat/conversations/:id/read` |
 | Upload | `POST /uploads/presign` |

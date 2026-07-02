@@ -5,16 +5,17 @@
 ### Camadas
 
 ```
-handler → service → repository (gerado por sqlc) → PostgreSQL
+handler → service (SQL direto via pgx/v5) → PostgreSQL
                ↓
            domain/     ← tipos puros, sem imports externos
 ```
 
+Não há camada de repositório: os `service`s chamam `*pgxpool.Pool` diretamente com SQL escrito à mão (sem ORM). Não usamos sqlc — a pasta `internal/repository/` e `sqlc.yaml` existiram brevemente no início do projeto mas nunca foram usados de verdade (nenhum arquivo do código importava o pacote gerado) e foram removidos em 2026-07-02 para a documentação parar de descrever uma camada que não existia.
+
 - `internal/domain/` — structs e regras puras. `score.go` contém a fórmula do Score Aldeia.
-- `internal/service/` — lógica de negócio, orquestra repositórios e transações.
-- `internal/handler/` — HTTP handlers finos: validam input, delegam, serializam.
+- `internal/service/` — lógica de negócio + acesso a dados (SQL direto via pgx/v5), orquestra transações.
+- `internal/handler/` — HTTP handlers finos: validam input, delegam, serializam. Alguns (`admin.go`, `category.go`, `request.go`) pulam a camada de service e usam `*pgxpool.Pool` direto — inconsistência conhecida, não uma regra.
 - `internal/server/middleware/` — JWT auth, community scope, RBAC, logger.
-- `internal/repository/queries/` — arquivos `.sql` que o sqlc transforma em Go.
 
 ### WebSocket
 

@@ -2,7 +2,7 @@ BINARY=bin/api
 CMD=./cmd/api
 ENV_FILE ?= .env.dev
 
-.PHONY: build run dev test lint generate migrate-up migrate-down
+.PHONY: build run dev test lint migrate-up migrate-down
 
 build:
 	go build -o $(BINARY) $(CMD)
@@ -23,9 +23,6 @@ test:
 
 lint:
 	golangci-lint run ./...
-
-generate:
-	sqlc generate
 
 migrate-up:
 	migrate -path migrations -database "$(DATABASE_URL)" up

@@ -22,6 +22,8 @@ Numeradas sequencialmente em `backend/migrations/`. Rodar via `make migrate-up`.
 | 000014 | `provider_profiles`: colunas `needs_transport`, `transport_type` |
 | 000015 | `provider_availability` (day_of_week 0-6, start_time/end_time "HH:MM") |
 | 000016 | `messages`: colunas `media_key`, `lat`, `lng` |
+| 000017 | `bulletin_posts` (mural de avisos, com aprovação admin) |
+| 000018 | índices `provider_services(provider_id)` e `service_request_responses(request_id)` |
 
 ## Regras do schema
 

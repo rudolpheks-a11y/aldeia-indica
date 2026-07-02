@@ -200,7 +200,18 @@ func (s *AuthService) Refresh(ctx context.Context, rawToken string) (*TokenPair,
 	if err != nil {
 		return nil, errors.New("invalid refresh token")
 	}
-	if rt.RevokedAt != nil || rt.ExpiresAt.Before(time.Now()) {
+	if rt.RevokedAt != nil {
+		// Reuse of an already-rotated token is a theft signal: someone else
+		// already redeemed this token. Kill every other refresh token for
+		// this user so the legitimate session (and the attacker's) both
+		// have to log in again, instead of only the attacker staying valid.
+		_, _ = s.db.Exec(ctx,
+			`UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`,
+			rt.UserID,
+		)
+		return nil, errors.New("refresh token expired or revoked")
+	}
+	if rt.ExpiresAt.Before(time.Now()) {
 		return nil, errors.New("refresh token expired or revoked")
 	}
 

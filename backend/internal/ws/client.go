@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"log/slog"
+	"time"
 
 	"github.com/coder/websocket"
 	"github.com/google/uuid"
@@ -100,6 +101,19 @@ func (c *Client) handleMessage(ctx context.Context, frame domain.WSMessage) {
 		return
 	}
 
+	// Ownership check: only the two participants of a conversation may read
+	// or write it — a valid JWT is not enough, the frame's conversation_id
+	// is client-supplied and must be verified against membership.
+	pA, pB, err := c.chatSvc.ListParticipants(ctx, convID)
+	if err != nil {
+		c.log.Warn("ws message to unknown conversation", "conversation", convID, "user", c.userID)
+		return
+	}
+	if c.userID != pA && c.userID != pB {
+		c.log.Warn("ws message to conversation user is not a participant of", "conversation", convID, "user", c.userID)
+		return
+	}
+
 	msg := &domain.Message{
 		ConversationID: convID,
 		SenderID:       c.userID,
@@ -125,12 +139,7 @@ func (c *Client) handleMessage(ctx context.Context, frame domain.WSMessage) {
 	out, _ := json.Marshal(msg)
 	// Echo to sender
 	c.enqueue(out)
-	// Deliver to recipient if online
-	pA, pB, err := c.chatSvc.ListParticipants(ctx, convID)
-	if err != nil {
-		c.log.Error("ws list participants", "error", err)
-		return
-	}
+	// Deliver to recipient if online (participants already resolved above)
 	recipientID := pA
 	if pA == c.userID {
 		recipientID = pB
@@ -148,6 +157,14 @@ func (c *Client) handleRead(ctx context.Context, frame domain.WSMessage) {
 	if err != nil {
 		return
 	}
+	pA, pB, err := c.chatSvc.ListParticipants(ctx, convID)
+	if err != nil {
+		return
+	}
+	if c.userID != pA && c.userID != pB {
+		c.log.Warn("ws read receipt for conversation user is not a participant of", "conversation", convID, "user", c.userID)
+		return
+	}
 	if err := c.chatSvc.MarkRead(ctx, convID, c.userID); err != nil {
 		c.log.Error("ws mark read", "error", err)
 		return
@@ -157,7 +174,6 @@ func (c *Client) handleRead(ctx context.Context, frame domain.WSMessage) {
 		"conversation_id": frame.ConversationID,
 		"reader_id":       c.userID.String(),
 	})
-	pA, pB, _ := c.chatSvc.ListParticipants(ctx, convID)
 	other := pA
 	if pA == c.userID {
 		other = pB
@@ -166,7 +182,14 @@ func (c *Client) handleRead(ctx context.Context, frame domain.WSMessage) {
 }
 
 func (c *Client) pushNotify(recipientID uuid.UUID, msg *domain.Message) {
-	tokens, err := c.chatSvc.GetDeviceTokens(context.Background(), recipientID)
+	// Bounded context: this runs in a detached goroutine per offline
+	// recipient (go c.pushNotify(...)) with no caller to time it out —
+	// without a deadline, a slow FCM/DB dependency accumulates goroutines
+	// indefinitely.
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+
+	tokens, err := c.chatSvc.GetDeviceTokens(ctx, recipientID)
 	if err != nil || len(tokens) == 0 {
 		return
 	}
@@ -174,7 +197,7 @@ func (c *Client) pushNotify(recipientID uuid.UUID, msg *domain.Message) {
 	if msg.Body != nil {
 		body = *msg.Body
 	}
-	c.fcmSvc.SendMulti(context.Background(), tokens, fcm.Notification{
+	c.fcmSvc.SendMulti(ctx, tokens, fcm.Notification{
 		Title: "Nova mensagem",
 		Body:  body,
 	})

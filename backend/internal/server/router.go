@@ -3,10 +3,12 @@ package server
 import (
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	chimiddleware "github.com/go-chi/chi/v5/middleware"
 	"github.com/go-chi/cors"
+	"github.com/go-chi/httprate"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/auth"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/handler"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/server/middleware"
@@ -50,13 +52,17 @@ func NewRouter(
 	// WebSocket endpoint — auth via ?token= query param
 	r.Get("/ws/chat", wsH.ServeHTTP)
 
+	// Rate limits for pre-auth endpoints that trigger account creation or an
+	// outbound email — IP-based since there's no authenticated identity yet.
+	authRateLimit := httprate.LimitByIP(5, time.Minute)
+
 	r.Route("/api/v1", func(r chi.Router) {
 		// Public
-		r.Post("/auth/register/morador", authH.RegisterMorador)
-		r.Post("/auth/register/prestador", authH.RegisterPrestador)
+		r.With(authRateLimit).Post("/auth/register/morador", authH.RegisterMorador)
+		r.With(authRateLimit).Post("/auth/register/prestador", authH.RegisterPrestador)
 		r.Post("/auth/login", authH.Login)
 		r.Post("/auth/refresh", authH.Refresh)
-		r.Post("/auth/forgot-password", authH.ForgotPassword)
+		r.With(authRateLimit).Post("/auth/forgot-password", authH.ForgotPassword)
 		r.Post("/auth/reset-password", authH.ResetPassword)
 		r.Get("/categories", categoryH.List)
 
@@ -90,9 +96,11 @@ func NewRouter(
 			r.Post("/ratings", ratingH.Create)
 			r.Get("/ratings/provider/{id}", ratingH.ListByProvider)
 
-			// Recommendations
+			// Recommendations — no single-column recommendation id exists in
+			// the schema (natural key is community+provider+recommender), so
+			// Delete takes provider_id in the body, symmetric with Create.
 			r.Post("/recommendations", recH.Create)
-			r.Delete("/recommendations/{id}", recH.Delete)
+			r.Delete("/recommendations", recH.Delete)
 			r.Get("/recommendations/provider/{id}", recH.ListByProvider)
 
 			// Approvals
@@ -115,8 +123,8 @@ func NewRouter(
 			r.Get("/chat/conversations/{id}/messages", chatH.ListMessages)
 			r.Post("/chat/conversations/{id}/read", chatH.MarkRead)
 
-			// Uploads
-			r.Post("/uploads/presign", uploadH.Presign)
+			// Uploads — each call mints a valid S3 write URL, cap abuse/cost
+			r.With(httprate.LimitByIP(30, time.Minute)).Post("/uploads/presign", uploadH.Presign)
 
 			// Admin
 			r.Group(func(r chi.Router) {

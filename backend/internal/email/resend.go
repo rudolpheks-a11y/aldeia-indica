@@ -8,7 +8,10 @@ import (
 	"io"
 	"log/slog"
 	"net/http"
+	"time"
 )
+
+const httpTimeout = 10 * time.Second
 
 type Client struct {
 	apiKey string
@@ -23,7 +26,7 @@ func New(apiKey, from string, log *slog.Logger) *Client {
 	if apiKey == "" {
 		log.Warn("email not configured — password reset emails disabled")
 	}
-	return &Client{apiKey: apiKey, from: from, http: &http.Client{}, log: log}
+	return &Client{apiKey: apiKey, from: from, http: &http.Client{Timeout: httpTimeout}, log: log}
 }
 
 type Message struct {

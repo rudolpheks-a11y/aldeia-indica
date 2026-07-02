@@ -2,12 +2,15 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/domain"
 )
+
+var ErrCrossCommunity = errors.New("other user does not belong to this community")
 
 type ChatService struct {
 	db *pgxpool.Pool
@@ -20,6 +23,20 @@ func NewChatService(db *pgxpool.Pool) *ChatService {
 // GetOrCreateConversation returns an existing conversation between two users or creates one.
 // participant_a is always the smaller UUID to maintain the canonical ordering constraint.
 func (s *ChatService) GetOrCreateConversation(ctx context.Context, communityID, userA, userB uuid.UUID) (*domain.Conversation, error) {
+	// userB must belong to the caller's community — otherwise a user could
+	// open a conversation with someone from another community just by
+	// guessing/obtaining their user ID. (userA is always the caller, whose
+	// community is already trusted from their own JWT claims.)
+	var otherCommunity uuid.UUID
+	if err := s.db.QueryRow(ctx,
+		`SELECT community_id FROM users WHERE id = $1`, userB,
+	).Scan(&otherCommunity); err != nil {
+		return nil, err
+	}
+	if otherCommunity != communityID {
+		return nil, ErrCrossCommunity
+	}
+
 	a, b := userA, userB
 	if a.String() > b.String() {
 		a, b = b, a

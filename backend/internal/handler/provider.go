@@ -157,6 +157,19 @@ func (h *ProviderHandler) UpdateMyAvailability(w http.ResponseWriter, r *http.Re
 func (h *ProviderHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.ClaimsFrom(r.Context())
 
+	// The route is self-service only — {id} must match the caller. Parsed
+	// and checked explicitly so the route's own contract can't silently
+	// start trusting a foreign id if this handler is extended later.
+	pathID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	if pathID != claims.UserID {
+		jsonError(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
 	var in struct {
 		S3Key   string `json:"s3_key"`
 		Caption string `json:"caption"`
