@@ -42,7 +42,7 @@ class HomeScreen extends ConsumerWidget {
                     TextButton(
                       onPressed: () => Navigator.pop(ctx, true),
                       child: const Text('Sair',
-                          style: TextStyle(color: Colors.red)),
+                          style: TextStyle(color: AppColors.error900)),
                     ),
                   ],
                 ),
@@ -112,7 +112,7 @@ class _MoradorHome extends ConsumerWidget {
               _HomeTile(
                 icon: Icons.campaign_rounded,
                 label: 'Mural de\navisos',
-                color: const Color(0xFF6A1B9A),
+                color: AppColors.informational700,
                 onTap: () => context.push('/bulletin'),
               ),
             ],

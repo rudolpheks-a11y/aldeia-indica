@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/constants/app_colors.dart';
 
 class PendingApprovalScreen extends ConsumerWidget {
   const PendingApprovalScreen({super.key});
@@ -14,7 +15,7 @@ class PendingApprovalScreen extends ConsumerWidget {
           child: Column(
             mainAxisAlignment: MainAxisAlignment.center,
             children: [
-              const Icon(Icons.hourglass_top, size: 80, color: Colors.orange),
+              const Icon(Icons.hourglass_top, size: 80, color: AppColors.secondary500),
               const SizedBox(height: 24),
               const Text(
                 'Cadastro em análise',

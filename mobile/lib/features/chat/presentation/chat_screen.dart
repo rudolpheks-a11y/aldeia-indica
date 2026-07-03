@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import '../../../shared/widgets/app_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import '../../../core/constants/app_colors.dart';
 import '../providers/chat_provider.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -62,7 +63,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       ),
                       decoration: BoxDecoration(
                         color: isMine
-                            ? const Color(0xFF1B5E20)
+                            ? AppColors.primary700
                             : Colors.grey[200],
                         borderRadius: BorderRadius.circular(16),
                       ),

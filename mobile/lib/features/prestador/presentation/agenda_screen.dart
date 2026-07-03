@@ -127,7 +127,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text(
               'Horário inválido em ${_dayFullNames[entry.key]}: o fim deve ser após o início.'),
-          backgroundColor: Colors.orange,
+          backgroundColor: AppColors.error900,
         ));
         return;
       }
@@ -157,7 +157,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
           content: Text('Erro ao salvar: $e'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error900,
         ));
       }
     } finally {

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../../../shared/widgets/loading_overlay.dart';
+import '../../../core/constants/app_colors.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
   final String communityId;
@@ -50,8 +51,12 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Senha alterada com sucesso!'),
-          backgroundColor: Colors.green,
+          content: Row(children: [
+            Icon(Icons.check_circle, color: Colors.white, size: 20),
+            SizedBox(width: 8),
+            Text('Senha alterada com sucesso!'),
+          ]),
+          backgroundColor: AppColors.success,
         ),
       );
       context.go('/login');
@@ -60,7 +65,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Código inválido ou expirado. Tente novamente.'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error900,
         ),
       );
     } finally {

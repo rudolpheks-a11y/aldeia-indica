@@ -6,6 +6,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../shared/widgets/star_rating_bar.dart';
 import '../../../shared/widgets/loading_overlay.dart';
+import '../../../core/constants/app_colors.dart';
 
 class RateProviderScreen extends ConsumerStatefulWidget {
   final String providerId;
@@ -57,7 +58,7 @@ class _RateProviderScreenState extends ConsumerState<RateProviderScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error900),
         );
       }
     } finally {

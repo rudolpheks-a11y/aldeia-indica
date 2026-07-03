@@ -3,6 +3,7 @@ import '../../../shared/widgets/app_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../../core/constants/app_colors.dart';
 
 const _comunidades = {
   'Aldeia da Serra': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
@@ -64,7 +65,7 @@ class _RegisterPrestadorScreenState
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Selecione ao menos um serviço'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error900,
         ),
       );
       return;
@@ -95,7 +96,7 @@ class _RegisterPrestadorScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error900),
         );
       }
     }

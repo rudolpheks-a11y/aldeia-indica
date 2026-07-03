@@ -105,7 +105,7 @@ class _AnuncioScreenState extends ConsumerState<AnuncioScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao salvar: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error900,
           ),
         );
       }

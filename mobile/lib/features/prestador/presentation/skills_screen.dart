@@ -186,7 +186,7 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
           content: Text('Selecione o tipo de auxílio com transporte.'),
-          backgroundColor: Colors.orange,
+          backgroundColor: AppColors.error900,
         ),
       );
       return;
@@ -213,7 +213,7 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
             content: Text('Erro ao salvar: $e'),
-            backgroundColor: Colors.red,
+            backgroundColor: AppColors.error900,
           ),
         );
       }

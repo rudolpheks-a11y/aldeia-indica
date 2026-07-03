@@ -4,6 +4,7 @@ import '../../../shared/widgets/app_back_button.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../bulletin/providers/bulletin_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
+import '../../../core/constants/app_colors.dart';
 
 class AdminDashboardScreen extends ConsumerWidget {
   const AdminDashboardScreen({super.key});
@@ -68,10 +69,12 @@ class _StatusChip extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = switch (status) {
-      'active' => Colors.green,
-      'pending' => Colors.orange,
-      'suspended' => Colors.red,
-      _ => Colors.grey,
+      // 'pending' usa secondary-700, não secondary-500: branco sobre
+      // secondary-500 falha 4.5:1 (ver DESIGN_1.md).
+      'active' => AppColors.primary700,
+      'pending' => AppColors.secondary700,
+      'suspended' => AppColors.error900,
+      _ => AppColors.neutral500,
     };
     return Chip(
       label: Text(status, style: const TextStyle(fontSize: 11, color: Colors.white)),
@@ -105,11 +108,11 @@ class _DocumentsTab extends ConsumerWidget {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         IconButton(
-                          icon: const Icon(Icons.check, color: Colors.green),
+                          icon: const Icon(Icons.check, color: AppColors.primary700),
                           onPressed: () => _review(context, ref, d['user_id'] as String, true),
                         ),
                         IconButton(
-                          icon: const Icon(Icons.close, color: Colors.red),
+                          icon: const Icon(Icons.close, color: AppColors.error900),
                           onPressed: () => _review(context, ref, d['user_id'] as String, false),
                         ),
                       ],
@@ -172,9 +175,9 @@ class _BulletinTab extends ConsumerWidget {
                           children: [
                             OutlinedButton.icon(
                               icon: const Icon(Icons.close,
-                                  color: Colors.red, size: 16),
+                                  color: AppColors.error900, size: 16),
                               label: const Text('Rejeitar',
-                                  style: TextStyle(color: Colors.red)),
+                                  style: TextStyle(color: AppColors.error900)),
                               onPressed: () => _review(
                                   context, ref, p['id'] as String,
                                   approve: false),
@@ -264,7 +267,7 @@ class _CommunitiesTabState extends ConsumerState<_CommunitiesTab> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: Colors.red),
+          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error900),
         );
       }
     } finally {

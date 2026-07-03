@@ -27,10 +27,14 @@
 
 ## Paleta de cores (`app_colors.dart`)
 
+v1.1 — verde foi removido do sistema (acessibilidade a daltonismo vermelho-verde).
+Ver [../brand/DESIGN_1.md](../brand/DESIGN_1.md) para a escala completa e o racional.
+
 | Token | Hex | Uso |
 |---|---|---|
-| Primary | `#1B5E20` | Verde floresta |
-| Secondary | `#F57F17` | Âmbar/laranja — "Indica" |
-| Accent | `#FFB300` | Âmbar claro — estrelas, sol |
-| Success | `#2E7D32` | — |
-| Surface | `#F9FBF9` | Background |
+| Primary (`primary700`) | `#2E5C74` | Azul Sereno — âncora de marca |
+| Secondary (`secondary500`) | `#C97B4A` | Terracota — "Indica", selo "Muito indicado" |
+| Accent (`accent500`) | `#E3A83F` | Dourado — exclusivo estrelas |
+| Success | `#2E5C74` | Igual ao primary — nunca verde, sempre com ícone de check |
+| Error (`error900`) | `#B0223C` | Carmim |
+| Surface | `#F9FAFA` | Background |

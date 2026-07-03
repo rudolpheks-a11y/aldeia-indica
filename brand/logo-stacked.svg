@@ -6,20 +6,20 @@
     </clipPath>
   </defs>
   <g clip-path="url(#badgeS)" transform="translate(130,20) scale(0.625)">
-    <rect x="0" y="0" width="256" height="256" fill="#1B5E20" />
-    <circle cx="128" cy="80" r="24" fill="#FFB300" />
-    <path d="M 8 200 L 74 112 L 128 166 L 182 112 L 248 200 Z" fill="#2E7D32" />
-    <path d="M 36 200 L 92 140 L 128 172 L 164 140 L 220 200 Z" fill="#4CAF50" />
+    <rect x="0" y="0" width="256" height="256" fill="#2E5C74" />
+    <circle cx="128" cy="80" r="24" fill="#E3A83F" />
+    <path d="M 8 200 L 74 112 L 128 166 L 182 112 L 248 200 Z" fill="#244A5D" />
+    <path d="M 36 200 L 92 140 L 128 172 L 164 140 L 220 200 Z" fill="#5695AC" />
     <path d="M 90 150 L 128 116 L 166 150 Z" fill="#F9FBF9" />
     <rect x="102" y="150" width="52" height="50" fill="#F9FBF9" />
-    <circle cx="128" cy="140" r="6" fill="#FFB300" />
-    <rect x="119" y="172" width="18" height="28" rx="3" fill="#F57F17" />
+    <circle cx="128" cy="140" r="6" fill="#E3A83F" />
+    <rect x="119" y="172" width="18" height="28" rx="3" fill="#C97B4A" />
   </g>
   <!-- Wordmark -->
   <text x="210" y="248" text-anchor="middle" font-family="Poppins, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="58" font-weight="700" letter-spacing="-1">
-    <tspan fill="#1B5E20">Aldeia </tspan><tspan fill="#F57F17">Indica</tspan>
+    <tspan fill="#2E5C74">Aldeia </tspan><tspan fill="#C97B4A">Indica</tspan>
   </text>
-  <text x="210" y="286" text-anchor="middle" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="500" fill="#616161">
+  <text x="210" y="286" text-anchor="middle" font-family="Inter, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="20" font-weight="500" fill="#616261">
     Rede de confiança da sua comunidade
   </text>
 </svg>

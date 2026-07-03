@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../shared/widgets/score_badge.dart';
+import '../../../core/constants/app_colors.dart';
 
 class DashboardScreen extends ConsumerWidget {
   const DashboardScreen({super.key});
@@ -55,7 +56,7 @@ class DashboardScreen extends ConsumerWidget {
                     padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 16),
                     child: Row(
                       children: [
-                        const Icon(Icons.emoji_events, color: Color(0xFF1B5E20), size: 32),
+                        const Icon(Icons.emoji_events, color: AppColors.primary700, size: 32),
                         const SizedBox(width: 12),
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
@@ -147,7 +148,7 @@ class _StatCard extends StatelessWidget {
         padding: const EdgeInsets.symmetric(vertical: 16, horizontal: 8),
         child: Column(
           children: [
-            Icon(icon, color: const Color(0xFF1B5E20), size: 28),
+            Icon(icon, color: AppColors.primary700, size: 28),
             const SizedBox(height: 4),
             Text(value,
                 style: const TextStyle(

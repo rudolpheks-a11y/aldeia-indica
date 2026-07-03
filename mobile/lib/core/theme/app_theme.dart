@@ -18,12 +18,22 @@ class AppTheme {
   }
 
   static ThemeData get light {
+    // Roles explícitos — ColorScheme.fromSeed sintetizaria tons que não
+    // batem com as âncoras aprovadas (primary-700 / secondary-500), e essa
+    // divergência vaza para Switch, Chip e cursor de TextField.
+    const scheme = ColorScheme.light(
+      primary: AppColors.primary700,
+      onPrimary: AppColors.neutral0,
+      secondary: AppColors.secondary500,
+      onSecondary: AppColors.neutral900,
+      error: AppColors.error900,
+      onError: AppColors.neutral0,
+      surface: AppColors.neutral0,
+      onSurface: AppColors.neutral900,
+    );
     final base = ThemeData(
       useMaterial3: true,
-      colorScheme: ColorScheme.fromSeed(
-        seedColor: AppColors.primary,
-        brightness: Brightness.light,
-      ),
+      colorScheme: scheme,
     );
     return base.copyWith(
         textTheme: _buildTextTheme(base.textTheme),
@@ -45,12 +55,20 @@ class AppTheme {
             foregroundColor: Colors.white,
             minimumSize: const Size(double.infinity, 52),
             shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(12),
+              borderRadius: BorderRadius.circular(16),
             ),
           ),
         ),
         inputDecorationTheme: InputDecorationTheme(
           border: OutlineInputBorder(borderRadius: BorderRadius.circular(12)),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.primary700, width: 2),
+          ),
+          errorBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(12),
+            borderSide: const BorderSide(color: AppColors.error900, width: 2),
+          ),
           contentPadding:
               const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
         ),
@@ -58,6 +76,26 @@ class AppTheme {
           elevation: 2,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+        ),
+        switchTheme: SwitchThemeData(
+          thumbColor: WidgetStateProperty.resolveWith((states) =>
+              states.contains(WidgetState.selected)
+                  ? AppColors.primary700
+                  : AppColors.neutral0),
+          trackColor: WidgetStateProperty.resolveWith((states) =>
+              states.contains(WidgetState.selected)
+                  ? AppColors.primary200
+                  : AppColors.neutral300),
+        ),
+        chipTheme: base.chipTheme.copyWith(
+          selectedColor: AppColors.primary100,
+          backgroundColor: AppColors.neutral50,
+          labelStyle: const TextStyle(color: AppColors.neutral600),
+          secondarySelectedColor: AppColors.primary100,
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(999),
+            side: const BorderSide(color: AppColors.neutral300),
+          ),
         ),
     );
   }

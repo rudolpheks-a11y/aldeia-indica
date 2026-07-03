@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../../../shared/widgets/contact_admin_button.dart';
 import '../../../shared/widgets/loading_overlay.dart';
+import '../../../core/constants/app_colors.dart';
 
 const _comunidades = {
   'Aldeia da Serra': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
@@ -49,7 +50,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
       final state = next.valueOrNull;
       if (state is AuthError) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(state.message), backgroundColor: Colors.red),
+          SnackBar(content: Text(state.message), backgroundColor: AppColors.error900),
         );
       }
     });

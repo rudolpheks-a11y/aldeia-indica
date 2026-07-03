@@ -1,0 +1,569 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Aldeia Indica — Manual Visual da Marca</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --primary-50:#EAF2F5; --primary-100:#CBE0E8; --primary-200:#A2C8D4; --primary-300:#78AFC0;
+  --primary-400:#5695AC; --primary-500:#457D94; --primary-600:#386B80; --primary-700:#2E5C74;
+  --primary-800:#244A5D; --primary-900:#17242E;
+  --secondary-50:#FBEEE6; --secondary-100:#F5D7C3; --secondary-200:#EDBB99; --secondary-300:#E39E6E;
+  --secondary-400:#D68C58; --secondary-500:#C97B4A; --secondary-600:#B1663A; --secondary-700:#94532E;
+  --secondary-800:#784224; --secondary-900:#5C331B;
+  --accent-500:#E3A83F;
+  --error-900:#B0223C;
+  --info-700:#5B4B8A; --info-900:#3E3564;
+  --veteran-900:#4A4038;
+  --n-0:#FFFFFF; --n-50:#F9FAFA; --n-100:#F1F2F1; --n-200:#E0E1E0; --n-300:#BDBEBD;
+  --n-400:#9E9F9E; --n-500:#757675; --n-600:#616261; --n-700:#424342; --n-800:#212221; --n-900:#1A1A1A;
+  --r-xs:4px; --r-sm:8px; --r-md:12px; --r-lg:16px; --r-full:999px;
+  --e1: 0 1px 2px rgba(23,36,46,0.08);
+  --e2: 0 2px 6px rgba(23,36,46,0.12);
+  --e3: 0 8px 24px rgba(23,36,46,0.16);
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html{scroll-behavior:smooth}
+body{
+  background:var(--n-50);
+  color:var(--n-900);
+  font-family:'Inter',system-ui,sans-serif;
+  line-height:1.6;
+  -webkit-font-smoothing:antialiased;
+}
+.wrap{max-width:1360px;margin:0 auto;}
+
+/* NAV */
+nav{
+  position:fixed;top:0;left:0;bottom:0;width:250px;overflow-y:auto;
+  padding:30px 18px;background:var(--primary-700);
+}
+nav .brand{display:flex;align-items:center;gap:10px;margin-bottom:26px;padding:0 10px}
+nav .brand .mark{width:34px;height:34px;border-radius:50%;background:#fff;display:grid;place-items:center;flex-shrink:0}
+nav .brand .mark svg{width:18px;height:18px}
+nav .brand b{font-family:'Poppins';font-weight:700;font-size:16px;color:#fff;letter-spacing:-0.01em}
+nav .brand b span{color:var(--secondary-400)}
+nav a{
+  display:block;color:var(--primary-100);text-decoration:none;font-size:13px;
+  padding:7px 12px;border-radius:8px;margin-bottom:1px;transition:.15s;
+}
+nav a:hover, nav a.active{color:#fff;background:rgba(255,255,255,0.1)}
+nav a .n{color:var(--secondary-400);font-weight:700;margin-right:8px;font-size:11.5px}
+nav .navlabel{font-size:10px;letter-spacing:0.22em;text-transform:uppercase;color:var(--primary-400);margin:20px 0 6px 12px;font-weight:600}
+
+/* MAIN */
+main{margin-left:250px;padding:0 clamp(20px,4vw,60px) 120px;min-width:0}
+section{padding:64px 0 8px;border-bottom:1px solid var(--n-200);scroll-margin-top:20px}
+section:last-child{border-bottom:none}
+.eyebrow{display:flex;align-items:center;gap:10px;font-weight:600;font-size:11.5px;letter-spacing:0.24em;text-transform:uppercase;color:var(--secondary-700);margin-bottom:12px}
+.eyebrow::before{content:"";width:22px;height:2px;background:var(--secondary-600)}
+h1{font-family:'Poppins';font-weight:700;font-size:clamp(34px,5vw,52px);line-height:1.05;letter-spacing:-0.02em;color:var(--primary-700);margin-bottom:16px}
+h2{font-family:'Poppins';font-weight:700;font-size:clamp(24px,3vw,32px);line-height:1.1;letter-spacing:-0.01em;color:var(--primary-700);margin-bottom:8px}
+h3{font-family:'Poppins';font-weight:600;font-size:17px;color:var(--primary-700);margin:30px 0 12px}
+h4{font-weight:600;font-size:12px;letter-spacing:0.12em;text-transform:uppercase;color:var(--secondary-700);margin:22px 0 10px}
+p{color:var(--n-700);font-size:14.5px;max-width:720px}
+p.lede{font-size:16.5px;color:var(--n-700);max-width:640px;margin-bottom:8px}
+strong{color:var(--n-900)}
+.grid{display:grid;gap:16px}
+.g2{grid-template-columns:1fr 1fr}
+.g3{grid-template-columns:repeat(3,1fr)}
+.g4{grid-template-columns:repeat(4,1fr)}
+.g5{grid-template-columns:repeat(5,1fr)}
+@media(max-width:900px){.g2,.g3,.g4,.g5{grid-template-columns:1fr 1fr}}
+
+.card{background:#fff;border:1px solid var(--n-200);border-radius:var(--r-lg);padding:20px;box-shadow:var(--e2)}
+.card h3{margin-top:0}
+
+/* callouts */
+.callout{border-left:5px solid var(--secondary-600);background:var(--secondary-50);border-radius:0 var(--r-md) var(--r-md) 0;padding:14px 18px;margin:16px 0}
+.callout b{color:var(--secondary-900);display:block;margin-bottom:3px;font-size:13.5px}
+.callout p{color:var(--n-800);font-size:13.5px;margin:0}
+.callout.good{border-left-color:var(--primary-700);background:var(--primary-50)}
+.callout.good b{color:var(--primary-700)}
+
+/* swatch */
+.sw{border-radius:var(--r-md);overflow:hidden;border:1px solid var(--n-200)}
+.sw .fill{height:64px}
+.sw .info{background:#fff;padding:9px 11px}
+.sw .name{font-family:'Poppins';font-weight:600;font-size:12px}
+.sw .hex{font-size:11px;color:var(--n-600);font-family:monospace}
+
+/* type specimen */
+.tsample{display:flex;justify-content:space-between;align-items:baseline;padding:16px 0;border-bottom:1px solid var(--n-200);gap:20px;flex-wrap:wrap}
+.tsample .spec{font-size:11px;color:var(--n-500);white-space:nowrap;text-align:right}
+
+/* buttons */
+.btn{display:inline-flex;align-items:center;justify-content:center;height:52px;padding:0 24px;border-radius:var(--r-lg);
+  font-weight:600;font-size:14px;border:none;cursor:pointer;font-family:'Inter';transition:.12s;}
+.btn-primary{background:var(--primary-700);color:#fff}
+.btn-primary:active{background:var(--primary-800)}
+.btn-secondary{background:#fff;color:var(--primary-700);border:1.5px solid var(--primary-700)}
+.btn-text{background:none;color:var(--primary-700)}
+.btn-danger{background:var(--error-900);color:#fff}
+.btn-disabled{background:var(--n-200);color:var(--n-400);cursor:not-allowed}
+.btn-row{display:flex;gap:14px;flex-wrap:wrap;align-items:center;margin:14px 0}
+.btn-label{font-size:11px;color:var(--n-500);display:block;margin-top:6px;text-align:center}
+
+/* fab */
+.fab{width:48px;height:48px;border-radius:50%;background:var(--secondary-600);color:#fff;display:grid;place-items:center;font-size:22px;box-shadow:var(--e2);border:none;cursor:pointer}
+
+/* badges & score */
+.badge{display:inline-flex;align-items:center;gap:5px;height:24px;padding:0 10px;border-radius:var(--r-full);font-size:11.5px;font-weight:600}
+.score-badge{width:56px;height:56px;border-radius:50%;display:flex;flex-direction:column;align-items:center;justify-content:center;color:#fff;font-family:'Poppins'}
+.score-badge b{font-size:19px;line-height:1}
+.score-badge span{font-size:8px;text-transform:uppercase;letter-spacing:.04em}
+
+/* chip */
+.chip{display:inline-flex;align-items:center;gap:6px;height:36px;padding:0 16px;border-radius:var(--r-full);font-size:13px;font-weight:500;cursor:pointer;border:1px solid var(--n-300);background:var(--n-50);color:var(--n-600);transition:.12s;user-select:none}
+.chip.selected{background:var(--primary-100);color:var(--primary-700);border-color:transparent}
+.chip .ck{display:none}
+.chip.selected .ck{display:inline}
+
+/* input */
+.field{border:1px solid var(--n-300);border-radius:var(--r-md);padding:14px 16px;font-size:14px;color:var(--n-900);background:#fff}
+.field.focus{border-color:var(--primary-700);border-width:2px;padding:13px 15px}
+.field.error{border-color:var(--error-900);border-width:2px;padding:13px 15px}
+.field.placeholder{color:var(--n-600)}
+.field-label{font-size:11.5px;color:var(--n-500);margin-top:6px;display:block}
+.error-msg{color:var(--error-900);font-size:12px;margin-top:6px;display:flex;align-items:center;gap:5px}
+
+/* provider card */
+.provider-card{background:#fff;border:1px solid var(--n-200);border-radius:var(--r-lg);padding:16px;box-shadow:var(--e2);display:flex;gap:12px;align-items:center}
+.avatar{width:48px;height:48px;border-radius:50%;background:var(--primary-100);color:var(--primary-700);display:grid;place-items:center;font-family:'Poppins';font-weight:700;font-size:15px;flex-shrink:0}
+.stars{color:var(--n-200);font-size:14px;letter-spacing:2px}
+.stars .on{color:var(--accent-500)}
+
+/* phone mock */
+.phone{width:250px;background:var(--n-900);border-radius:34px;padding:10px;box-shadow:var(--e3)}
+.phone-screen{background:var(--n-50);border-radius:24px;overflow:hidden}
+.phone-top{background:var(--primary-700);color:#fff;padding:18px 16px 14px}
+.phone-search{background:#fff;border-radius:var(--r-full);padding:9px 14px;color:var(--n-600);font-size:12px;margin-top:10px}
+.phone-body{padding:12px 14px}
+
+/* table */
+table{width:100%;border-collapse:collapse;font-size:13px;margin:14px 0}
+th{text-align:left;background:var(--primary-700);color:#fff;font-weight:600;font-size:11px;letter-spacing:.06em;text-transform:uppercase;padding:9px 12px}
+td{padding:8px 12px;border-bottom:1px solid var(--n-200)}
+tr:nth-child(even) td{background:var(--n-50)}
+code{font-family:monospace;background:var(--n-100);color:var(--secondary-900);padding:1px 6px;border-radius:4px;font-size:12px}
+.ok{color:var(--primary-800);font-weight:600}
+.fail{color:var(--error-900);font-weight:600}
+
+/* rules grid */
+.rule{background:#fff;border:1px solid var(--n-200);border-left:4px solid var(--primary-700);border-radius:var(--r-md);padding:14px 16px}
+.rule b{font-family:'Poppins';font-size:13px;color:var(--primary-700);display:block;margin-bottom:4px}
+.rule p{font-size:12.5px;margin:0}
+
+/* dos donts */
+.dd{border-radius:var(--r-lg);padding:20px}
+.dd.dos{background:var(--primary-50);border:1px solid var(--primary-200)}
+.dd.donts{background:var(--secondary-50);border:1px solid var(--secondary-200)}
+.dd .tag{display:inline-flex;align-items:center;gap:7px;font-weight:700;font-size:13px;margin-bottom:12px}
+.dd.dos .tag{color:var(--primary-800)}
+.dd.donts .tag{color:var(--secondary-800)}
+.dd ul{list-style:none}
+.dd li{font-size:13px;padding:6px 0 6px 20px;position:relative;color:var(--n-800)}
+.dd.dos li::before{content:"✓";position:absolute;left:0;color:var(--primary-700);font-weight:700}
+.dd.donts li::before{content:"✕";position:absolute;left:0;color:var(--secondary-800);font-weight:700}
+
+/* hero */
+.hero{padding:90px 0 70px;text-align:left}
+.hero-mark{width:96px;height:96px;border-radius:50%;background:var(--primary-50);display:grid;place-items:center;margin-bottom:26px}
+.hero-mark svg{width:48px;height:48px}
+.hero small{display:block;font-size:13px;color:var(--n-600);margin-top:10px;letter-spacing:.02em}
+
+footer{margin-left:250px;padding:40px clamp(20px,4vw,60px);color:var(--n-500);font-size:12px;border-top:1px solid var(--n-200)}
+@media(max-width:860px){nav{position:relative;width:100%;height:auto;bottom:auto}main{margin-left:0}footer{margin-left:0}}
+</style>
+</head>
+<body>
+<div class="wrap">
+<nav>
+  <div class="brand">
+    <div class="mark"><svg viewBox="0 0 40 40"><polygon points="20,6 34,20 34,34 6,34 6,20" fill="#2E5C74"/><circle cx="20" cy="14" r="4" fill="#fff"/></svg></div>
+    <b>Pertin<span>ho</span> / Aldeia<span>Indica</span></b>
+  </div>
+  <div class="navlabel">Início</div>
+  <a href="#overview"><span class="n">01</span>Visão geral</a>
+  <div class="navlabel">Identidade</div>
+  <a href="#colors"><span class="n">02</span>Cores</a>
+  <a href="#type"><span class="n">03</span>Tipografia</a>
+  <a href="#elevation"><span class="n">04</span>Elevação &amp; cantos</a>
+  <div class="navlabel">Componentes</div>
+  <a href="#buttons"><span class="n">05</span>Botões</a>
+  <a href="#cards"><span class="n">06</span>Cards</a>
+  <a href="#badges"><span class="n">07</span>Selos &amp; nota</a>
+  <a href="#inputs"><span class="n">08</span>Campos</a>
+  <a href="#chips"><span class="n">09</span>Chips</a>
+  <a href="#nav"><span class="n">10</span>Navegação</a>
+  <div class="navlabel">Aplicação</div>
+  <a href="#screen"><span class="n">11</span>Tela real</a>
+  <a href="#access"><span class="n">12</span>Acessibilidade</a>
+  <a href="#rules"><span class="n">13</span>Regras</a>
+  <a href="#dd"><span class="n">14</span>Do's &amp; Don'ts</a>
+</nav>
+
+<main>
+
+<section id="overview" class="hero">
+  <div class="hero-mark"><svg viewBox="0 0 40 40"><polygon points="20,6 34,20 34,34 6,34 6,20" fill="#2E5C74"/><circle cx="20" cy="14" r="4" fill="#fff"/></svg></div>
+  <div class="eyebrow">Manual visual · v1.0</div>
+  <h1>Aldeia Indica</h1>
+  <p class="lede">Rede de confiança comunitária entre moradores e prestadores de serviço,
+  começando pela Aldeia da Serra. Este documento mostra, renderizado de verdade
+  (não em maquete), como cada token do design system vira componente na tela.</p>
+  <small>Feito para ser visualizado no navegador — role a página ou use o menu ao lado.</small>
+
+  <div class="callout" style="margin-top:32px;max-width:720px">
+    <b>Sobre "cores mais viciantes"</b>
+    <p>Não apliquei esse critério aqui de propósito. "Cor que vicia" é vocabulário de
+    dark pattern — pensado para prender a atenção mesmo quando isso não serve à pessoa.
+    Num app usado por moradores mais velhos e por gente com pouca prática digital,
+    isso é o oposto do que queremos. O que fiz no lugar: hierarquia visual clara, um
+    botão de ação por tela, feedback imediato de toque e contraste alto — isso também
+    "prende o foco", mas porque a tarefa fica fácil, não porque a interface manipula.</p>
+  </div>
+</section>
+
+<!-- COLORS -->
+<section id="colors">
+  <div class="eyebrow">02 · Identidade</div>
+  <h2>Cores</h2>
+  <p>Escalas completas, ancoradas nos hex que já existem em produção (marcados abaixo).
+  Nenhuma cor nova — só nomeada e sistematizada.</p>
+
+  <div class="callout">
+    <b>Por que não é mais verde (v1.1)</b>
+    <p>A versão anterior usava verde floresta como primary. Pesquisa de acessibilidade
+    mostrou que essa combinação — verde escuro + selo "veterano" marrom + erro
+    vermelho — é quase o pior caso possível para daltonismo vermelho-verde (~8% dos
+    homens). Azul é citado de forma consistente como o hue mais seguro entre todos os
+    tipos de daltonismo — é a base dos padrões Okabe-Ito e Wong, os mais referenciados
+    para paletas acessíveis. Terracota como par replica essa lógica.</p>
+  </div>
+
+  <h3>Azul Sereno — Primary</h3>
+  <div class="grid g5">
+    <div class="sw"><div class="fill" style="background:var(--primary-50)"></div><div class="info"><div class="name">primary-50</div><div class="hex">#EAF2F5</div></div></div>
+    <div class="sw"><div class="fill" style="background:var(--primary-100)"></div><div class="info"><div class="name">primary-100</div><div class="hex">#CBE0E8</div></div></div>
+    <div class="sw"><div class="fill" style="background:var(--primary-300)"></div><div class="info"><div class="name">primary-300</div><div class="hex">#78AFC0</div></div></div>
+    <div class="sw"><div class="fill" style="background:var(--primary-500)"></div><div class="info"><div class="name">primary-500</div><div class="hex">#457D94</div></div></div>
+    <div class="sw"><div class="fill" style="background:var(--primary-700)"></div><div class="info"><div class="name">primary-700</div><div class="hex">#2E5C74 · âncora</div></div></div>
+  </div>
+  <div class="grid g5" style="margin-top:12px">
+    <div class="sw"><div class="fill" style="background:var(--primary-800)"></div><div class="info"><div class="name">primary-800</div><div class="hex">#244A5D · pressed</div></div></div>
+    <div class="sw"><div class="fill" style="background:var(--primary-900)"></div><div class="info"><div class="name">primary-900</div><div class="hex">#17242E</div></div></div>
+    <div class="sw"><div class="fill" style="background:var(--secondary-500)"></div><div class="info"><div class="name">secondary-500</div><div class="hex">#C97B4A · âncora</div></div></div>
+    <div class="sw"><div class="fill" style="background:var(--accent-500)"></div><div class="info"><div class="name">accent-500</div><div class="hex">#E3A83F · estrela</div></div></div>
+    <div class="sw"><div class="fill" style="background:var(--error-900)"></div><div class="info"><div class="name">error-900</div><div class="hex">#B0223C · carmim</div></div></div>
+  </div>
+
+  <div class="callout good">
+    <b>Quatro selos, quatro hues distantes entre si</b>
+    <p><code>primary</code> (azul), <code>secondary</code> (terracota),
+    <code>informational</code> (roxo, ver abaixo) e <code>veteran</code> (grafite
+    quente) foram escolhidos deliberadamente afastados na roda de cor — nenhum depende
+    de diferenciar vermelho de verde para ser lido corretamente.</p>
+  </div>
+
+  <h3>Roxo Neutro &amp; Grafite Quente — cores de apoio</h3>
+  <div class="grid g5">
+    <div class="sw"><div class="fill" style="background:var(--info-700)"></div><div class="info"><div class="name">informational-700</div><div class="hex">#5B4B8A · selo Completo</div></div></div>
+    <div class="sw"><div class="fill" style="background:var(--info-900)"></div><div class="info"><div class="name">informational-900</div><div class="hex">#3E3564 · ScoreBadge Novo</div></div></div>
+    <div class="sw"><div class="fill" style="background:var(--veteran-900)"></div><div class="info"><div class="name">veteran-900</div><div class="hex">#4A4038 · selo Veterano</div></div></div>
+  </div>
+
+  <h3>Neutros &amp; texto</h3>
+  <div class="grid g5">
+    <div class="sw"><div class="fill" style="background:var(--n-0);border-bottom:1px solid var(--n-200)"></div><div class="info"><div class="name">neutral-0</div><div class="hex">#FFFFFF</div></div></div>
+    <div class="sw"><div class="fill" style="background:var(--n-300)"></div><div class="info"><div class="name">neutral-300</div><div class="hex">#BDBEBD · borda</div></div></div>
+    <div class="sw"><div class="fill" style="background:var(--n-600)"></div><div class="info"><div class="name">neutral-600</div><div class="hex">#616261 · texto 2º</div></div></div>
+    <div class="sw"><div class="fill" style="background:var(--n-900)"></div><div class="info"><div class="name">neutral-900</div><div class="hex">#1A1A1A · texto 1º</div></div></div>
+    <div class="sw"><div class="fill" style="background:var(--n-400)"></div><div class="info"><div class="name">neutral-400</div><div class="hex">#9E9F9E · ⚠ descontinuado</div></div></div>
+  </div>
+
+  <div class="callout">
+    <b>Bug corrigido: textHint</b>
+    <p><code>#9E9F9E</code> media <strong>2.68:1</strong> de contraste contra fundo
+    branco — abaixo do mínimo WCAG AA (4.5:1). Corrigido reaproveitando
+    <code>neutral-600</code> (<strong>6.18:1</strong>) para hint e texto secundário.
+    Compare abaixo, com texto real do tamanho de uma legenda de app:</p>
+    <div style="display:flex;gap:26px;margin-top:12px;flex-wrap:wrap">
+      <div style="background:#fff;padding:10px 14px;border-radius:8px;border:1px solid var(--n-200)">
+        <span style="color:#9E9F9E;font-size:13px">Antigo · 2.68:1 · quase ilegível</span>
+      </div>
+      <div style="background:#fff;padding:10px 14px;border-radius:8px;border:1px solid var(--n-200)">
+        <span style="color:var(--n-600);font-size:13px">Corrigido · 6.18:1 · legível</span>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- TYPE -->
+<section id="type">
+  <div class="eyebrow">03 · Identidade</div>
+  <h2>Tipografia</h2>
+  <p><strong>Poppins</strong> (600–700) para títulos e destaques, <strong>Inter</strong> para corpo e interface.</p>
+  <div class="tsample"><div style="font-family:Poppins;font-weight:700;font-size:26px;color:var(--n-900)">Serviços de confiança, perto de você</div><div class="spec">Display · Poppins 700 · 26/34</div></div>
+  <div class="tsample"><div style="font-family:Poppins;font-weight:600;font-size:20px;color:var(--n-900)">Encontre um prestador</div><div class="spec">Headline · Poppins 600 · 20/28</div></div>
+  <div class="tsample"><div style="font-family:Poppins;font-weight:600;font-size:16px;color:var(--n-900)">Marcos Silva · Eletricista</div><div class="spec">Title · Poppins 600 · 16/22</div></div>
+  <div class="tsample"><div style="font-family:Inter;font-weight:400;font-size:15px;color:var(--n-900)">Atende toda a Aldeia da Serra, com mais de 30 avaliações positivas.</div><div class="spec">Body · Inter 400 · 15/22</div></div>
+  <div class="tsample"><div style="font-family:Inter;font-weight:600;font-size:14px;color:var(--n-900)">CHAMAR PRESTADOR</div><div class="spec">Label · Inter 600 · 14/20</div></div>
+  <div class="tsample"><div style="font-family:Inter;font-weight:400;font-size:12px;color:var(--n-600)">Publicado há 2 dias</div><div class="spec">Caption · Inter 400 · 12/16</div></div>
+</section>
+
+<!-- ELEVATION -->
+<section id="elevation">
+  <div class="eyebrow">04 · Identidade</div>
+  <h2>Elevação &amp; cantos</h2>
+  <div class="grid g3">
+    <div style="background:#fff;border-radius:14px;padding:20px;box-shadow:var(--e1)"><b>Nível 1</b><br><span style="font-size:12px;color:var(--n-600)">Bottom navigation</span></div>
+    <div style="background:#fff;border-radius:14px;padding:20px;box-shadow:var(--e2)"><b>Nível 2</b><br><span style="font-size:12px;color:var(--n-600)">Cards</span></div>
+    <div style="background:#fff;border-radius:14px;padding:20px;box-shadow:var(--e3)"><b>Nível 3</b><br><span style="font-size:12px;color:var(--n-600)">Modais, sheets</span></div>
+  </div>
+  <h3>Cantos (radius)</h3>
+  <div class="grid g5">
+    <div style="text-align:center"><div style="width:70px;height:70px;background:var(--primary-100);border-radius:4px;margin:0 auto 8px"></div><span style="font-size:11px">xs · 4px</span></div>
+    <div style="text-align:center"><div style="width:70px;height:70px;background:var(--primary-100);border-radius:8px;margin:0 auto 8px"></div><span style="font-size:11px">sm · 8px</span></div>
+    <div style="text-align:center"><div style="width:70px;height:70px;background:var(--primary-100);border-radius:12px;margin:0 auto 8px"></div><span style="font-size:11px">md · 12px (inputs)</span></div>
+    <div style="text-align:center"><div style="width:70px;height:70px;background:var(--primary-100);border-radius:16px;margin:0 auto 8px"></div><span style="font-size:11px">lg · 16px (cards/botões)</span></div>
+    <div style="text-align:center"><div style="width:70px;height:70px;background:var(--primary-100);border-radius:999px;margin:0 auto 8px"></div><span style="font-size:11px">full · chips</span></div>
+  </div>
+</section>
+
+<!-- BUTTONS -->
+<section id="buttons">
+  <div class="eyebrow">05 · Componentes</div>
+  <h2>Botões</h2>
+  <p>Altura fixa 52px, um botão primário por tela.</p>
+  <div class="btn-row">
+    <div><button class="btn btn-primary">Chamar prestador</button><span class="btn-label">Primário</span></div>
+    <div><button class="btn btn-secondary">Ver perfil</button><span class="btn-label">Secundário</span></div>
+    <div><button class="btn btn-text">Cancelar</button><span class="btn-label">Texto</span></div>
+    <div><button class="btn btn-danger">Rejeitar cadastro</button><span class="btn-label">Perigo</span></div>
+    <div><button class="btn btn-disabled" disabled>Indisponível</button><span class="btn-label">Desabilitado</span></div>
+    <div><button class="fab">+</button><span class="btn-label">FAB</span></div>
+  </div>
+  <p style="font-size:12.5px">Toque no botão primário abaixo para ver o estado <em>pressed</em> (fica em <code>primary-800</code>):</p>
+  <div class="btn-row"><button class="btn btn-primary">Segure o clique</button></div>
+</section>
+
+<!-- CARDS -->
+<section id="cards">
+  <div class="eyebrow">06 · Componentes</div>
+  <h2>Cards</h2>
+  <p>Elevação 2, raio 16px. Card é a resposta preguiçosa — só para unidades escaneáveis de lista (ver Regras).</p>
+  <div class="provider-card" style="max-width:420px">
+    <div class="avatar">MS</div>
+    <div style="flex:1">
+      <div style="font-family:Poppins;font-weight:600;font-size:14.5px">Marcos Silva</div>
+      <div style="display:flex;gap:6px;margin:4px 0">
+        <span class="badge" style="background:var(--primary-700);color:#fff">Bem avaliado</span>
+        <span class="badge" style="background:var(--secondary-500);color:var(--n-900)">Muito indicado</span>
+      </div>
+      <div class="stars"><span class="on">★★★★</span>★ <span style="color:var(--n-600);font-size:12px">4.0 (32)</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- BADGES -->
+<section id="badges">
+  <div class="eyebrow">07 · Componentes</div>
+  <h2>Selos &amp; ScoreBadge</h2>
+  <p>Quatro selos, quatro hues distantes na roda de cor, cada um com fundo/texto testado para ≥ 4.5:1.</p>
+  <div class="grid g4">
+    <div style="text-align:center"><span class="badge" style="background:var(--primary-700);color:#fff">Bem avaliado</span><div style="font-size:11px;color:var(--n-600);margin-top:6px">7.24:1</div></div>
+    <div style="text-align:center"><span class="badge" style="background:var(--secondary-500);color:var(--n-900)">Muito indicado</span><div style="font-size:11px;color:var(--n-600);margin-top:6px">5.32:1</div></div>
+    <div style="text-align:center"><span class="badge" style="background:var(--veteran-900);color:#fff">Veterano</span><div style="font-size:11px;color:var(--n-600);margin-top:6px">10.09:1</div></div>
+    <div style="text-align:center"><span class="badge" style="background:var(--info-700);color:#fff">Completo</span><div style="font-size:11px;color:var(--n-600);margin-top:6px">7.45:1</div></div>
+  </div>
+
+  <h3>ScoreBadge — o bug corrigido</h3>
+  <div class="grid g4">
+    <div style="text-align:center">
+      <div class="score-badge" style="background:var(--primary-700);margin:0 auto"><b>91</b><span>Excelente</span></div>
+      <div style="font-size:11px;color:var(--n-600);margin-top:6px">≥85 · 7.24:1</div>
+    </div>
+    <div style="text-align:center">
+      <div class="score-badge" style="background:var(--secondary-500);color:var(--n-900);margin:0 auto"><b>78</b><span>Bom</span></div>
+      <div style="font-size:11px;color:var(--n-600);margin-top:6px">65–84 · 5.32:1 (corrigido)</div>
+    </div>
+    <div style="text-align:center">
+      <div class="score-badge" style="background:var(--error-900);margin:0 auto"><b>52</b><span>Melhorar</span></div>
+      <div style="font-size:11px;color:var(--n-600);margin-top:6px">&lt;65 · 6.68:1</div>
+    </div>
+    <div style="text-align:center">
+      <div class="score-badge" style="background:var(--info-900);margin:0 auto"><b>—</b><span>Novo</span></div>
+      <div style="font-size:11px;color:var(--n-600);margin-top:6px">&lt;5 avaliações · 11.06:1</div>
+    </div>
+  </div>
+  <div class="callout">
+    <b>O bug real</b>
+    <p>Faixa "Bom" mostrava texto branco sobre o fundo saturado da faixa = contraste
+    insuficiente (o mesmo problema, com âmbar na v1.0, agora com terracota). A correção
+    troca só a cor do texto para grafite — o fundo da marca continua o mesmo.</p>
+  </div>
+</section>
+
+<!-- INPUTS -->
+<section id="inputs">
+  <div class="eyebrow">08 · Componentes</div>
+  <h2>Campos de formulário</h2>
+  <div class="grid g3">
+    <div><div class="field placeholder">Buscar serviço...</div><span class="field-label">Default</span></div>
+    <div><div class="field focus" style="color:var(--n-900)">Rua das Palmeiras, 123</div><span class="field-label">Foco · borda azul 2px</span></div>
+    <div>
+      <div class="field error" style="color:var(--n-900)">seu@email</div>
+      <div class="error-msg">⚠ Digite um e-mail válido</div>
+    </div>
+  </div>
+</section>
+
+<!-- CHIPS -->
+<section id="chips">
+  <div class="eyebrow">09 · Componentes</div>
+  <h2>Chips de categoria</h2>
+  <p>Clique para alternar — o estado nunca depende só da cor (tem check também).</p>
+  <div style="display:flex;gap:10px;flex-wrap:wrap" id="chipRow">
+    <div class="chip selected" onclick="this.classList.toggle('selected')"><span class="ck">✓</span>Elétrica</div>
+    <div class="chip" onclick="this.classList.toggle('selected')"><span class="ck">✓</span>Limpeza</div>
+    <div class="chip" onclick="this.classList.toggle('selected')"><span class="ck">✓</span>Aulas</div>
+    <div class="chip" onclick="this.classList.toggle('selected')"><span class="ck">✓</span>Reformas</div>
+    <div class="chip" onclick="this.classList.toggle('selected')"><span class="ck">✓</span>Jardinagem</div>
+  </div>
+</section>
+
+<!-- NAV -->
+<section id="nav">
+  <div class="eyebrow">10 · Componentes</div>
+  <h2>Navegação</h2>
+  <div style="max-width:320px">
+    <div style="background:var(--primary-700);color:#fff;padding:16px;border-radius:12px 12px 0 0;font-family:Poppins;font-weight:600">Aldeia Indica</div>
+    <div style="background:#fff;display:flex;border:1px solid var(--n-200);border-top:0;border-radius:0 0 12px 12px;padding:12px">
+      <div style="flex:1;text-align:center;color:var(--primary-700)"><div style="width:20px;height:20px;background:var(--primary-700);border-radius:50%;margin:0 auto 4px"></div><span style="font-size:10px">Início</span></div>
+      <div style="flex:1;text-align:center;color:var(--n-600)"><div style="width:20px;height:20px;border:2px solid var(--n-600);border-radius:50%;margin:0 auto 4px"></div><span style="font-size:10px">Buscar</span></div>
+      <div style="flex:1;text-align:center;color:var(--n-600)"><div style="width:20px;height:20px;border:2px solid var(--n-600);border-radius:50%;margin:0 auto 4px"></div><span style="font-size:10px">Pedidos</span></div>
+      <div style="flex:1;text-align:center;color:var(--n-600)"><div style="width:20px;height:20px;border:2px solid var(--n-600);border-radius:50%;margin:0 auto 4px"></div><span style="font-size:10px">Perfil</span></div>
+    </div>
+  </div>
+</section>
+
+<!-- SCREEN -->
+<section id="screen">
+  <div class="eyebrow">11 · Aplicação</div>
+  <h2>Como fica na tela</h2>
+  <p>Tudo junto, no tamanho e proporção reais de um app.</p>
+  <div class="phone">
+    <div class="phone-screen">
+      <div class="phone-top">
+        <div style="font-family:Poppins;font-weight:600;font-size:14px">Olá, Ana</div>
+        <div style="font-size:11px;color:var(--primary-100)">O que você precisa hoje?</div>
+        <div class="phone-search">Buscar eletricista, diarista...</div>
+      </div>
+      <div class="phone-body">
+        <div style="display:flex;gap:6px;margin-bottom:10px">
+          <span class="chip selected" style="height:26px;padding:0 10px;font-size:11px"><span class="ck">✓</span>Elétrica</span>
+          <span class="chip" style="height:26px;padding:0 10px;font-size:11px">Limpeza</span>
+        </div>
+        <div class="provider-card" style="padding:10px;margin-bottom:8px">
+          <div class="avatar" style="width:36px;height:36px;font-size:12px">MS</div>
+          <div style="flex:1">
+            <div style="font-family:Poppins;font-weight:600;font-size:12px">Marcos Silva</div>
+            <div style="font-size:10px;color:var(--n-600)">Eletricista · 0,8 km</div>
+          </div>
+          <div class="score-badge" style="width:34px;height:34px;background:var(--secondary-500);color:var(--n-900)"><b style="font-size:12px">78</b></div>
+        </div>
+        <div class="provider-card" style="padding:10px">
+          <div class="avatar" style="width:36px;height:36px;font-size:12px">JR</div>
+          <div style="flex:1">
+            <div style="font-family:Poppins;font-weight:600;font-size:12px">Joana Reis</div>
+            <div style="font-size:10px;color:var(--n-600)">Diarista · 1,2 km</div>
+          </div>
+          <div class="score-badge" style="width:34px;height:34px;background:var(--primary-700)"><b style="font-size:12px">91</b></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ACCESSIBILITY -->
+<section id="access">
+  <div class="eyebrow">12 · Sistema</div>
+  <h2>Acessibilidade</h2>
+  <table>
+    <tr><th>Combinação</th><th>Contraste</th><th>Status</th></tr>
+    <tr><td>neutral-900 sobre branco</td><td>15.68:1</td><td class="ok">OK</td></tr>
+    <tr><td>neutral-600 sobre branco</td><td>6.18:1</td><td class="ok">OK</td></tr>
+    <tr><td>neutral-400 sobre branco (descontinuado)</td><td>2.68:1</td><td class="fail">FALHA</td></tr>
+    <tr><td>branco sobre primary-700</td><td>7.24:1</td><td class="ok">OK</td></tr>
+    <tr><td>branco sobre secondary-500 (proibido)</td><td>3.27:1</td><td class="fail">FALHA</td></tr>
+    <tr><td>neutral-900 sobre secondary-500</td><td>5.32:1</td><td class="ok">OK</td></tr>
+    <tr><td>branco sobre error-900</td><td>6.68:1</td><td class="ok">OK</td></tr>
+    <tr><td>branco sobre veteran-900</td><td>10.09:1</td><td class="ok">OK</td></tr>
+    <tr><td>branco sobre informational-700</td><td>7.45:1</td><td class="ok">OK</td></tr>
+    <tr><td>branco sobre error-900</td><td>6.57:1</td><td class="ok">OK</td></tr>
+  </table>
+  <p>Toque mínimo: <strong>44×44px</strong> em qualquer elemento tocável. Todo componente
+  customizado (selo, chip, ScoreBadge, estrela) precisa de rótulo semântico — hoje nenhum tem.</p>
+</section>
+
+<!-- RULES -->
+<section id="rules">
+  <div class="eyebrow">13 · Sistema</div>
+  <h2>Regras nomeadas</h2>
+  <div class="grid g2">
+    <div class="rule"><b>Regra da Cor com Significado</b><p>Se você não consegue nomear o que uma cor comunica, ela não entra na tela.</p></div>
+    <div class="rule"><b>Regra do Selo Legível</b><p>Nenhum texto sobre selo abaixo de 4.5:1. Testa antes de shippar, não depois.</p></div>
+    <div class="rule"><b>Regra do Botão Único</b><p>No máximo um botão primário visível por tela.</p></div>
+    <div class="rule"><b>Regra do Cartão Deliberado</b><p>Card é a resposta preguiçosa. Nunca aninhar. Nunca usar só para dar padding.</p></div>
+    <div class="rule"><b>Regra do Toque Generoso</b><p>44×44px mínimo, mesmo se o ícone visual for menor.</p></div>
+    <div class="rule"><b>Regra do Estado Duplo</b><p>Seleção nunca depende só de cor — sempre cor + ícone/check.</p></div>
+    <div class="rule"><b>Regra da Roda de Cor</b><p>Cor nova precisa ficar longe das já existentes na roda — e nunca depender de diferenciar vermelho de verde.</p></div>
+  </div>
+</section>
+
+<!-- DOS DONTS -->
+<section id="dd">
+  <div class="eyebrow">14 · Fechamento</div>
+  <h2>Do's &amp; Don'ts</h2>
+  <div class="grid g2">
+    <div class="dd dos">
+      <div class="tag">✓ FAZER</div>
+      <ul>
+        <li>Testar todo par cor/fundo contra 4.5:1 antes de shippar</li>
+        <li>Testar toda cor nova contra a roda de cor das já existentes</li>
+        <li>Selo sempre com ícone + texto</li>
+        <li>Um botão primário por tela</li>
+        <li>Reaproveitar tokens de escala existentes</li>
+      </ul>
+    </div>
+    <div class="dd donts">
+      <div class="tag">✕ EVITAR</div>
+      <ul>
+        <li>Visual de marketplace genérico (Uber/iFood)</li>
+        <li>Reintroduzir verde em qualquer token, nem "só" em success</li>
+        <li>Hex solto fora do arquivo de tokens</li>
+        <li>Branco sobre secondary-500</li>
+        <li>Cards aninhados ou selo sem rótulo semântico</li>
+      </ul>
+    </div>
+  </div>
+</section>
+
+</main>
+</div>
+<footer>Aldeia Indica · Manual Visual da Marca · v1.0 · gerado a partir do DESIGN.md</footer>
+<script>
+document.querySelectorAll('nav a').forEach(a=>{
+  a.addEventListener('click',()=>{
+    document.querySelectorAll('nav a').forEach(x=>x.classList.remove('active'));
+    a.classList.add('active');
+  });
+});
+</script>
+</body>
+</html>

@@ -68,13 +68,13 @@ class _RecommendProviderScreenState
           : 'Não foi possível enviar. Tente novamente.';
       if (mounted) {
         ScaffoldMessenger.of(context)
-            .showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
+            .showSnackBar(SnackBar(content: Text(msg), backgroundColor: AppColors.error900));
       }
     } catch (_) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
           content: Text('Não foi possível enviar. Tente novamente.'),
-          backgroundColor: Colors.red,
+          backgroundColor: AppColors.error900,
         ));
       }
     } finally {

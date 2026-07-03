@@ -105,10 +105,10 @@ class _Seals extends StatelessWidget {
   const _Seals({required this.p});
 
   static const _sealLabel = {
-    'bem_avaliado': ('Bem avaliado', Icons.star_rounded, Color(0xFFF57F17)),
-    'muito_indicado': ('Muito indicado', Icons.thumb_up_rounded, Color(0xFF1B5E20)),
-    'veterano': ('Veterano', Icons.military_tech_rounded, Color(0xFF5D4037)),
-    'completo': ('Perfil completo', Icons.verified_rounded, Color(0xFF1565C0)),
+    'bem_avaliado': ('Bem avaliado', Icons.star_rounded, AppColors.sealBemAvaliado),
+    'muito_indicado': ('Muito indicado', Icons.thumb_up_rounded, AppColors.sealMuitoIndicado),
+    'veterano': ('Veterano', Icons.military_tech_rounded, AppColors.sealVeterano),
+    'completo': ('Perfil completo', Icons.verified_rounded, AppColors.sealCompleto),
   };
 
   @override
@@ -213,7 +213,7 @@ class _Categories extends StatelessWidget {
             children: cats
                 .map((c) => Chip(
                       label: Text(c),
-                      backgroundColor: Colors.green[50],
+                      backgroundColor: AppColors.primary50,
                     ))
                 .toList(),
           ),
@@ -255,9 +255,9 @@ class _Availability extends StatelessWidget {
                 padding:
                     const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
                 decoration: BoxDecoration(
-                  color: Colors.green[50],
+                  color: AppColors.primary50,
                   borderRadius: BorderRadius.circular(20),
-                  border: Border.all(color: Colors.green[200]!),
+                  border: Border.all(color: AppColors.primary200),
                 ),
                 child: Row(
                   mainAxisSize: MainAxisSize.min,
@@ -266,7 +266,7 @@ class _Availability extends StatelessWidget {
                         style: const TextStyle(
                             fontWeight: FontWeight.w700,
                             fontSize: 13,
-                            color: Color(0xFF1B5E20))),
+                            color: AppColors.primary700)),
                     const SizedBox(width: 6),
                     Text('$start–$end',
                         style: const TextStyle(
