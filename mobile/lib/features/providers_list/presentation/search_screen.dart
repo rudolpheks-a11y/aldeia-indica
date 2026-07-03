@@ -188,33 +188,35 @@ class _FilterSheet extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final filters = ref.watch(searchFiltersProvider);
 
-    return Padding(
-      padding: const EdgeInsets.all(24),
-      child: Column(
-        mainAxisSize: MainAxisSize.min,
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          const Text('Filtros',
-              style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 16),
-          const Text('Ordenar por'),
-          const SizedBox(height: 8),
-          SegmentedButton<String>(
-            segments: const [
-              ButtonSegment(value: 'score', label: Text('Score')),
-              ButtonSegment(value: 'rating', label: Text('Nota')),
-              ButtonSegment(value: 'recommendations', label: Text('Indicações')),
-            ],
-            selected: {filters.sort},
-            onSelectionChanged: (v) =>
-                ref.read(searchFiltersProvider.notifier).setSort(v.first),
-          ),
-          const SizedBox(height: 24),
-          ElevatedButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Aplicar'),
-          ),
-        ],
+    return SafeArea(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.all(24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.stretch,
+          children: [
+            const Text('Filtros',
+                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 16),
+            const Text('Ordenar por'),
+            const SizedBox(height: 8),
+            SegmentedButton<String>(
+              segments: const [
+                ButtonSegment(value: 'score', label: Text('Score')),
+                ButtonSegment(value: 'rating', label: Text('Nota')),
+                ButtonSegment(value: 'recommendations', label: Text('Indicações')),
+              ],
+              selected: {filters.sort},
+              onSelectionChanged: (v) =>
+                  ref.read(searchFiltersProvider.notifier).setSort(v.first),
+            ),
+            const SizedBox(height: 24),
+            ElevatedButton(
+              onPressed: () => Navigator.pop(context),
+              child: const Text('Aplicar'),
+            ),
+          ],
+        ),
       ),
     );
   }
