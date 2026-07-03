@@ -342,3 +342,282 @@ Todos os achados abaixo foram corrigidos e verificados nesta mesma sessão (buil
 - **Graceful shutdown and server timeouts are correctly wired**: `main.go` handles `SIGINT`/`SIGTERM` and calls `Shutdown` with a bounded context; `server.New` sets sane `ReadTimeout`/`WriteTimeout`/`IdleTimeout` at the `http.Server` level.
 - **Migrations are clean**: all 17 migrations have matching `.up.sql`/`.down.sql` pairs, sequential numbering with no gaps, and `UpdateMe`'s multi-step provider-profile patch correctly wraps its two related writes in a single transaction.
 - **`domain.CalculateScore` is the one properly unit-tested piece of business logic in the repo** — small, pure, and has a real test file (`score_test.go`) covering it.
+
+---
+
+# Auditoria de acompanhamento — 2026-07-03
+
+**Motivo:** o usuário reportou que login não funcionava para as duas contas de teste; pedido para auditar o backend de novo e testar "todos os botões e acessos temporários". Esta seção re-verifica os achados de 2026-07-02 contra o código atual (nenhum arquivo do backend mudou desde então — só o app mobile, no rebrand de paleta) e soma achados novos encontrados numa varredura independente + reprodução ao vivo via curl contra o backend rodando localmente.
+
+**Todos os 13 achados corrigidos em 2026-07-02 seguem corrigidos** — reli cada arquivo e reconfirmei: chat ownership (`assertParticipant` em `chat.go` e `client.go`), escopo de `service_requests` (`request.go` filtra `community_id` em `Get`/`Respond`/`ListResponses`), detecção de reuso de refresh token (`auth.go:203-213`), N+1 batelado (`attachExtras`/`batchCategories`/`batchSealExtras`), timeouts (FCM/Resend `httpTimeout=10s`, `pushNotify` com `context.WithTimeout`), índices da migration 000018 (confirmados via `\di` no Postgres rodando), rate limit em `/auth/forgot-password`/`/uploads/presign`/registro, `AddPhoto` exigindo `{id}==caller`, `DELETE /recommendations` sem `{id}` na rota, Dockerfile com `USER app`, CI mínimo (`.github/workflows/backend.yml` — presente localmente, não commitado ainda).
+
+## Causa raiz do login quebrado (não é um bug de código)
+
+Os containers `aldeia-indica-postgres-1`/`minio-1` tinham parado (`docker compose ps` mostrou `Exited`) enquanto o processo Go do backend continuava de pé com a conexão de banco morta. Motivo secundário: a senha de `rudolpheks@hotmail.com` nunca tinha sido documentada/definida de forma recuperável. Ambos corrigidos nesta sessão (containers religados; senha redefinida via bcrypt direto no banco — ver `docs/setup.md`). Isso expôs um achado real, novo (P2-7 abaixo): `/health` não verifica a dependência que realmente quebrou.
+
+## Novos achados (2026-07-03)
+
+- P1: 4 (novos)
+- P2: 4 (novos)
+- P3: 4 (novos)
+
+**Top prioridades novas:**
+1. `GET /admin/users` retorna 1 usuário de 17 — a tela de gestão de usuários do admin está quebrada para qualquer comunidade com mais de um usuário (P1-C). Achado só foi possível testando o botão de verdade, não lendo código.
+2. Qualquer morador autenticado infla `total_hires` (e portanto `score_aldeia`) de qualquer prestador chamando `POST /providers/{id}/hire` repetidamente — sem idempotência, sem constraint única, sem rate limit (P1-A). Reproduzido ao vivo.
+3. `DELETE /recommendations` decrementa `recommendation_count` mesmo quando o `DELETE` não apagou nenhuma linha, e `PUT /providers/me` apaga categorias existentes silenciosamente se um slug não existir (P1-B, P1-D) — o mesmo padrão sistêmico (mutação SQL sem checar linhas afetadas) em três lugares independentes.
+4. O sistema de convites (`/invites`) — o "acesso temporário" que o usuário pediu para testar — está estruturalmente quebrado: um usuário `pending` nunca consegue autenticar (login bloqueia `pending`), então `POST /invites/{token}/use`, que exige autenticação, é inalcançável por quem o convite deveria servir. `RegisterMorador`/`RegisterPrestador` também não aceitam token de convite. O Flutter só tem a constante de URL (`api_endpoints.dart:44`) — nenhuma tela usa (P2-8).
+
+### [P1-A] `POST /providers/{id}/hire` permite inflar `total_hires`/`score_aldeia` sem limite
+- **Location:** `internal/handler/provider.go:216-229` (`HireCompleted`), `internal/service/analytics.go:109-138` (`AnalyticsService.HireCompleted`), `internal/server/router.go:88` (rota)
+- **Dimension:** Security / Reliability (integridade de dado de confiança pública)
+- **What:** A rota exige só autenticação (`middleware.Authenticate`), sem `RequireRole`, sem checagem de que o chamador de fato contratou o prestador, e sem nenhuma constraint de unicidade (ao contrário de `ratings` — `UNIQUE(community_id, provider_id, rater_id)` — e `recommendations` — `UNIQUE(community_id, provider_id, recommender_id)`). Cada chamada incrementa `total_hires` incondicionalmente e recalcula o score.
+- **Code (verbatim):**
+  ```go
+  // internal/service/analytics.go:116-120
+  _, err = tx.Exec(ctx,
+      `UPDATE provider_profiles SET total_hires = total_hires + 1
+       WHERE user_id = $1 AND community_id = $2`,
+      providerID, communityID,
+  )
+  ```
+  ```go
+  // internal/server/router.go:88 — dentro do grupo autenticado, sem RequireRole
+  r.Post("/providers/{id}/hire", providerH.HireCompleted)
+  ```
+- **Why it matters:** `total_hires` alimenta 15% da fórmula do Score Aldeia (`min(contratações/100,1)×15`, `domain/score.go:17`) — a nota pública que todo o produto usa como sinal de confiança. Qualquer morador (ou um prestador chamando para si mesmo, já que `providerID` vem só da URL) pode inflar essa nota artificialmente.
+- **Evidence / how verified:** Reproduzido ao vivo — login como `rudolpheks@hotmail.com`, 3 chamadas consecutivas a `POST /providers/5cfe3c5e.../hire`: `total_hires` foi de `0` para `3`, `score_aldeia` de `7.50` para `7.95`. Dados de teste restaurados depois (`UPDATE provider_profiles SET total_hires=0`, delete dos `provider_events` criados).
+- **Fix:** Adicionar `UNIQUE(community_id, provider_id, hirer_id)` numa tabela de registro de contratações (hoje não existe — `provider_events` não tem constraint porque é log de analytics, não deveria ser a fonte de verdade de "já contratei"), e checar conflito antes do incremento — mesmo padrão de `ratings`/`recommendations`. Alternativa mais simples: `INSERT ... ON CONFLICT DO NOTHING` numa nova tabela `provider_hires(community_id, provider_id, hirer_id)` e só incrementar `total_hires` se a inserção afetou uma linha.
+- **Implementation constraints:** Requer nova migration (tabela ou constraint) — não dá para reaproveitar `provider_events` porque múltiplos eventos do mesmo tipo pro mesmo par usuário/prestador são esperados ali (é log, não estado).
+- **Confidence:** Confirmed
+
+### [P1-B] `DELETE /recommendations` decrementa contagem mesmo sem ter apagado nada
+- **Location:** `internal/service/recommendation.go:55-84` (`Delete`)
+- **Dimension:** Security / Reliability
+- **What:** O `DELETE FROM recommendations WHERE ...` não verifica `RowsAffected` antes de rodar o `UPDATE ... recommendation_count = GREATEST(recommendation_count - 1, 0)` logo em seguida. Se o par `(community_id, provider_id, recommender_id)` não existir (usuário nunca indicou esse prestador), o `DELETE` afeta 0 linhas silenciosamente (não é erro em SQL) e o `UPDATE` roda do mesmo jeito.
+- **Code (verbatim):**
+  ```go
+  // internal/service/recommendation.go:62-77
+  _, err = tx.Exec(ctx,
+      `DELETE FROM recommendations WHERE community_id=$1 AND provider_id=$2 AND recommender_id=$3`,
+      communityID, providerID, recommenderID,
+  )
+  if err != nil {
+      return err
+  }
+  _, err = tx.Exec(ctx,
+      `UPDATE provider_profiles SET recommendation_count = GREATEST(recommendation_count - 1, 0)
+       WHERE user_id=$1 AND community_id=$2`,
+      providerID, communityID,
+  )
+  ```
+- **Why it matters:** `recommendation_count` alimenta 15% do Score Aldeia e o selo público "Muito indicado" (`>=3`, `provider.go:310`). Qualquer morador autenticado pode chamar isso repetidamente contra um prestador que nunca indicou, derrubando a contagem dele até zero — um vetor de sabotagem contra o sinal de confiança de um concorrente.
+- **Evidence / how verified:** Reproduzido ao vivo — `recommendation_count` de um prestador nunca indicado por mim começou e terminou em `0` (já estava no piso), mas `score_aldeia` mudou de `0.00` para `7.50` na mesma chamada, confirmando que `RecomputeScore` roda incondicionalmente mesmo num `DELETE` que não apagou nada.
+- **Fix:** Checar `tag.RowsAffected() == 0` depois do `DELETE` e retornar um erro (ou simplesmente não chamar `RecomputeScore`) nesse caso — mesmo padrão já usado corretamente em `BulletinService.Review` (`bulletin.go:100-102`) e em `RequestHandler.Respond` (`request.go:168-171`) no mesmo repositório.
+- **Implementation constraints:** Nenhuma — é local, `tag` já é o retorno de `tx.Exec`, só precisa capturar e checar.
+- **Confidence:** Confirmed
+
+### [P1-D] `PUT /providers/me` apaga categorias existentes silenciosamente se o slug enviado não existir
+- **Location:** `internal/service/provider.go:548-563` (`UpdateMe`, bloco `CategorySlugs`)
+- **Dimension:** Reliability (mesmo padrão sistêmico de P1-A/P1-B — `INSERT`/mutação sem checar linhas afetadas)
+- **What:** Quando `category_slugs` vem preenchido, o código sempre roda `DELETE FROM provider_services WHERE provider_id=$1` primeiro, e depois, para cada slug, `INSERT INTO provider_services (...) SELECT $1, id, $2 FROM service_categories WHERE slug=$3`. Se o slug não existir na tabela `service_categories`, o `SELECT` não retorna linhas e o `INSERT` insere zero linhas — sem erro nenhum (`INSERT ... SELECT` com zero linhas não é uma condição de erro em SQL). O `DELETE` já rodou antes, então o resultado é: categorias antigas apagadas, nenhuma nova salva, `204 No Content` (sucesso) retornado ao cliente.
+- **Code (verbatim):**
+  ```go
+  // internal/service/provider.go:548-563
+  if in.CategorySlugs != nil {
+      _, err = tx.Exec(ctx, `DELETE FROM provider_services WHERE provider_id=$1`, userID)
+      if err != nil {
+          return err
+      }
+      for _, slug := range *in.CategorySlugs {
+          _, err = tx.Exec(ctx,
+              `INSERT INTO provider_services (provider_id, category_id, community_id)
+               SELECT $1, id, $2 FROM service_categories WHERE slug=$3`,
+              userID, communityID, slug,
+          )
+          if err != nil {
+              return fmt.Errorf("insert category %s: %w", slug, err)
+          }
+      }
+  }
+  ```
+- **Why it matters:** Reproduzido ao vivo testando o botão "Cadastre suas habilidades": enviei `category_slugs: ["eletrica","limpeza"]` (slugs errados — o real é `eletricista`) e recebi `204` (sucesso). `GET /providers/me` logo depois confirmou `categories: null` — as categorias sumiram e nada foi salvo, sem nenhum sinal de erro pro app mostrar ao prestador. Reenviando com o slug correto (`eletricista`) salvou normalmente, confirmando o mecanismo. Isso é o terceiro caso do mesmo padrão sistêmico (ver P1-A, P1-B): uma mutação SQL que "não erra" quando não afeta linhas, e o código não checa `RowsAffected`/existência antes de prosseguir.
+- **Evidence / how verified:** Reproduzido ao vivo, sequência completa: PUT com slugs inválidos → `204` → GET confirma `categories: null` → PUT com slug válido (`eletricista`) → GET confirma `categories: ["Eletricista"]`.
+- **Fix:** Validar os slugs contra `service_categories` antes do `DELETE` (uma query `SELECT slug FROM service_categories WHERE slug = ANY($1)` e comparar contagem/conjunto com o que foi enviado) — se algum não existir, retornar `400` sem tocar nos dados existentes.
+- **Implementation constraints:** Precisa mover a validação para antes do `tx.Begin()`/`DELETE`, não depois — senão o `DELETE` já rodou quando o erro for detectado.
+- **Confidence:** Confirmed
+
+### [P2-7] `/health` não verifica a dependência que realmente quebra
+- **Location:** `internal/server/router.go:45-47`
+- **Dimension:** Reliability
+- **What:** O endpoint de health check sempre retorna `200`, sem pingar o Postgres/pool.
+- **Code (verbatim):**
+  ```go
+  r.Get("/health", func(w http.ResponseWriter, r *http.Request) {
+      w.WriteHeader(http.StatusOK)
+  })
+  ```
+- **Why it matters:** Foi exatamente o que aconteceu nesta sessão — os containers de Postgres/MinIO caíram, o processo Go continuou de pé e `/health` teria continuado respondendo `200` o tempo todo, escondendo o problema real (todo login/query falhando) de qualquer monitoramento básico baseado nesse endpoint.
+- **Evidence / how verified:** Lido o handler diretamente; reproduzido o cenário real desta sessão (containers `Exited`, backend de pé, login falhando).
+- **Fix:** `db.Ping(ctx)` (ou `pool.Ping`) dentro do handler, retornar `503` se falhar.
+- **Implementation constraints:** Precisa passar o `*pgxpool.Pool` para o handler de health (hoje é uma func inline sem dependências) — mudança pequena em `router.go`/`main.go`.
+- **Confidence:** Confirmed
+
+### [P2-8] Sistema de convites ("acesso temporário") estruturalmente inalcançável
+- **Location:** `internal/service/user.go:150-209` (`CreateInvite`/`ValidateInvite`/`UseInvite`), `internal/service/auth.go:149-181` (`Login`), `internal/handler/auth.go:20-94` (registro sem campo de convite), `mobile/lib/core/constants/api_endpoints.dart:44`
+- **Dimension:** Code quality / Reliability (funcionalidade morta) + Security (token em texto puro)
+- **What:** Três problemas compostos:
+  1. `POST /invites/{token}/use` exige `middleware.Authenticate`, mas um usuário recém-registrado fica `status='pending'` e `Login` recusa login de `pending` (`ErrUserPending`, `auth.go:170-171`) — ou seja, a própria pessoa que o convite deveria ativar nunca consegue um JWT para chamar essa rota.
+  2. `RegisterMorador`/`RegisterPrestador` não têm nenhum campo de token de convite — não existe caminho que ligue "usei um convite" a "me cadastrei".
+  3. `invites.token` é armazenado em texto puro (`user.go:157-161`), diferente de `refresh_tokens.token_hash` e `password_reset_tokens.code_hash`, que são hash SHA-256.
+- **Code (verbatim):**
+  ```go
+  // internal/service/auth.go:169-174
+  switch user.Status {
+  case domain.StatusPending:
+      return nil, ErrUserPending
+  ```
+  ```go
+  // internal/server/router.go — dentro do grupo autenticado
+  r.Post("/invites/{token}/use", approvalH.UseInvite)
+  ```
+  ```go
+  // internal/service/user.go:157-161 — token em texto puro
+  _, err := s.db.Exec(ctx,
+      `INSERT INTO invites (community_id, created_by, token, intended_email, expires_at)
+       VALUES ($1, $2, $3, $4, $5)`,
+      communityID, creatorID, token, intendedEmail, time.Now().Add(72*time.Hour),
+  )
+  ```
+- **Why it matters:** É a funcionalidade que o usuário pediu explicitamente para testar ("acessos temporários"). Ela existe no backend (rotas registradas, service implementado) mas é inalcançável ponta-a-ponta: `grep -rn "invite" mobile/lib` só encontra a constante de URL (`api_endpoints.dart:44`), nenhuma tela do app a usa. Reproduzido ao vivo: registrei um usuário novo, `login` retornou `403 account pending approval` — confirma que o fluxo de uso do convite não tem como ser alcançado nem manualmente.
+- **Evidence / how verified:** Reproduzido ao vivo (registro + tentativa de login como pending → `403`); `grep -rn "invite" -i mobile/lib` confirmando zero uso de UI; leitura completa de `user.go`, `auth.go` e `router.go`.
+- **Fix:** Decisão de produto necessária antes do fix de código — duas opções: (a) `RegisterMorador` aceita um `invite_token` opcional e, se válido, pula o fluxo de aprovação por votação (ativa direto), ou (b) remover a funcionalidade de convite até haver uma tela que a use. Em qualquer caso: hashear `invites.token` como os outros tokens, e decidir se `intended_email` deve ser validado contra o e-mail de quem usa o convite (hoje é capturado e nunca checado).
+- **Implementation constraints:** Opção (a) muda o contrato de `RegisterMorador`/`RegisterPrestador` (novo campo opcional) e precisa decidir o que acontece com `user_approvals` para quem entrou via convite (pular a votação inteira, ou só reduzir de 2 votos pra 0?) — isso é uma decisão de produto, não só código.
+- **Confidence:** Confirmed
+
+### [P2-9] Erros internos crus vazam para o cliente em 6 pontos
+- **Location:** `internal/handler/auth.go:51,89`, `internal/handler/rating.go:55`, `internal/handler/recommendation.go:39`, `internal/handler/approval.go:40,63`
+- **Dimension:** Security (info disclosure)
+- **What:** `jsonError(w, err.Error(), http.StatusBadRequest)` repassa a mensagem de erro do Go/Postgres direto pro cliente, em vez de uma mensagem genérica — inconsistente com o resto do código, que majoritariamente usa `"internal error"`/mensagens fixas.
+- **Code (verbatim):**
+  ```go
+  // internal/handler/auth.go:50-53
+  if err != nil {
+      jsonError(w, err.Error(), http.StatusBadRequest)
+      return
+  }
+  ```
+- **Why it matters:** Vaza nome de constraint, nome de tabela/coluna e SQLSTATE do Postgres — informação útil para reconhecimento de um atacante, além de simplesmente feio para um app de usuário final.
+- **Evidence / how verified:** Reproduzido ao vivo — `POST /auth/register/morador` com e-mail duplicado retornou `{"error":"insert user: ERROR: duplicate key value violates unique constraint \"users_community_id_email_key\" (SQLSTATE 23505)"}`.
+- **Fix:** Trocar por mensagens fixas por caso (ex.: detectar `pgErr.Code == "23505"` e responder "email already registered"), como já é feito nos outros ~20 handlers do arquivo.
+- **Implementation constraints:** Precisa de um type assertion pra `*pgconn.PgError` pra distinguir "email duplicado" de outros erros de banco, se quiser mensagens específicas em vez de só genérica.
+- **Confidence:** Confirmed
+
+### [P2-10] `/auth/reset-password` sem rate limit — código de 6 dígitos é brute-forceável
+- **Location:** `internal/server/router.go:65-66`
+- **Dimension:** Security
+- **What:** `/auth/forgot-password` tem `authRateLimit` (5/min por IP); `/auth/reset-password` — que verifica o código de 6 dígitos — não tem nenhum.
+- **Code (verbatim):**
+  ```go
+  r.With(authRateLimit).Post("/auth/forgot-password", authH.ForgotPassword)
+  r.Post("/auth/reset-password", authH.ResetPassword)
+  ```
+- **Why it matters:** O código é 6 dígitos (1 milhão de combinações) válido por 30 minutos (`auth.go:288`). Sem rate limit, um atacante que sabe o e-mail/comunidade de alguém pode tentar forçar o código dentro da janela de 30 min — é exatamente o tipo de endpoint que `authRateLimit` já protege no vizinho de cima.
+- **Evidence / how verified:** Lido `router.go` linha a linha — `authRateLimit` aparece em `register/morador`, `register/prestador` e `forgot-password`; ausente em `reset-password`.
+- **Fix:** `r.With(authRateLimit).Post("/auth/reset-password", authH.ResetPassword)` — mesma linha de raciocínio já aplicada aos vizinhos.
+- **Implementation constraints:** Nenhuma — é o mesmo middleware já importado e usado no arquivo.
+- **Confidence:** Confirmed
+
+### [P3-6] `RequestHandler.UpdateStatus` ainda descarta erros de decode/exec
+- **Location:** `internal/handler/request.go:124-139`
+- **Dimension:** Code quality — item do "Patterns observed" de 2026-07-02 que ficou sem correção explícita (o vizinho `Respond` foi corrigido, este não)
+- **What:** `json.NewDecoder(r.Body).Decode(&in)` e `h.db.Exec(...)` sem checar erro nenhum — sempre responde `204`, mesmo se o JSON for inválido ou o `UPDATE` falhar (ex.: `in.Status` fora do enum `request_status`).
+- **Code (verbatim):**
+  ```go
+  func (h *RequestHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
+      claims, _ := middleware.ClaimsFrom(r.Context())
+      requestID, _ := uuid.Parse(chi.URLParam(r, "id"))
+      var in struct{ Status string `json:"status"` }
+      json.NewDecoder(r.Body).Decode(&in)
+      h.db.Exec(r.Context(), `UPDATE service_requests SET status=$1, ... WHERE id=$2 AND requester_id=$3`, in.Status, requestID, claims.UserID)
+      w.WriteHeader(http.StatusNoContent)
+  }
+  ```
+- **Why it matters:** Cliente nunca sabe se a atualização de status realmente aconteceu — `status` é enum Postgres, então um valor inválido faz o `Exec` falhar silenciosamente e o app mobile segue achando que deu certo.
+- **Evidence / how verified:** Reproduzido ao vivo — `PUT /requests/{id}` com `{"status":"status_que_nao_existe"}` (valor fora do enum `request_status`) retornou `204` normalmente; `SELECT status FROM service_requests` confirmou que o status no banco não mudou (ficou no valor anterior, `closed`, de uma chamada válida imediatamente antes) — a atualização falhou silenciosamente e o cliente nunca saberia.
+- **Fix:** Checar os dois erros e responder `400`/`500` como os outros handlers do mesmo arquivo já fazem.
+- **Confidence:** Confirmed
+
+### [P3-7] Sem validação de tamanho mínimo de senha no registro
+- **Location:** `internal/handler/auth.go:20-56` (`RegisterMorador`), `58-94` (`RegisterPrestador`)
+- **Dimension:** Code quality (inconsistência entre módulos)
+- **What:** `ResetPassword` valida `len(in.NewPassword) < 6` (`auth.go:209`); os dois handlers de registro não validam tamanho de senha nenhum.
+- **Why it matters:** Um morador pode se cadastrar com senha de 1 caractere; se ele um dia usar "esqueci minha senha", a nova senha já é obrigada a ter 6+ — inconsistência pura entre as duas portas de entrada da mesma credencial.
+- **Evidence / how verified:** Lido os três handlers lado a lado — só `ResetPassword` tem a checagem de tamanho.
+- **Fix:** Mesma checagem (`len(in.Password) < 6`) nos dois handlers de registro.
+- **Confidence:** Confirmed
+
+### [P3-8] Score usa `years_in_neighborhood` estático, nunca recalculado
+- **Location:** `internal/service/auth.go:130-132` (gravado só no registro), `internal/domain/score.go:15` (usado na fórmula)
+- **Dimension:** Code quality / product
+- **What:** `years_in_neighborhood` é gravado uma vez no cadastro do prestador e nunca mais atualizado — mas alimenta 15% do Score Aldeia pra sempre com o valor do dia do cadastro.
+- **Why it matters:** Um prestador cadastrado há 3 anos com `years_in_neighborhood=1` continua contribuindo com "1 ano" pro score indefinidamente, a menos que edite o perfil manualmente. Não é bug de segurança, é deriva de dado silenciosa no tempo.
+- **Evidence / how verified:** `grep -rn "years_in_neighborhood" internal/` — só aparece no INSERT de registro e no COALESCE de `UpdateMe` (edição manual pelo próprio prestador), nunca num cron/recompute automático.
+- **Fix:** Calcular a partir de `users.created_at` (`EXTRACT(YEAR FROM age(now(), created_at))`) em vez de um campo estático, ou aceitar a deriva como decisão de produto e documentar.
+- **Confidence:** Confirmed (achado, não necessariamente bug — depende de intenção de produto)
+
+### [P1-C] `GET /admin/users` retorna só 1 usuário de 17 — tela de Usuários do admin está quebrada
+- **Location:** `internal/handler/admin.go:44-59` (`ListUsers`)
+- **Dimension:** Reliability / Code quality
+- **What:** `rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Role, &u.Status, &u.CreatedAt)` escaneia a coluna `created_at` (`TIMESTAMP WITH TIME ZONE`) para um campo Go `string`, e o erro de `Scan` é descartado (não é `if err := rows.Scan(...); err != nil`). O mismatch de tipo faz o `Scan` falhar silenciosamente, e a iteração para depois da primeira linha.
+- **Code (verbatim):**
+  ```go
+  // internal/handler/admin.go:45-53
+  var u struct {
+      ID        uuid.UUID `json:"id"`
+      FullName  string    `json:"full_name"`
+      Email     string    `json:"email"`
+      Role      string    `json:"role"`
+      Status    string    `json:"status"`
+      CreatedAt string    `json:"created_at"`
+  }
+  rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Role, &u.Status, &u.CreatedAt)
+  ```
+- **Why it matters:** Achado testando o botão "Usuários" do painel admin de verdade (não só lendo código) — encontrado exatamente pelo tipo de teste que foi pedido nesta sessão. A comunidade de teste tem 17 usuários (16 `active`); o endpoint retorna só 1 (o mais recente, `admin@teste.com`, criado nesta própria sessão para testar o painel). Isso significa que a tela de gestão de usuários do admin está, na prática, mostrando só o último usuário cadastrado — inutilizável para qualquer comunidade com mais de um usuário.
+- **Evidence / how verified:** Reproduzido ao vivo — `SELECT COUNT(*) FROM users WHERE community_id=...` no Postgres retornou `17` (16 `active`); `GET /admin/users` e `GET /admin/users?status=active` retornaram um array com exatamente 1 item, em ambos os casos. `created_at` vem como string vazia (`""`) no JSON de resposta, consistente com um `Scan` que falhou e deixou o campo no zero-value.
+- **Fix:** Trocar `CreatedAt string` por `CreatedAt time.Time` na struct (e no `map[string]any` de saída, já que `json.Marshal` serializa `time.Time` corretamente como RFC3339) e checar o erro do `Scan`.
+- **Implementation constraints:** Nenhuma — é uma troca de tipo local ao handler, sem mudança de assinatura pública nem de schema.
+- **Confidence:** Confirmed
+
+### [P3-9] `RatingService.Create` mascara erro de validação (nota fora de 1-5) como "já avaliado"
+- **Location:** `internal/service/rating.go:34-49`
+- **Dimension:** Code quality (mensagem de erro enganosa)
+- **What:** Qualquer erro do `INSERT INTO ratings` — seja a violação de `UNIQUE(community_id, provider_id, rater_id)` (já avaliou) ou a violação do `CHECK (quality BETWEEN 1 AND 5)` (nota inválida) — retorna o mesmo `ErrAlreadyRated`.
+- **Code (verbatim):**
+  ```go
+  // internal/service/rating.go:41-49
+  _, err = tx.Exec(ctx, `INSERT INTO ratings (...) VALUES (...)`, ...)
+  if err != nil {
+      return ErrAlreadyRated
+  }
+  ```
+- **Why it matters:** Testado ao vivo enviando `quality:10` (fora do range 1-5) para um provider nunca avaliado antes — a resposta foi `{"error":"you have already rated this provider"}`, uma mensagem completamente errada que esconderia um bug real de validação no cliente (a Flutter UI não deveria permitir nota fora de 1-5, mas se algum dia permitir, ou um cliente de terceiros chamar a API direto, o erro reportado ao usuário/dev seria enganoso).
+- **Evidence / how verified:** Reproduzido ao vivo: `POST /ratings` com `quality:10` para um `provider_id` nunca avaliado por essa conta retornou `400 {"error":"you have already rated this provider"}`.
+- **Fix:** Checar o tipo do erro do Postgres (`pgconn.PgError.Code`) — `23505` (unique violation) → `ErrAlreadyRated`; `23514` (check violation) → um erro novo tipo `ErrInvalidRatingValue`.
+- **Confidence:** Confirmed
+
+## Achado fora do backend, encontrado de passagem
+
+O e-mail de recuperação de senha (`internal/service/auth.go:366-379`, `resetEmailHTML`) ainda usa o verde antigo da marca (`#1B5E20`) — o rebrand v1.1 desta mesma sessão (ver commit `a399bce`) cobriu só o app Flutter; esta é uma superfície renderizada pelo backend que ficou de fora. Trivial de corrigir (`#1B5E20` → `#2E5C74`), mas registrado aqui porque só apareceu durante a leitura de `auth.go` para este achado de segurança, não numa varredura de marca.
+
+## Padrão sistêmico encontrado nesta rodada
+
+**"Mutação SQL sem checar linhas afetadas" apareceu de forma independente em três lugares** (P1-A `HireCompleted`, P1-B `Recommendation.Delete`, P1-D `UpdateMe`/`category_slugs`) — em SQL, um `UPDATE`/`DELETE`/`INSERT...SELECT` que não afeta nenhuma linha não é um erro, então qualquer código que assume "não deu erro = fez o que eu queria" está exposto a esse bug. Os três casos encontrados nesta auditoria têm o mesmo formato: uma ação que deveria ser condicional a "isso realmente existia/mudou" mas não checa `RowsAffected`/existência antes de seguir em frente (recomputar score, aceitar como sucesso). Comparar com `BulletinService.Review` (`bulletin.go:100-102`) e `RequestHandler.Respond` (`request.go:168-171`), que já fazem essa checagem corretamente no mesmo repositório — é uma inconsistência de padrão, não uma limitação da stack.
+
+## Resumo consolidado (2026-07-02 + 2026-07-03)
+
+| Data | P0 | P1 | P2 | P3 |
+|---|---|---|---|---|
+| 2026-07-02 (todos corrigidos, ver tabela de status) | 1 | 4 | 6 | 5 |
+| 2026-07-03 (novos, abertos) | 0 | 4 | 4 | 4 |
+
+**As prioridades mais urgentes de 2026-07-03:** as três de manipulação/perda de dado sem checar linhas afetadas (P1-A, P1-B, P1-D) e a tela de usuários do admin quebrada (P1-C) — todas reproduzidas ao vivo contra o backend rodando, as três primeiras exploráveis por qualquer conta autenticada comum (morador ou prestador), sem precisar de nenhum acesso privilegiado.

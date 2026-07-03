@@ -367,10 +367,10 @@ func resetEmailHTML(code string) string {
 	return fmt.Sprintf(`<!DOCTYPE html>
 <html>
 <body style="font-family:sans-serif;max-width:480px;margin:0 auto;padding:32px">
-  <h2 style="color:#1B5E20">Aldeia Indica</h2>
+  <h2 style="color:#2E5C74">Aldeia Indica</h2>
   <p>Você solicitou a recuperação da sua senha.</p>
   <p>Seu código de recuperação é:</p>
-  <p style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#1B5E20;margin:24px 0">%s</p>
+  <p style="font-size:36px;font-weight:bold;letter-spacing:8px;color:#2E5C74;margin:24px 0">%s</p>
   <p>Digite esse código no app para criar uma nova senha.<br>
   O código expira em <strong>30 minutos</strong>.</p>
   <p style="color:#999;font-size:12px">Se você não solicitou isso, ignore este e-mail.</p>

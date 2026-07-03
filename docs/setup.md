@@ -73,5 +73,6 @@ Simulator: iPhone 17, UUID `AB85E5AB-4F6A-411F-BA06-E8FFE3A8B88E`
 
 | E-mail | Senha | Role | Notas |
 |---|---|---|---|
-| `rudolpheks@hotmail.com` | — | morador | comunidade Aldeia da Serra |
+| `rudolpheks@hotmail.com` | `123456` | morador | comunidade Aldeia da Serra — senha redefinida em 2026-07-03 (não havia registro de senha anterior) |
 | `prestador@teste.com` | `123456` | prestador | `is_active=true`, `is_visible=false` (aguarda aprovação de docs) |
+| `admin@teste.com` | `123456` | admin | criado em 2026-07-03 — não existia nenhuma conta admin antes, o painel administrativo era intestável |
