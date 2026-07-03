@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -52,7 +53,14 @@ func (h *RatingHandler) Create(w http.ResponseWriter, r *http.Request) {
 		Comment:     in.Comment,
 	})
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadRequest)
+		switch {
+		case errors.Is(err, service.ErrAlreadyRated):
+			jsonError(w, err.Error(), http.StatusConflict)
+		case errors.Is(err, service.ErrInvalidRatingValue):
+			jsonError(w, err.Error(), http.StatusBadRequest)
+		default:
+			jsonError(w, "internal error", http.StatusInternalServerError)
+		}
 		return
 	}
 	w.WriteHeader(http.StatusCreated)

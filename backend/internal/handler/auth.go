@@ -37,6 +37,10 @@ func (h *AuthHandler) RegisterMorador(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "invalid community_id", http.StatusBadRequest)
 		return
 	}
+	if len(in.Password) < 6 {
+		jsonError(w, "password must be at least 6 characters", http.StatusBadRequest)
+		return
+	}
 
 	userID, err := h.svc.RegisterMorador(r.Context(), service.RegisterMoradorInput{
 		CommunityID:       communityID,
@@ -48,7 +52,11 @@ func (h *AuthHandler) RegisterMorador(w http.ResponseWriter, r *http.Request) {
 		NeighborhoodBlock: in.NeighborhoodBlock,
 	})
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadRequest)
+		if errors.Is(err, service.ErrEmailTaken) {
+			jsonError(w, err.Error(), http.StatusConflict)
+			return
+		}
+		jsonError(w, "registration failed", http.StatusBadRequest)
 		return
 	}
 
@@ -75,6 +83,10 @@ func (h *AuthHandler) RegisterPrestador(w http.ResponseWriter, r *http.Request) 
 		jsonError(w, "invalid community_id", http.StatusBadRequest)
 		return
 	}
+	if len(in.Password) < 6 {
+		jsonError(w, "password must be at least 6 characters", http.StatusBadRequest)
+		return
+	}
 
 	userID, err := h.svc.RegisterPrestador(r.Context(), service.RegisterPrestadorInput{
 		CommunityID:         communityID,
@@ -86,7 +98,11 @@ func (h *AuthHandler) RegisterPrestador(w http.ResponseWriter, r *http.Request) 
 		ProfessionalBio:     in.ProfessionalBio,
 	})
 	if err != nil {
-		jsonError(w, err.Error(), http.StatusBadRequest)
+		if errors.Is(err, service.ErrEmailTaken) {
+			jsonError(w, err.Error(), http.StatusConflict)
+			return
+		}
+		jsonError(w, "registration failed", http.StatusBadRequest)
 		return
 	}
 

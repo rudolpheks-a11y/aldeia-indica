@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -105,13 +106,31 @@ func (s *AnalyticsService) DashboardSummary(ctx context.Context, communityID, pr
 	return stats, nil
 }
 
-// HireCompleted increments total_hires, logs the event, and triggers score recompute.
+var ErrAlreadyHired = errors.New("you have already confirmed hiring this provider")
+
+// HireCompleted registers a hire (one per hirer per provider — same
+// uniqueness semantics as ratings/recommendations), increments total_hires,
+// logs the event, and triggers score recompute. A repeat call from the same
+// hirer is a no-op (ErrAlreadyHired), not a repeated increment.
 func (s *AnalyticsService) HireCompleted(ctx context.Context, communityID, providerID, actorID uuid.UUID, providerSvc *ProviderService) error {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		return err
 	}
 	defer tx.Rollback(ctx)
+
+	tag, err := tx.Exec(ctx,
+		`INSERT INTO provider_hires (community_id, provider_id, hirer_id)
+		 VALUES ($1, $2, $3)
+		 ON CONFLICT (community_id, provider_id, hirer_id) DO NOTHING`,
+		communityID, providerID, actorID,
+	)
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrAlreadyHired
+	}
 
 	_, err = tx.Exec(ctx,
 		`UPDATE provider_profiles SET total_hires = total_hires + 1

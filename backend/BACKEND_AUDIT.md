@@ -355,11 +355,41 @@ Todos os achados abaixo foram corrigidos e verificados nesta mesma sessão (buil
 
 Os containers `aldeia-indica-postgres-1`/`minio-1` tinham parado (`docker compose ps` mostrou `Exited`) enquanto o processo Go do backend continuava de pé com a conexão de banco morta. Motivo secundário: a senha de `rudolpheks@hotmail.com` nunca tinha sido documentada/definida de forma recuperável. Ambos corrigidos nesta sessão (containers religados; senha redefinida via bcrypt direto no banco — ver `docs/setup.md`). Isso expôs um achado real, novo (P2-7 abaixo): `/health` não verifica a dependência que realmente quebrou.
 
+## Status das correções (2026-07-03)
+
+Todos os achados P1 e os itens mecânicos abaixo foram corrigidos e reverificados nesta
+mesma sessão (`go build`/`go vet`/`go test` limpos, e cada fix reproduzido de novo
+via curl contra o backend rodando, repetindo exatamente o teste que provou o bug):
+
+| Achado | Status | Como foi verificado |
+|---|---|---|
+| P1-A `hire` sem limite | ✅ Corrigido | Nova tabela `provider_hires` (migration 000019) com `UNIQUE(community_id, provider_id, hirer_id)`. 2ª chamada da mesma conta retorna `409` e `total_hires` para de incrementar (ficou em `1`, não `2`) |
+| P1-B `DELETE /recommendations` sem `RowsAffected` | ✅ Corrigido | Deletar indicação inexistente agora retorna `404`; `recommendation_count` não mudou |
+| P1-C `/admin/users` retornava 1 de 17 | ✅ Corrigido | `CreatedAt` trocado de `string` para `time.Time`, erro do `Scan` agora é checado; endpoint retorna os 17 usuários com timestamp válido |
+| P1-D `category_slugs` inválido apagava categorias | ✅ Corrigido | Slugs validados contra `service_categories` antes do `DELETE`; slug inválido retorna `400` e categorias existentes continuam intactas |
+| P2-9 erros crus vazando (6 pontos) | ✅ Corrigido | `auth.go`, `rating.go`, `recommendation.go`, `approval.go` — todos agora usam erros tipados (`ErrEmailTaken`, `ErrAlreadyRated`/`ErrInvalidRatingValue`, `ErrAlreadyRecommended`, `ErrAlreadyVoted`) com mensagens fixas; e-mail duplicado no registro retorna `{"error":"email already registered"}`, não mais o erro do Postgres |
+| P2-10 `/auth/reset-password` sem rate limit | ✅ Corrigido | 6ª tentativa em 1 min retorna `429`, igual ao `/auth/forgot-password` |
+| P3-6 `RequestHandler.UpdateStatus` engolindo erros | ✅ Corrigido | Erros de decode/exec agora checados; `404` se a linha não existir/pertencer ao chamador |
+| P3-7 sem tamanho mínimo de senha no registro | ✅ Corrigido | Senha com menos de 6 caracteres retorna `400` nos dois handlers de registro |
+| P3-9 nota inválida mascarada como "já avaliado" | ✅ Corrigido | `quality:10` (fora de 1-5) agora retorna `{"error":"rating values must be between 1 and 5"}`, não mais "already rated" |
+
+**Decisão registrada (P1-A):** a constraint `UNIQUE(community_id, provider_id, hirer_id)`
+assume que uma contratação confirmada é um evento único por vizinho por prestador —
+mesma semântica já usada em `ratings`/`recommendations` neste repositório. Se
+contratações repetidas do mesmo par (morador, prestador) precisarem contar
+separadamente no futuro, essa constraint precisa ser revisitada (ex.: janela de tempo
+em vez de unicidade permanente).
+
+**Não corrigidos nesta rodada — dependem de decisão de produto, não só código:**
+P2-8 (sistema de convites/"acesso temporário" estruturalmente inalcançável) e P3-8
+(`years_in_neighborhood` estático). Ver os achados originais abaixo para o racional
+completo de por que cada um precisa de uma decisão antes do fix.
+
 ## Novos achados (2026-07-03)
 
-- P1: 4 (novos)
-- P2: 4 (novos)
-- P3: 4 (novos)
+- P1: 4 (novos, todos corrigidos — ver tabela de status acima)
+- P2: 4 (novos, 3 corrigidos + 1 pendente de decisão de produto)
+- P3: 4 (novos, 3 corrigidos + 1 pendente de decisão de produto)
 
 **Top prioridades novas:**
 1. `GET /admin/users` retorna 1 usuário de 17 — a tela de gestão de usuários do admin está quebrada para qualquer comunidade com mais de um usuário (P1-C). Achado só foi possível testando o botão de verdade, não lendo código.
@@ -618,6 +648,6 @@ O e-mail de recuperação de senha (`internal/service/auth.go:366-379`, `resetEm
 | Data | P0 | P1 | P2 | P3 |
 |---|---|---|---|---|
 | 2026-07-02 (todos corrigidos, ver tabela de status) | 1 | 4 | 6 | 5 |
-| 2026-07-03 (novos, abertos) | 0 | 4 | 4 | 4 |
+| 2026-07-03 (corrigidos: 4 P1, 3 P2, 3 P3 — ver tabela de status) | 0 | 4 | 4 (3 corrigidos, 1 pendente de decisão) | 4 (3 corrigidos, 1 pendente de decisão) |
 
 **As prioridades mais urgentes de 2026-07-03:** as três de manipulação/perda de dado sem checar linhas afetadas (P1-A, P1-B, P1-D) e a tela de usuários do admin quebrada (P1-C) — todas reproduzidas ao vivo contra o backend rodando, as três primeiras exploráveis por qualquer conta autenticada comum (morador ou prestador), sem precisar de nenhum acesso privilegiado.

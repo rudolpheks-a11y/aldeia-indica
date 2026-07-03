@@ -2,10 +2,14 @@ package service
 
 import (
 	"context"
+	"errors"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
+
+var ErrAlreadyRecommended = errors.New("you have already recommended this provider")
 
 type RecommendationService struct {
 	db          *pgxpool.Pool
@@ -33,6 +37,10 @@ func (s *RecommendationService) Create(ctx context.Context, communityID, provide
 		communityID, providerID, recommenderID,
 	)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return ErrAlreadyRecommended
+		}
 		return err
 	}
 
@@ -52,6 +60,8 @@ func (s *RecommendationService) Create(ctx context.Context, communityID, provide
 	return s.providerSvc.RecomputeScore(ctx, providerID)
 }
 
+var ErrRecommendationNotFound = errors.New("you have not recommended this provider")
+
 func (s *RecommendationService) Delete(ctx context.Context, communityID, providerID, recommenderID uuid.UUID) error {
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
@@ -59,12 +69,15 @@ func (s *RecommendationService) Delete(ctx context.Context, communityID, provide
 	}
 	defer tx.Rollback(ctx)
 
-	_, err = tx.Exec(ctx,
+	tag, err := tx.Exec(ctx,
 		`DELETE FROM recommendations WHERE community_id=$1 AND provider_id=$2 AND recommender_id=$3`,
 		communityID, providerID, recommenderID,
 	)
 	if err != nil {
 		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrRecommendationNotFound
 	}
 
 	_, err = tx.Exec(ctx,

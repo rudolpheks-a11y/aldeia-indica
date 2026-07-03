@@ -3,6 +3,7 @@ package handler
 import (
 	"encoding/json"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
@@ -48,13 +49,20 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 			Email     string    `json:"email"`
 			Role      string    `json:"role"`
 			Status    string    `json:"status"`
-			CreatedAt string    `json:"created_at"`
+			CreatedAt time.Time `json:"created_at"`
 		}
-		rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Role, &u.Status, &u.CreatedAt)
+		if err := rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Role, &u.Status, &u.CreatedAt); err != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 		users = append(users, map[string]any{
 			"id": u.ID, "full_name": u.FullName, "email": u.Email,
 			"role": u.Role, "status": u.Status, "created_at": u.CreatedAt,
 		})
+	}
+	if err := rows.Err(); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
 	}
 	jsonOK(w, users)
 }

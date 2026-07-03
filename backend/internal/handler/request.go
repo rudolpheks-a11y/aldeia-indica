@@ -123,18 +123,33 @@ func (h *RequestHandler) Get(w http.ResponseWriter, r *http.Request) {
 
 func (h *RequestHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.ClaimsFrom(r.Context())
-	requestID, _ := uuid.Parse(chi.URLParam(r, "id"))
+	requestID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
 
 	var in struct {
 		Status string `json:"status"`
 	}
-	json.NewDecoder(r.Body).Decode(&in)
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		jsonError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
 
-	h.db.Exec(r.Context(),
+	tag, err := h.db.Exec(r.Context(),
 		`UPDATE service_requests SET status=$1, updated_at=now()
 		 WHERE id=$2 AND requester_id=$3`,
 		in.Status, requestID, claims.UserID,
 	)
+	if err != nil {
+		jsonError(w, "invalid status", http.StatusBadRequest)
+		return
+	}
+	if tag.RowsAffected() == 0 {
+		jsonError(w, "request not found", http.StatusNotFound)
+		return
+	}
 	w.WriteHeader(http.StatusNoContent)
 }
 

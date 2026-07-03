@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 )
 
@@ -29,7 +30,10 @@ type CreateRatingInput struct {
 	Comment     string
 }
 
-var ErrAlreadyRated = errors.New("you have already rated this provider")
+var (
+	ErrAlreadyRated       = errors.New("you have already rated this provider")
+	ErrInvalidRatingValue = errors.New("rating values must be between 1 and 5")
+)
 
 func (s *RatingService) Create(ctx context.Context, in CreateRatingInput) error {
 	tx, err := s.db.Begin(ctx)
@@ -45,6 +49,10 @@ func (s *RatingService) Create(ctx context.Context, in CreateRatingInput) error 
 		in.Quality, in.Punctuality, in.Politeness, in.Reliability, in.Comment,
 	)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23514" {
+			return ErrInvalidRatingValue
+		}
 		return ErrAlreadyRated
 	}
 

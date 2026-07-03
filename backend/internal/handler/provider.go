@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -130,6 +131,10 @@ func (h *ProviderHandler) UpdateMe(w http.ResponseWriter, r *http.Request) {
 		NeedsTransport:      in.NeedsTransport,
 		TransportType:       in.TransportType,
 	}); err != nil {
+		if errors.Is(err, service.ErrUnknownCategorySlug) {
+			jsonError(w, err.Error(), http.StatusBadRequest)
+			return
+		}
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
@@ -222,6 +227,10 @@ func (h *ProviderHandler) HireCompleted(w http.ResponseWriter, r *http.Request) 
 	}
 
 	if err := h.analytics.HireCompleted(r.Context(), claims.CommunityID, providerID, claims.UserID, h.svc); err != nil {
+		if errors.Is(err, service.ErrAlreadyHired) {
+			jsonError(w, err.Error(), http.StatusConflict)
+			return
+		}
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}

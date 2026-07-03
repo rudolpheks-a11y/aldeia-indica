@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log/slog"
 	"time"
@@ -520,7 +521,39 @@ type UpdateProviderInput struct {
 	TransportType       *string
 }
 
+var ErrUnknownCategorySlug = errors.New("unknown category slug")
+
 func (s *ProviderService) UpdateMe(ctx context.Context, communityID, userID uuid.UUID, in UpdateProviderInput) error {
+	// Validate slugs before touching existing data — an INSERT ... SELECT ...
+	// WHERE slug=$X against a slug that doesn't exist inserts zero rows
+	// without erroring, so this must be checked up front, not after the
+	// DELETE below already ran.
+	if in.CategorySlugs != nil && len(*in.CategorySlugs) > 0 {
+		rows, err := s.db.Query(ctx,
+			`SELECT slug FROM service_categories WHERE slug = ANY($1)`, *in.CategorySlugs)
+		if err != nil {
+			return err
+		}
+		found := make(map[string]bool, len(*in.CategorySlugs))
+		for rows.Next() {
+			var slug string
+			if err := rows.Scan(&slug); err != nil {
+				rows.Close()
+				return err
+			}
+			found[slug] = true
+		}
+		rows.Close()
+		if err := rows.Err(); err != nil {
+			return err
+		}
+		for _, slug := range *in.CategorySlugs {
+			if !found[slug] {
+				return fmt.Errorf("%w: %s", ErrUnknownCategorySlug, slug)
+			}
+		}
+	}
+
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		return err

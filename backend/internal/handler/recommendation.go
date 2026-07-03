@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -36,7 +37,11 @@ func (h *RecommendationHandler) Create(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.Create(r.Context(), claims.CommunityID, providerID, claims.UserID); err != nil {
-		jsonError(w, err.Error(), http.StatusBadRequest)
+		if errors.Is(err, service.ErrAlreadyRecommended) {
+			jsonError(w, err.Error(), http.StatusConflict)
+			return
+		}
+		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusCreated)
@@ -60,6 +65,10 @@ func (h *RecommendationHandler) Delete(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.svc.Delete(r.Context(), claims.CommunityID, providerID, claims.UserID); err != nil {
+		if errors.Is(err, service.ErrRecommendationNotFound) {
+			jsonError(w, err.Error(), http.StatusNotFound)
+			return
+		}
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}

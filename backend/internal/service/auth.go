@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/auth"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/domain"
@@ -23,6 +24,7 @@ var (
 	ErrUserPending         = errors.New("account pending approval")
 	ErrUserSuspended       = errors.New("account suspended")
 	ErrInvalidResetCode    = errors.New("invalid or expired reset code")
+	ErrEmailTaken          = errors.New("email already registered")
 )
 
 type AuthService struct {
@@ -81,6 +83,10 @@ func (s *AuthService) RegisterMorador(ctx context.Context, in RegisterMoradorInp
 		in.CommunityID, in.Email, string(hash), in.FullName,
 	).Scan(&userID)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return uuid.Nil, ErrEmailTaken
+		}
 		return uuid.Nil, fmt.Errorf("insert user: %w", err)
 	}
 
@@ -123,6 +129,10 @@ func (s *AuthService) RegisterPrestador(ctx context.Context, in RegisterPrestado
 		in.CommunityID, in.Email, string(hash), in.FullName,
 	).Scan(&userID)
 	if err != nil {
+		var pgErr *pgconn.PgError
+		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
+			return uuid.Nil, ErrEmailTaken
+		}
 		return uuid.Nil, fmt.Errorf("insert user: %w", err)
 	}
 

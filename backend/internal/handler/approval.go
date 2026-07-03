@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 
 	"github.com/go-chi/chi/v5"
@@ -37,7 +38,11 @@ func (h *ApprovalHandler) Vote(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.userSvc.Vote(r.Context(), claims.UserID, claims.CommunityID, approvalID); err != nil {
-		jsonError(w, err.Error(), http.StatusBadRequest)
+		if errors.Is(err, service.ErrAlreadyVoted) {
+			jsonError(w, err.Error(), http.StatusConflict)
+			return
+		}
+		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
@@ -60,7 +65,7 @@ func (h *ApprovalHandler) AdminResolve(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if err := h.userSvc.AdminResolve(r.Context(), claims.UserID, claims.CommunityID, approvalID, in.Approve); err != nil {
-		jsonError(w, err.Error(), http.StatusBadRequest)
+		jsonError(w, "approval not found", http.StatusNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)
