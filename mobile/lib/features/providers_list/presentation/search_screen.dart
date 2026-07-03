@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../shared/widgets/app_back_button.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 import '../../../core/constants/app_colors.dart';
 import '../providers/search_provider.dart';
 import 'provider_card.dart';
@@ -17,10 +18,12 @@ class SearchScreen extends ConsumerStatefulWidget {
 
 class _SearchScreenState extends ConsumerState<SearchScreen> {
   final _searchCtrl = TextEditingController();
+  final _listCtrl = ScrollController();
 
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _listCtrl.dispose();
     super.dispose();
   }
 
@@ -69,10 +72,14 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
             child: search.when(
               data: (providers) => providers.isEmpty
                   ? const Center(child: Text('Nenhum prestador encontrado'))
-                  : ListView.builder(
-                      padding: const EdgeInsets.symmetric(horizontal: 12),
-                      itemCount: providers.length,
-                      itemBuilder: (_, i) => ProviderCard(provider: providers[i]),
+                  : AppScrollbar(
+                      controller: _listCtrl,
+                      child: ListView.builder(
+                        controller: _listCtrl,
+                        padding: const EdgeInsets.symmetric(horizontal: 12),
+                        itemCount: providers.length,
+                        itemBuilder: (_, i) => ProviderCard(provider: providers[i]),
+                      ),
                     ),
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Erro: $e')),
