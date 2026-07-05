@@ -40,8 +40,8 @@ class ApiClient {
             data: {'refresh_token': refreshToken},
             options: Options(headers: {}),
           );
-          final newAccess = resp.data['AccessToken'] as String;
-          final newRefresh = resp.data['RefreshToken'] as String;
+          final newAccess = resp.data['access_token'] as String;
+          final newRefresh = resp.data['refresh_token'] as String;
           await _storage.saveTokens(
               accessToken: newAccess, refreshToken: newRefresh);
 
