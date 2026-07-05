@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../../shared/widgets/app_back_button.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../bulletin/providers/bulletin_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
@@ -16,8 +15,36 @@ class AdminDashboardScreen extends ConsumerWidget {
       length: 3,
       child: Scaffold(
         appBar: AppBar(
-          leading: const AppBackButton(),
           title: const Text('Painel Admin'),
+          actions: [
+            IconButton(
+              tooltip: 'Sair',
+              icon: const Icon(Icons.logout),
+              onPressed: () async {
+                final confirm = await showDialog<bool>(
+                  context: context,
+                  builder: (ctx) => AlertDialog(
+                    title: const Text('Sair da conta'),
+                    content: const Text('Tem certeza que deseja sair?'),
+                    actions: [
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, false),
+                        child: const Text('Cancelar'),
+                      ),
+                      TextButton(
+                        onPressed: () => Navigator.pop(ctx, true),
+                        child: const Text('Sair',
+                            style: TextStyle(color: AppColors.error900)),
+                      ),
+                    ],
+                  ),
+                );
+                if (confirm == true) {
+                  ref.read(authProvider.notifier).logout();
+                }
+              },
+            ),
+          ],
           bottom: const TabBar(tabs: [
             Tab(text: 'Usuários'),
             Tab(text: 'Mural'),

@@ -317,6 +317,12 @@ class _PrestadorHomeState extends State<_PrestadorHome> {
                   color: AppColors.success,
                   onTap: () => context.push('/prestador/agenda'),
                 ),
+                _HomeTile(
+                  icon: Icons.insights_rounded,
+                  label: 'Meu\npainel',
+                  color: AppColors.accent,
+                  onTap: () => context.push('/dashboard'),
+                ),
               ],
             ),
             ),

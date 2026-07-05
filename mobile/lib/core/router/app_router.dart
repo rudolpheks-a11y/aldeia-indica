@@ -33,7 +33,19 @@ final routerProvider = Provider<GoRouter>((ref) {
     redirect: (context, state) {
       final authState = auth.valueOrNull;
       if (authState is AuthAuthenticated) {
-        if (state.matchedLocation == '/login') return '/home';
+        final isAdmin = authState.role == 'admin';
+        // Admin não tem home de morador/prestador — cai direto no painel.
+        // Não-admin nunca acessa /admin, nem digitando a URL/deep link
+        // (o backend já bloqueia via RequireRole, isso é a mesma trava do
+        // lado do cliente).
+        if (isAdmin) {
+          if (state.matchedLocation == '/login' ||
+              state.matchedLocation == '/home') {
+            return '/admin';
+          }
+        } else if (state.matchedLocation.startsWith('/admin')) {
+          return '/home';
+        }
         return null;
       }
       if (authState is AuthPending) return '/pending-approval';
