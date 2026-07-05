@@ -37,7 +37,6 @@ func (h *AdminHandler) Stats(w http.ResponseWriter, r *http.Request) {
 		TotalPedidos            int `json:"total_pedidos"`
 		TotalAvaliacoes         int `json:"total_avaliacoes"`
 		TotalRecomendacoes      int `json:"total_recomendacoes"`
-		TotalContratacoes       int `json:"total_contratacoes"`
 		AvisosPendentes         int `json:"avisos_pendentes"`
 	}
 
@@ -52,14 +51,13 @@ func (h *AdminHandler) Stats(w http.ResponseWriter, r *http.Request) {
 			(SELECT COUNT(*) FROM service_requests WHERE community_id=$1),
 			(SELECT COUNT(*) FROM ratings WHERE community_id=$1),
 			(SELECT COUNT(*) FROM recommendations WHERE community_id=$1),
-			(SELECT COUNT(*) FROM provider_hires WHERE community_id=$1),
 			(SELECT COUNT(*) FROM bulletin_posts WHERE community_id=$1 AND status='pending')
 	`, claims.CommunityID).Scan(
 		&s.TotalMoradores, &s.MoradoresAtivos,
 		&s.TotalPrestadores, &s.PrestadoresAtivos,
 		&s.TotalCategorias, &s.TotalServicosOferecidos,
 		&s.TotalPedidos, &s.TotalAvaliacoes, &s.TotalRecomendacoes,
-		&s.TotalContratacoes, &s.AvisosPendentes,
+		&s.AvisosPendentes,
 	)
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
@@ -234,47 +232,6 @@ func (h *AdminHandler) ListRecommendations(w http.ResponseWriter, r *http.Reques
 		}
 		result = append(result, map[string]any{
 			"recommender_name": recommender, "provider_name": provider, "created_at": createdAt,
-		})
-	}
-	if err := rows.Err(); err != nil {
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	if result == nil {
-		result = []map[string]any{}
-	}
-	jsonOK(w, result)
-}
-
-// ListHires — todas as contratações confirmadas da comunidade, pra visão geral do admin.
-func (h *AdminHandler) ListHires(w http.ResponseWriter, r *http.Request) {
-	claims, _ := middleware.ClaimsFrom(r.Context())
-
-	rows, err := h.db.Query(r.Context(), `
-		SELECT hu.full_name, pu.full_name, h.created_at
-		FROM provider_hires h
-		JOIN users hu ON hu.id = h.hirer_id
-		JOIN users pu ON pu.id = h.provider_id
-		WHERE h.community_id = $1
-		ORDER BY h.created_at DESC LIMIT 200`,
-		claims.CommunityID,
-	)
-	if err != nil {
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	defer rows.Close()
-
-	var result []map[string]any
-	for rows.Next() {
-		var hirer, provider string
-		var createdAt time.Time
-		if err := rows.Scan(&hirer, &provider, &createdAt); err != nil {
-			jsonError(w, "internal error", http.StatusInternalServerError)
-			return
-		}
-		result = append(result, map[string]any{
-			"hirer_name": hirer, "provider_name": provider, "created_at": createdAt,
 		})
 	}
 	if err := rows.Err(); err != nil {

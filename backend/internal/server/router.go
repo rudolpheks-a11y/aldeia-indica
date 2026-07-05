@@ -86,7 +86,6 @@ func NewRouter(
 			r.Put("/providers/me", providerH.UpdateMe)
 			r.Post("/providers/{id}/photos", providerH.AddPhoto)
 			r.Delete("/providers/{id}/photos/{photoID}", providerH.DeletePhoto)
-			r.Post("/providers/{id}/hire", providerH.HireCompleted)
 			r.Get("/dashboard/summary", providerH.Dashboard)
 
 			// Mural de avisos (apenas moradores lêem e postam)
@@ -135,7 +134,6 @@ func NewRouter(
 				r.Get("/admin/provider-services", adminH.ListProviderServices)
 				r.Get("/admin/ratings", adminH.ListRatings)
 				r.Get("/admin/recommendations", adminH.ListRecommendations)
-				r.Get("/admin/hires", adminH.ListHires)
 				r.Post("/admin/communities", adminH.CreateCommunity)
 				r.Get("/admin/bulletin/pending", bulletinH.ListPending)
 				r.Post("/admin/bulletin/{id}/review", bulletinH.Review)

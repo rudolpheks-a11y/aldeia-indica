@@ -43,7 +43,6 @@ class ApiEndpoints {
 
   static const String dashboardSummary = '/dashboard/summary';
 
-  static String hireCompleted(String id) => '/providers/$id/hire';
 
   static const String communities = '/communities';
   static const String adminCommunities = '/admin/communities';

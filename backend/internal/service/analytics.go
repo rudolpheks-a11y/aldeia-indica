@@ -2,7 +2,6 @@ package service
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"github.com/google/uuid"
@@ -10,9 +9,8 @@ import (
 )
 
 const (
-	EventProfileView       = "profile_view"
-	EventContactInitiated  = "contact_initiated"
-	EventHireCompleted     = "hire_completed"
+	EventProfileView      = "profile_view"
+	EventContactInitiated = "contact_initiated"
 )
 
 type AnalyticsService struct {
@@ -33,23 +31,21 @@ func (s *AnalyticsService) RecordEvent(ctx context.Context, communityID, provide
 }
 
 type DashboardStats struct {
-	ScoreAldeia      float64 `json:"score_aldeia"`
-	AvgRating        float64 `json:"avg_rating"`
-	TotalHires       int     `json:"total_hires"`
-	ViewCount30d     int     `json:"view_count_30d"`
-	ContactCount30d  int     `json:"contact_count_30d"`
-	HireCount30d     int     `json:"hire_count_30d"`
-	CategoryRank     *int    `json:"category_rank,omitempty"`
-	TotalInCategory  *int    `json:"total_in_category,omitempty"`
+	ScoreAldeia     float64 `json:"score_aldeia"`
+	AvgRating       float64 `json:"avg_rating"`
+	ViewCount30d    int     `json:"view_count_30d"`
+	ContactCount30d int     `json:"contact_count_30d"`
+	CategoryRank    *int    `json:"category_rank,omitempty"`
+	TotalInCategory *int    `json:"total_in_category,omitempty"`
 }
 
 func (s *AnalyticsService) DashboardSummary(ctx context.Context, communityID, providerID uuid.UUID) (*DashboardStats, error) {
 	stats := &DashboardStats{}
 	err := s.db.QueryRow(ctx,
-		`SELECT COALESCE(score_aldeia, 0), COALESCE(avg_rating, 0), total_hires
+		`SELECT COALESCE(score_aldeia, 0), COALESCE(avg_rating, 0)
 		 FROM provider_profiles WHERE user_id = $1 AND community_id = $2`,
 		providerID, communityID,
-	).Scan(&stats.ScoreAldeia, &stats.AvgRating, &stats.TotalHires)
+	).Scan(&stats.ScoreAldeia, &stats.AvgRating)
 	if err != nil {
 		return nil, err
 	}
@@ -74,8 +70,6 @@ func (s *AnalyticsService) DashboardSummary(ctx context.Context, communityID, pr
 			stats.ViewCount30d = count
 		case EventContactInitiated:
 			stats.ContactCount30d = count
-		case EventHireCompleted:
-			stats.HireCount30d = count
 		}
 	}
 
@@ -106,54 +100,4 @@ func (s *AnalyticsService) DashboardSummary(ctx context.Context, communityID, pr
 	}
 
 	return stats, nil
-}
-
-var ErrAlreadyHired = errors.New("you have already confirmed hiring this provider")
-
-// HireCompleted registers a hire (one per hirer per provider — same
-// uniqueness semantics as ratings/recommendations), increments total_hires,
-// logs the event, and triggers score recompute. A repeat call from the same
-// hirer is a no-op (ErrAlreadyHired), not a repeated increment.
-func (s *AnalyticsService) HireCompleted(ctx context.Context, communityID, providerID, actorID uuid.UUID, providerSvc *ProviderService) error {
-	tx, err := s.db.Begin(ctx)
-	if err != nil {
-		return err
-	}
-	defer tx.Rollback(ctx)
-
-	tag, err := tx.Exec(ctx,
-		`INSERT INTO provider_hires (community_id, provider_id, hirer_id)
-		 VALUES ($1, $2, $3)
-		 ON CONFLICT (community_id, provider_id, hirer_id) DO NOTHING`,
-		communityID, providerID, actorID,
-	)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrAlreadyHired
-	}
-
-	_, err = tx.Exec(ctx,
-		`UPDATE provider_profiles SET total_hires = total_hires + 1
-		 WHERE user_id = $1 AND community_id = $2`,
-		providerID, communityID,
-	)
-	if err != nil {
-		return err
-	}
-	_, err = tx.Exec(ctx,
-		`INSERT INTO provider_events (community_id, provider_id, actor_id, event_type)
-		 VALUES ($1, $2, $3, $4)`,
-		communityID, providerID, actorID, EventHireCompleted,
-	)
-	if err != nil {
-		return err
-	}
-	if err := tx.Commit(ctx); err != nil {
-		return err
-	}
-
-	// Recompute score after commit (non-transactional, best-effort)
-	return providerSvc.RecomputeScore(ctx, providerID)
 }

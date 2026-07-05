@@ -56,9 +56,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                           _Stat('Avaliação média',
                               (data['avg_rating'] as num? ?? 0)
                                   .toStringAsFixed(1)),
-                          const SizedBox(height: 8),
-                          _Stat('Contratações',
-                              data['total_hires']?.toString() ?? '0'),
                         ],
                       ),
                     ],
@@ -113,14 +110,6 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                       icon: Icons.chat_bubble_outline,
                       label: 'Contatos',
                       value: data['contact_count_30d']?.toString() ?? '0',
-                    ),
-                  ),
-                  const SizedBox(width: 8),
-                  Expanded(
-                    child: _StatCard(
-                      icon: Icons.handshake_outlined,
-                      label: 'Contratações',
-                      value: data['hire_count_30d']?.toString() ?? '0',
                     ),
                   ),
                 ],

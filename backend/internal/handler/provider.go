@@ -216,23 +216,3 @@ func (h *ProviderHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	}
 	jsonOK(w, stats)
 }
-
-// HireCompleted — morador confirma contratação de um prestador
-func (h *ProviderHandler) HireCompleted(w http.ResponseWriter, r *http.Request) {
-	claims, _ := middleware.ClaimsFrom(r.Context())
-	providerID, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		jsonError(w, "invalid id", http.StatusBadRequest)
-		return
-	}
-
-	if err := h.analytics.HireCompleted(r.Context(), claims.CommunityID, providerID, claims.UserID, h.svc); err != nil {
-		if errors.Is(err, service.ErrAlreadyHired) {
-			jsonError(w, err.Error(), http.StatusConflict)
-			return
-		}
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	jsonOK(w, map[string]string{"status": "ok"})
-}

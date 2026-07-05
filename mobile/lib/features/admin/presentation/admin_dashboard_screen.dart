@@ -204,20 +204,6 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
               ),
             ),
             _StatTile(
-              icon: Icons.handshake_outlined,
-              label: 'Contratações',
-              value: '${s['total_contratacoes']}',
-              onTap: () => _showDetailSheet(
-                context,
-                title: 'Contratações',
-                endpoint: '/admin/hires',
-                itemBuilder: (item) => ListTile(
-                  title: Text(
-                      '${item['hirer_name']} → ${item['provider_name']}'),
-                ),
-              ),
-            ),
-            _StatTile(
               icon: Icons.campaign_outlined,
               label: 'Avisos pendentes',
               value: '${s['avisos_pendentes']}',

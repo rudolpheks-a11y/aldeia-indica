@@ -57,8 +57,6 @@ func (s *ProviderService) Search(ctx context.Context, communityID uuid.UUID, f S
 		sortCol = "pp.avg_rating DESC NULLS LAST"
 	case "recommendations":
 		sortCol = "pp.recommendation_count DESC"
-	case "hires":
-		sortCol = "pp.total_hires DESC"
 	}
 
 	// EXISTS subquery avoids the DISTINCT ON / ORDER BY conflict that would
@@ -429,7 +427,6 @@ type ProviderDetail struct {
 	ProviderSummary
 	ProfessionalBio *string                `json:"professional_bio"`
 	TotalClients    int                    `json:"total_clients"`
-	TotalHires      int                    `json:"total_hires"`
 	NeedsTransport  bool                   `json:"needs_transport"`
 	TransportType   *string                `json:"transport_type"`
 	CategorySlugs   []string               `json:"category_slugs"`
@@ -443,7 +440,7 @@ func (s *ProviderService) Get(ctx context.Context, communityID, providerID uuid.
 		`SELECT u.id, u.full_name, u.avatar_key,
 		        pp.city, pp.years_in_neighborhood, pp.score_aldeia,
 		        pp.avg_rating, pp.recommendation_count,
-		        pp.professional_bio, pp.total_clients, pp.total_hires,
+		        pp.professional_bio, pp.total_clients,
 		        pp.needs_transport, pp.transport_type
 		 FROM provider_profiles pp
 		 JOIN users u ON u.id = pp.user_id
@@ -453,7 +450,7 @@ func (s *ProviderService) Get(ctx context.Context, communityID, providerID uuid.
 		&d.UserID, &d.FullName, &d.AvatarKey,
 		&d.City, &d.YearsInNeighborhood, &d.ScoreAldeia,
 		&d.AvgRating, &d.RecommendationCount,
-		&d.ProfessionalBio, &d.TotalClients, &d.TotalHires,
+		&d.ProfessionalBio, &d.TotalClients,
 		&d.NeedsTransport, &d.TransportType,
 	)
 	if err != nil {
@@ -627,10 +624,10 @@ func (s *ProviderService) DeletePhoto(ctx context.Context, providerID, photoID u
 func (s *ProviderService) RecomputeScore(ctx context.Context, providerID uuid.UUID) error {
 	var stats domain.ProviderStats
 	err := s.db.QueryRow(ctx,
-		`SELECT COALESCE(avg_rating, 0), years_in_neighborhood, total_clients, total_hires, recommendation_count
+		`SELECT COALESCE(avg_rating, 0), years_in_neighborhood, total_clients, recommendation_count
 		 FROM provider_profiles WHERE user_id=$1`,
 		providerID,
-	).Scan(&stats.AvgRating, &stats.YearsInNeighborhood, &stats.TotalClients, &stats.TotalHires, &stats.RecommendationCount)
+	).Scan(&stats.AvgRating, &stats.YearsInNeighborhood, &stats.TotalClients, &stats.RecommendationCount)
 	if err != nil {
 		return err
 	}
