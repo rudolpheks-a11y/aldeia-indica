@@ -21,13 +21,14 @@ import (
 )
 
 var (
-	ErrInvalidCredentials  = errors.New("invalid email or password")
-	ErrUserPending         = errors.New("account pending approval")
-	ErrUserSuspended       = errors.New("account suspended")
-	ErrInvalidResetCode    = errors.New("invalid or expired reset code")
-	ErrEmailTaken          = errors.New("email already registered")
-	ErrInvalidInviteCode   = errors.New("invalid or expired invite code")
-	ErrSameInviteSponsor   = errors.New("the two invite codes must be from different residents")
+	ErrInvalidCredentials    = errors.New("invalid email or password")
+	ErrUserPending           = errors.New("account pending approval")
+	ErrUserSuspended         = errors.New("account suspended")
+	ErrInvalidResetCode      = errors.New("invalid or expired reset code")
+	ErrEmailTaken            = errors.New("email already registered")
+	ErrInvalidInviteCode     = errors.New("invalid or expired invite code")
+	ErrSameInviteSponsor     = errors.New("the two invite codes must be from different residents")
+	ErrIncompleteInviteCodes = errors.New("provide both invite codes or leave both empty")
 )
 
 type AuthService struct {
@@ -64,9 +65,9 @@ type RegisterPrestadorInput struct {
 }
 
 type TokenPair struct {
-	AccessToken  string    `json:"access_token"`
-	RefreshToken string    `json:"refresh_token"`
-	UserID       string    `json:"user_id"`
+	AccessToken  string `json:"access_token"`
+	RefreshToken string `json:"refresh_token"`
+	UserID       string `json:"user_id"`
 }
 
 func (s *AuthService) RegisterMorador(ctx context.Context, in RegisterMoradorInput) (uuid.UUID, error) {
@@ -81,27 +82,47 @@ func (s *AuthService) RegisterMorador(ctx context.Context, in RegisterMoradorInp
 	}
 	defer tx.Rollback(ctx)
 
-	// FOR UPDATE trava as duas linhas de convite pela duração da transação —
-	// se dois cadastros tentarem consumir o mesmo código ao mesmo tempo, o
-	// segundo espera o primeiro commitar/dar rollback antes de reler
-	// used_at, em vez de os dois lerem "livre" e ambos conseguirem usar.
-	invite1ID, sponsor1, err := s.lockInvite(ctx, tx, in.CommunityID, in.InviteCode1)
-	if err != nil {
-		return uuid.Nil, err
+	hasCode1 := in.InviteCode1 != ""
+	hasCode2 := in.InviteCode2 != ""
+	if hasCode1 != hasCode2 {
+		return uuid.Nil, ErrIncompleteInviteCodes
 	}
-	invite2ID, sponsor2, err := s.lockInvite(ctx, tx, in.CommunityID, in.InviteCode2)
-	if err != nil {
-		return uuid.Nil, err
-	}
-	if sponsor1 == sponsor2 {
-		return uuid.Nil, ErrSameInviteSponsor
+
+	// Sem nenhum código: o morador não conseguiu 2 indicações — cadastro
+	// fica pending, e o admin pode ativar manualmente como backup
+	// (PUT /admin/users/{id}/status). Com os 2 códigos: ativa na hora,
+	// sem precisar do admin.
+	status := "pending"
+	verifiedResident := false
+	var invite1ID, invite2ID uuid.UUID
+
+	if hasCode1 && hasCode2 {
+		// FOR UPDATE trava as duas linhas de convite pela duração da
+		// transação — se dois cadastros tentarem consumir o mesmo código ao
+		// mesmo tempo, o segundo espera o primeiro commitar/dar rollback
+		// antes de reler used_at, em vez de os dois lerem "livre" e ambos
+		// conseguirem usar.
+		var sponsor1, sponsor2 uuid.UUID
+		invite1ID, sponsor1, err = s.lockInvite(ctx, tx, in.CommunityID, in.InviteCode1)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		invite2ID, sponsor2, err = s.lockInvite(ctx, tx, in.CommunityID, in.InviteCode2)
+		if err != nil {
+			return uuid.Nil, err
+		}
+		if sponsor1 == sponsor2 {
+			return uuid.Nil, ErrSameInviteSponsor
+		}
+		status = "active"
+		verifiedResident = true
 	}
 
 	var userID uuid.UUID
 	err = tx.QueryRow(ctx,
 		`INSERT INTO users (community_id, email, password_hash, role, status, full_name)
-		 VALUES ($1, $2, $3, 'morador', 'active', $4) RETURNING id`,
-		in.CommunityID, in.Email, string(hash), in.FullName,
+		 VALUES ($1, $2, $3, 'morador', $4, $5) RETURNING id`,
+		in.CommunityID, in.Email, string(hash), status, in.FullName,
 	).Scan(&userID)
 	if err != nil {
 		var pgErr *pgconn.PgError
@@ -113,19 +134,21 @@ func (s *AuthService) RegisterMorador(ctx context.Context, in RegisterMoradorInp
 
 	_, err = tx.Exec(ctx,
 		`INSERT INTO morador_profiles (user_id, community_id, street_address, house_number, neighborhood_block, verified_resident)
-		 VALUES ($1, $2, $3, $4, $5, true)`,
-		userID, in.CommunityID, in.StreetAddress, in.HouseNumber, in.NeighborhoodBlock,
+		 VALUES ($1, $2, $3, $4, $5, $6)`,
+		userID, in.CommunityID, in.StreetAddress, in.HouseNumber, in.NeighborhoodBlock, verifiedResident,
 	)
 	if err != nil {
 		return uuid.Nil, fmt.Errorf("insert morador profile: %w", err)
 	}
 
-	_, err = tx.Exec(ctx,
-		`UPDATE invites SET used_by = $1, used_at = now() WHERE id = ANY($2)`,
-		userID, []uuid.UUID{invite1ID, invite2ID},
-	)
-	if err != nil {
-		return uuid.Nil, fmt.Errorf("consume invites: %w", err)
+	if hasCode1 && hasCode2 {
+		_, err = tx.Exec(ctx,
+			`UPDATE invites SET used_by = $1, used_at = now() WHERE id = ANY($2)`,
+			userID, []uuid.UUID{invite1ID, invite2ID},
+		)
+		if err != nil {
+			return uuid.Nil, fmt.Errorf("consume invites: %w", err)
+		}
 	}
 
 	return userID, tx.Commit(ctx)

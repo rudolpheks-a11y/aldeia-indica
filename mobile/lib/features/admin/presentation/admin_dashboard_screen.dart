@@ -223,17 +223,71 @@ class _UsersTabState extends ConsumerState<_UsersTab> {
         itemCount: list.length,
         itemBuilder: (_, i) {
           final u = list[i];
+          final isPending = u['status'] == 'pending';
           return Card(
             child: ListTile(
               title: Text(u['full_name'] as String),
               subtitle: Text('${u['role']} · ${u['email']}'),
-              trailing: _StatusChip(status: u['status'] as String),
+              trailing: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  _StatusChip(status: u['status'] as String),
+                  if (isPending) ...[
+                    const SizedBox(width: 4),
+                    IconButton(
+                      tooltip:
+                          'Aprovar manualmente (backup — sem os 2 códigos de convite)',
+                      icon: const Icon(Icons.check_circle_outline,
+                          color: AppColors.primary700),
+                      onPressed: () =>
+                          _approve(context, u['id'] as String),
+                    ),
+                  ],
+                ],
+              ),
             ),
           );
         },
         ),
       ),
     );
+  }
+
+  Future<void> _approve(BuildContext context, String userId) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Aprovar morador'),
+        content: const Text(
+            'Esse morador não teve os 2 códigos de convite. Ativar mesmo '
+            'assim, sem a indicação de outros moradores?'),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Ativar'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    try {
+      await ref.read(apiClientProvider).put(
+        '/admin/users/$userId/status',
+        data: {'status': 'active'},
+      );
+      ref.invalidate(_usersProvider);
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e')),
+        );
+      }
+    }
   }
 }
 

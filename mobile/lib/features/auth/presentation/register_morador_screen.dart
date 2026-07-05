@@ -75,10 +75,14 @@ class _RegisterMoradorScreenState
             inviteCode1: _inviteCode1Ctrl.text.trim(),
             inviteCode2: _inviteCode2Ctrl.text.trim(),
           );
+      final hasCodes = _inviteCode1Ctrl.text.trim().isNotEmpty;
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Cadastro concluído! Você já pode entrar.')),
-        );
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+          content: Text(hasCodes
+              ? 'Cadastro concluído! Você já pode entrar.'
+              : 'Cadastro enviado! Como você não informou os códigos de '
+                  'convite, um administrador vai revisar e ativar sua conta.'),
+        ));
         context.go('/login');
       }
     } catch (e) {
@@ -153,24 +157,30 @@ class _RegisterMoradorScreenState
                 const SizedBox(height: 24),
                 Text(
                   'Peça a 2 moradores da sua comunidade um código de convite '
-                  '(eles geram na home do app, em "Convidar morador").',
+                  '(eles geram na home do app, em "Convidar morador") — seu '
+                  'cadastro já entra ativo. Se não conseguir os 2 códigos, '
+                  'deixe em branco: um administrador revisa e ativa manualmente.',
                   style: Theme.of(context).textTheme.bodySmall,
                 ),
                 const SizedBox(height: 12),
                 TextFormField(
                   controller: _inviteCode1Ctrl,
                   decoration: const InputDecoration(
-                      labelText: 'Código de convite (morador 1)'),
-                  validator: (v) =>
-                      v?.trim().isEmpty == true ? 'Obrigatório' : null,
+                      labelText: 'Código de convite (morador 1) — opcional'),
                 ),
                 const SizedBox(height: 16),
                 TextFormField(
                   controller: _inviteCode2Ctrl,
                   decoration: const InputDecoration(
-                      labelText: 'Código de convite (morador 2)'),
-                  validator: (v) =>
-                      v?.trim().isEmpty == true ? 'Obrigatório' : null,
+                      labelText: 'Código de convite (morador 2) — opcional'),
+                  validator: (v) {
+                    final hasCode1 = _inviteCode1Ctrl.text.trim().isNotEmpty;
+                    final hasCode2 = v?.trim().isNotEmpty ?? false;
+                    if (hasCode1 != hasCode2) {
+                      return 'Informe os dois códigos ou nenhum';
+                    }
+                    return null;
+                  },
                 ),
                 const SizedBox(height: 32),
                 ElevatedButton(

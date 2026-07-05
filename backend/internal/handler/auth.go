@@ -43,11 +43,6 @@ func (h *AuthHandler) RegisterMorador(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "password must be at least 6 characters", http.StatusBadRequest)
 		return
 	}
-	if in.InviteCode1 == "" || in.InviteCode2 == "" {
-		jsonError(w, "two invite codes from residents are required", http.StatusBadRequest)
-		return
-	}
-
 	userID, err := h.svc.RegisterMorador(r.Context(), service.RegisterMoradorInput{
 		CommunityID:       communityID,
 		Email:             in.Email,
@@ -63,7 +58,9 @@ func (h *AuthHandler) RegisterMorador(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, service.ErrEmailTaken):
 			jsonError(w, err.Error(), http.StatusConflict)
-		case errors.Is(err, service.ErrInvalidInviteCode), errors.Is(err, service.ErrSameInviteSponsor):
+		case errors.Is(err, service.ErrInvalidInviteCode),
+			errors.Is(err, service.ErrSameInviteSponsor),
+			errors.Is(err, service.ErrIncompleteInviteCodes):
 			jsonError(w, err.Error(), http.StatusBadRequest)
 		default:
 			jsonError(w, "registration failed", http.StatusBadRequest)
@@ -71,7 +68,11 @@ func (h *AuthHandler) RegisterMorador(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	jsonOK(w, map[string]string{"user_id": userID.String(), "status": "active"})
+	status := "pending"
+	if in.InviteCode1 != "" && in.InviteCode2 != "" {
+		status = "active"
+	}
+	jsonOK(w, map[string]string{"user_id": userID.String(), "status": status})
 }
 
 func (h *AuthHandler) RegisterPrestador(w http.ResponseWriter, r *http.Request) {
