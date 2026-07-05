@@ -64,7 +64,6 @@ func NewRouter(
 		r.Post("/auth/refresh", authH.Refresh)
 		r.With(authRateLimit).Post("/auth/forgot-password", authH.ForgotPassword)
 		r.With(authRateLimit).Post("/auth/reset-password", authH.ResetPassword)
-		r.Get("/categories", categoryH.List)
 
 		// Invite validation (public)
 		r.Get("/invites/{token}", approvalH.ValidateInvite)
@@ -74,6 +73,8 @@ func NewRouter(
 			r.Use(middleware.Authenticate(j))
 
 			r.Post("/auth/logout", authH.Logout)
+
+			r.Get("/categories", categoryH.List)
 
 			// Providers
 			r.Get("/providers", providerH.Search)
@@ -103,11 +104,10 @@ func NewRouter(
 			r.Delete("/recommendations", recH.Delete)
 			r.Get("/recommendations/provider/{id}", recH.ListByProvider)
 
-			// Approvals
-			r.Get("/approvals/pending", approvalH.ListPending)
-			r.Post("/approvals/{id}/vote", approvalH.Vote)
+			// Convites — morador ativo gera, candidato consome 2 no cadastro
+			// (ver AuthHandler.RegisterMorador), não precisa de rota de "usar"
+			// pós-login.
 			r.Post("/invites", approvalH.CreateInvite)
-			r.Post("/invites/{token}/use", approvalH.UseInvite)
 
 			// Service requests
 			r.Get("/requests", requestH.List)
@@ -131,10 +131,7 @@ func NewRouter(
 				r.Use(middleware.RequireRole("admin"))
 				r.Get("/admin/users", adminH.ListUsers)
 				r.Put("/admin/users/{id}/status", adminH.UpdateUserStatus)
-				r.Get("/admin/documents", adminH.ListDocumentQueue)
-				r.Post("/admin/documents/{providerID}/review", adminH.ReviewDocument)
 				r.Post("/admin/communities", adminH.CreateCommunity)
-				r.Post("/approvals/{id}/resolve", approvalH.AdminResolve)
 				r.Get("/admin/bulletin/pending", bulletinH.ListPending)
 				r.Post("/admin/bulletin/{id}/review", bulletinH.Review)
 			})

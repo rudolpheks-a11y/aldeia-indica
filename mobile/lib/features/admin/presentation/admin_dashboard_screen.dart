@@ -5,6 +5,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../bulletin/providers/bulletin_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 
 class AdminDashboardScreen extends ConsumerWidget {
   const AdminDashboardScreen({super.key});
@@ -12,21 +13,19 @@ class AdminDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
-      length: 4,
+      length: 3,
       child: Scaffold(
         appBar: AppBar(
           leading: const AppBackButton(),
           title: const Text('Painel Admin'),
           bottom: const TabBar(tabs: [
             Tab(text: 'Usuários'),
-            Tab(text: 'Documentos'),
             Tab(text: 'Mural'),
             Tab(text: 'Comunidades'),
           ]),
         ),
         body: const TabBarView(children: [
           _UsersTab(),
-          _DocumentsTab(),
           _BulletinTab(),
           _CommunitiesTab(),
         ]),
@@ -35,16 +34,32 @@ class AdminDashboardScreen extends ConsumerWidget {
   }
 }
 
-class _UsersTab extends ConsumerWidget {
+class _UsersTab extends ConsumerStatefulWidget {
   const _UsersTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_UsersTab> createState() => _UsersTabState();
+}
+
+class _UsersTabState extends ConsumerState<_UsersTab> {
+  final _listCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _listCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final users = ref.watch(_usersProvider);
     return users.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Erro: $e')),
-      data: (list) => ListView.builder(
+      data: (list) => AppScrollbar(
+        controller: _listCtrl,
+        child: ListView.builder(
+        controller: _listCtrl,
         padding: const EdgeInsets.all(12),
         itemCount: list.length,
         itemBuilder: (_, i) {
@@ -57,6 +72,7 @@ class _UsersTab extends ConsumerWidget {
             ),
           );
         },
+        ),
       ),
     );
   }
@@ -84,75 +100,34 @@ class _StatusChip extends StatelessWidget {
   }
 }
 
-class _DocumentsTab extends ConsumerWidget {
-  const _DocumentsTab();
-
-  @override
-  Widget build(BuildContext context, WidgetRef ref) {
-    final docs = ref.watch(_documentsProvider);
-    return docs.when(
-      loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Erro: $e')),
-      data: (list) => list.isEmpty
-          ? const Center(child: Text('Nenhum documento pendente'))
-          : ListView.builder(
-              padding: const EdgeInsets.all(12),
-              itemCount: list.length,
-              itemBuilder: (_, i) {
-                final d = list[i];
-                return Card(
-                  child: ListTile(
-                    title: Text(d['full_name'] as String),
-                    subtitle: Text(d['email'] as String),
-                    trailing: Row(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        IconButton(
-                          icon: const Icon(Icons.check, color: AppColors.primary700),
-                          onPressed: () => _review(context, ref, d['user_id'] as String, true),
-                        ),
-                        IconButton(
-                          icon: const Icon(Icons.close, color: AppColors.error900),
-                          onPressed: () => _review(context, ref, d['user_id'] as String, false),
-                        ),
-                      ],
-                    ),
-                  ),
-                );
-              },
-            ),
-    );
-  }
-
-  Future<void> _review(BuildContext context, WidgetRef ref, String userId, bool approve) async {
-    try {
-      await ref.read(apiClientProvider).post(
-        '/admin/documents/$userId/review',
-        data: {'approve': approve},
-      );
-      ref.invalidate(_documentsProvider);
-    } catch (e) {
-      if (context.mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
-        );
-      }
-    }
-  }
-}
-
-class _BulletinTab extends ConsumerWidget {
+class _BulletinTab extends ConsumerStatefulWidget {
   const _BulletinTab();
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<_BulletinTab> createState() => _BulletinTabState();
+}
+
+class _BulletinTabState extends ConsumerState<_BulletinTab> {
+  final _listCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _listCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final pending = ref.watch(bulletinPendingProvider);
     return pending.when(
       loading: () => const Center(child: CircularProgressIndicator()),
       error: (e, _) => Center(child: Text('Erro: $e')),
       data: (list) => list.isEmpty
           ? const Center(child: Text('Nenhum aviso pendente'))
-          : ListView.builder(
+          : AppScrollbar(
+              controller: _listCtrl,
+              child: ListView.builder(
+              controller: _listCtrl,
               padding: const EdgeInsets.all(12),
               itemCount: list.length,
               itemBuilder: (_, i) {
@@ -197,6 +172,7 @@ class _BulletinTab extends ConsumerWidget {
                   ),
                 );
               },
+              ),
             ),
     );
   }
@@ -230,6 +206,7 @@ class _CommunitiesTabState extends ConsumerState<_CommunitiesTab> {
   final _slugCtrl = TextEditingController();
   final _cityCtrl = TextEditingController();
   final _stateCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
   bool _loading = false;
 
   @override
@@ -238,6 +215,7 @@ class _CommunitiesTabState extends ConsumerState<_CommunitiesTab> {
     _slugCtrl.dispose();
     _cityCtrl.dispose();
     _stateCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -278,7 +256,10 @@ class _CommunitiesTabState extends ConsumerState<_CommunitiesTab> {
   @override
   Widget build(BuildContext context) {
     final communities = ref.watch(_communitiesProvider);
-    return SingleChildScrollView(
+    return AppScrollbar(
+      controller: _scrollCtrl,
+      child: SingleChildScrollView(
+      controller: _scrollCtrl,
       padding: const EdgeInsets.all(16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -326,6 +307,7 @@ class _CommunitiesTabState extends ConsumerState<_CommunitiesTab> {
           ),
         ],
       ),
+      ),
     );
   }
 }
@@ -333,12 +315,6 @@ class _CommunitiesTabState extends ConsumerState<_CommunitiesTab> {
 final _usersProvider = FutureProvider((ref) async {
   final api = ref.watch(apiClientProvider);
   final resp = await api.get('/admin/users');
-  return (resp.data as List<dynamic>).cast<Map<String, dynamic>>();
-});
-
-final _documentsProvider = FutureProvider((ref) async {
-  final api = ref.watch(apiClientProvider);
-  final resp = await api.get('/admin/documents');
   return (resp.data as List<dynamic>).cast<Map<String, dynamic>>();
 });
 

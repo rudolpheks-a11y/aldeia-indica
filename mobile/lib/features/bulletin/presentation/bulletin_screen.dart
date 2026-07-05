@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../shared/widgets/app_back_button.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 import '../../../core/constants/app_colors.dart';
 import '../providers/bulletin_provider.dart';
 
@@ -13,11 +14,13 @@ class BulletinScreen extends ConsumerStatefulWidget {
 
 class _BulletinScreenState extends ConsumerState<BulletinScreen> {
   final _ctrl = TextEditingController();
+  final _listCtrl = ScrollController();
   bool _sending = false;
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _listCtrl.dispose();
     super.dispose();
   }
 
@@ -76,7 +79,10 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                         ],
                       ),
                     )
-                  : ListView.separated(
+                  : AppScrollbar(
+                      controller: _listCtrl,
+                      child: ListView.separated(
+                      controller: _listCtrl,
                       padding: const EdgeInsets.all(16),
                       itemCount: list.length,
                       separatorBuilder: (_, __) =>
@@ -109,6 +115,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                           ),
                         );
                       },
+                    ),
                     ),
             ),
           ),

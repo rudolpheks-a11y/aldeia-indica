@@ -6,6 +6,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../shared/widgets/star_rating_bar.dart';
 import '../../../shared/widgets/loading_overlay.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 import '../../../core/constants/app_colors.dart';
 
 class RateProviderScreen extends ConsumerStatefulWidget {
@@ -23,11 +24,13 @@ class _RateProviderScreenState extends ConsumerState<RateProviderScreen> {
   int _politeness = 0;
   int _reliability = 0;
   final _commentCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
   bool _isLoading = false;
 
   @override
   void dispose() {
     _commentCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -72,7 +75,10 @@ class _RateProviderScreenState extends ConsumerState<RateProviderScreen> {
       isLoading: _isLoading,
       child: Scaffold(
         appBar: AppBar(leading: const AppBackButton(), title: const Text('Avaliar Prestador')),
-        body: SingleChildScrollView(
+        body: AppScrollbar(
+          controller: _scrollCtrl,
+          child: SingleChildScrollView(
+          controller: _scrollCtrl,
           padding: const EdgeInsets.all(24),
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -112,6 +118,7 @@ class _RateProviderScreenState extends ConsumerState<RateProviderScreen> {
                 child: const Text('Enviar Avaliação'),
               ),
             ],
+          ),
           ),
         ),
       ),

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../../../shared/widgets/loading_overlay.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 import '../../../core/constants/app_colors.dart';
 
 class ResetPasswordScreen extends ConsumerStatefulWidget {
@@ -26,6 +27,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
   final _codeCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _confirmCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
   bool _obscurePassword = true;
   bool _loading = false;
 
@@ -34,6 +36,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
     _codeCtrl.dispose();
     _passwordCtrl.dispose();
     _confirmCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -80,7 +83,10 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
       child: Scaffold(
         appBar: AppBar(title: const Text('Nova senha')),
         body: SafeArea(
-          child: SingleChildScrollView(
+          child: AppScrollbar(
+            controller: _scrollCtrl,
+            child: SingleChildScrollView(
+            controller: _scrollCtrl,
             padding: const EdgeInsets.all(24),
             child: Form(
               key: _formKey,
@@ -156,6 +162,7 @@ class _ResetPasswordScreenState extends ConsumerState<ResetPasswordScreen> {
                   ),
                 ],
               ),
+            ),
             ),
           ),
         ),

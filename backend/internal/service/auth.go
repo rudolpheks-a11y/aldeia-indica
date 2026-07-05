@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/auth"
@@ -25,6 +26,8 @@ var (
 	ErrUserSuspended       = errors.New("account suspended")
 	ErrInvalidResetCode    = errors.New("invalid or expired reset code")
 	ErrEmailTaken          = errors.New("email already registered")
+	ErrInvalidInviteCode   = errors.New("invalid or expired invite code")
+	ErrSameInviteSponsor   = errors.New("the two invite codes must be from different residents")
 )
 
 type AuthService struct {
@@ -46,6 +49,8 @@ type RegisterMoradorInput struct {
 	StreetAddress     string
 	HouseNumber       string
 	NeighborhoodBlock string
+	InviteCode1       string
+	InviteCode2       string
 }
 
 type RegisterPrestadorInput struct {
@@ -76,10 +81,26 @@ func (s *AuthService) RegisterMorador(ctx context.Context, in RegisterMoradorInp
 	}
 	defer tx.Rollback(ctx)
 
+	// FOR UPDATE trava as duas linhas de convite pela duração da transação —
+	// se dois cadastros tentarem consumir o mesmo código ao mesmo tempo, o
+	// segundo espera o primeiro commitar/dar rollback antes de reler
+	// used_at, em vez de os dois lerem "livre" e ambos conseguirem usar.
+	invite1ID, sponsor1, err := s.lockInvite(ctx, tx, in.CommunityID, in.InviteCode1)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	invite2ID, sponsor2, err := s.lockInvite(ctx, tx, in.CommunityID, in.InviteCode2)
+	if err != nil {
+		return uuid.Nil, err
+	}
+	if sponsor1 == sponsor2 {
+		return uuid.Nil, ErrSameInviteSponsor
+	}
+
 	var userID uuid.UUID
 	err = tx.QueryRow(ctx,
 		`INSERT INTO users (community_id, email, password_hash, role, status, full_name)
-		 VALUES ($1, $2, $3, 'morador', 'pending', $4) RETURNING id`,
+		 VALUES ($1, $2, $3, 'morador', 'active', $4) RETURNING id`,
 		in.CommunityID, in.Email, string(hash), in.FullName,
 	).Scan(&userID)
 	if err != nil {
@@ -91,8 +112,8 @@ func (s *AuthService) RegisterMorador(ctx context.Context, in RegisterMoradorInp
 	}
 
 	_, err = tx.Exec(ctx,
-		`INSERT INTO morador_profiles (user_id, community_id, street_address, house_number, neighborhood_block)
-		 VALUES ($1, $2, $3, $4, $5)`,
+		`INSERT INTO morador_profiles (user_id, community_id, street_address, house_number, neighborhood_block, verified_resident)
+		 VALUES ($1, $2, $3, $4, $5, true)`,
 		userID, in.CommunityID, in.StreetAddress, in.HouseNumber, in.NeighborhoodBlock,
 	)
 	if err != nil {
@@ -100,14 +121,31 @@ func (s *AuthService) RegisterMorador(ctx context.Context, in RegisterMoradorInp
 	}
 
 	_, err = tx.Exec(ctx,
-		`INSERT INTO user_approvals (community_id, applicant_id) VALUES ($1, $2)`,
-		in.CommunityID, userID,
+		`UPDATE invites SET used_by = $1, used_at = now() WHERE id = ANY($2)`,
+		userID, []uuid.UUID{invite1ID, invite2ID},
 	)
 	if err != nil {
-		return uuid.Nil, fmt.Errorf("insert approval: %w", err)
+		return uuid.Nil, fmt.Errorf("consume invites: %w", err)
 	}
 
 	return userID, tx.Commit(ctx)
+}
+
+// lockInvite valida e trava (FOR UPDATE) um código de convite ainda não
+// usado, dentro da tx do cadastro. Retorna o id do convite e quem o criou
+// (pra checar que os dois códigos vêm de moradores diferentes).
+func (s *AuthService) lockInvite(ctx context.Context, tx pgx.Tx, communityID uuid.UUID, token string) (uuid.UUID, uuid.UUID, error) {
+	var inviteID, createdBy uuid.UUID
+	err := tx.QueryRow(ctx,
+		`SELECT id, created_by FROM invites
+		 WHERE token = $1 AND community_id = $2 AND used_at IS NULL AND expires_at > now()
+		 FOR UPDATE`,
+		token, communityID,
+	).Scan(&inviteID, &createdBy)
+	if err != nil {
+		return uuid.Nil, uuid.Nil, ErrInvalidInviteCode
+	}
+	return inviteID, createdBy, nil
 }
 
 func (s *AuthService) RegisterPrestador(ctx context.Context, in RegisterPrestadorInput) (uuid.UUID, error) {
@@ -125,7 +163,7 @@ func (s *AuthService) RegisterPrestador(ctx context.Context, in RegisterPrestado
 	var userID uuid.UUID
 	err = tx.QueryRow(ctx,
 		`INSERT INTO users (community_id, email, password_hash, role, status, full_name)
-		 VALUES ($1, $2, $3, 'prestador', 'pending', $4) RETURNING id`,
+		 VALUES ($1, $2, $3, 'prestador', 'active', $4) RETURNING id`,
 		in.CommunityID, in.Email, string(hash), in.FullName,
 	).Scan(&userID)
 	if err != nil {
@@ -137,8 +175,8 @@ func (s *AuthService) RegisterPrestador(ctx context.Context, in RegisterPrestado
 	}
 
 	_, err = tx.Exec(ctx,
-		`INSERT INTO provider_profiles (user_id, community_id, city, years_in_neighborhood, professional_bio)
-		 VALUES ($1, $2, $3, $4, $5)`,
+		`INSERT INTO provider_profiles (user_id, community_id, city, years_in_neighborhood, professional_bio, is_visible)
+		 VALUES ($1, $2, $3, $4, $5, true)`,
 		userID, in.CommunityID, in.City, in.YearsInNeighborhood, in.ProfessionalBio,
 	)
 	if err != nil {

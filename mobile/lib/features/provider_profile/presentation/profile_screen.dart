@@ -4,16 +4,31 @@ import 'package:go_router/go_router.dart';
 import '../../../shared/widgets/app_back_button.dart';
 import '../../../shared/widgets/star_rating_bar.dart';
 import '../../../shared/widgets/score_badge.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
 
-class ProfileScreen extends ConsumerWidget {
+class ProfileScreen extends ConsumerStatefulWidget {
   final String providerId;
   const ProfileScreen({super.key, required this.providerId});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ProfileScreen> createState() => _ProfileScreenState();
+}
+
+class _ProfileScreenState extends ConsumerState<ProfileScreen> {
+  final _scrollCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final providerId = widget.providerId;
     final profile = ref.watch(providerProfileProvider(providerId));
     final auth = ref.watch(authProvider).valueOrNull;
     final isSelf =
@@ -27,7 +42,10 @@ class ProfileScreen extends ConsumerWidget {
       body: profile.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (e, _) => Center(child: Text('Erro: $e')),
-        data: (p) => SingleChildScrollView(
+        data: (p) => AppScrollbar(
+          controller: _scrollCtrl,
+          child: SingleChildScrollView(
+          controller: _scrollCtrl,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
@@ -48,6 +66,7 @@ class ProfileScreen extends ConsumerWidget {
               const SizedBox(height: 80),
             ],
           ),
+        ),
         ),
       ),
       bottomNavigationBar: _BottomActions(providerId: providerId),

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../../../shared/widgets/loading_overlay.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 
 const _comunidades = {
   'Aldeia da Serra': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
@@ -19,12 +20,14 @@ class ForgotPasswordScreen extends ConsumerStatefulWidget {
 class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
   String? _selectedCommunity;
   bool _loading = false;
 
   @override
   void dispose() {
     _emailCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -61,7 +64,10 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
       child: Scaffold(
         appBar: AppBar(title: const Text('Recuperar senha')),
         body: SafeArea(
-          child: SingleChildScrollView(
+          child: AppScrollbar(
+            controller: _scrollCtrl,
+            child: SingleChildScrollView(
+            controller: _scrollCtrl,
             padding: const EdgeInsets.all(24),
             child: Form(
               key: _formKey,
@@ -105,6 +111,7 @@ class _ForgotPasswordScreenState extends ConsumerState<ForgotPasswordScreen> {
                   ),
                 ],
               ),
+            ),
             ),
           ),
         ),

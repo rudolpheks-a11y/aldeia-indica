@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/app_back_button.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 import '../providers/search_provider.dart';
 
 class ServicePickerScreen extends ConsumerStatefulWidget {
@@ -15,17 +16,19 @@ class ServicePickerScreen extends ConsumerStatefulWidget {
 
 class _ServicePickerScreenState extends ConsumerState<ServicePickerScreen> {
   final _ctrl = TextEditingController();
+  final _listCtrl = ScrollController();
   String _query = '';
 
   @override
   void dispose() {
     _ctrl.dispose();
+    _listCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    final categoriesAsync = ref.watch(serviceCategoriesProvider);
+    final categoriesAsync = ref.watch(categoriesProvider);
 
     return Scaffold(
       appBar: AppBar(
@@ -84,12 +87,16 @@ class _ServicePickerScreenState extends ConsumerState<ServicePickerScreen> {
                   );
                 }
 
-                return ListView.separated(
+                return AppScrollbar(
+                  controller: _listCtrl,
+                  child: ListView.separated(
+                  controller: _listCtrl,
                   padding:
                       const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
                   itemCount: filtered.length,
                   separatorBuilder: (_, __) => const Divider(height: 1),
                   itemBuilder: (_, i) => _CategoryTile(category: filtered[i]),
+                  ),
                 );
               },
             ),

@@ -44,6 +44,8 @@ class AuthRepository {
     required String fullName,
     required String streetAddress,
     required String houseNumber,
+    required String inviteCode1,
+    required String inviteCode2,
     String neighborhoodBlock = '',
   }) async {
     final resp = await _api.post(ApiEndpoints.registerMorador, data: {
@@ -54,8 +56,15 @@ class AuthRepository {
       'street_address': streetAddress,
       'house_number': houseNumber,
       'neighborhood_block': neighborhoodBlock,
+      'invite_code_1': inviteCode1,
+      'invite_code_2': inviteCode2,
     });
     return (resp.data as Map<String, dynamic>)['user_id'] as String;
+  }
+
+  Future<String> createInvite() async {
+    final resp = await _api.post(ApiEndpoints.invites);
+    return (resp.data as Map<String, dynamic>)['token'] as String;
   }
 
   Future<String> registerPrestador({

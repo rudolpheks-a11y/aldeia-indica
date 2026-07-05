@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/app_back_button.dart';
 import '../../../shared/widgets/loading_overlay.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 import '../data/prestador_repository.dart';
 import '../providers/prestador_provider.dart';
 
@@ -21,8 +22,15 @@ class AgendaScreen extends ConsumerStatefulWidget {
 class _AgendaScreenState extends ConsumerState<AgendaScreen> {
   // day_of_week → {start, end} — null means day is off
   final Map<int, _DaySlot> _slots = {};
+  final _listCtrl = ScrollController();
   bool _loaded = false;
   bool _saving = false;
+
+  @override
+  void dispose() {
+    _listCtrl.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -50,7 +58,10 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
         body: Column(
           children: [
             Expanded(
-              child: ListView(
+              child: AppScrollbar(
+                controller: _listCtrl,
+                child: ListView(
+                controller: _listCtrl,
                 padding: const EdgeInsets.fromLTRB(16, 16, 16, 0),
                 children: [
                   Text(
@@ -76,6 +87,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
                   )),
                   const SizedBox(height: 24),
                 ],
+                ),
               ),
             ),
             SafeArea(

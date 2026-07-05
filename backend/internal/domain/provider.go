@@ -6,15 +6,6 @@ import (
 	"github.com/google/uuid"
 )
 
-type DocStatus string
-
-const (
-	DocPending     DocStatus = "pending"
-	DocUnderReview DocStatus = "under_review"
-	DocApproved    DocStatus = "approved"
-	DocRejected    DocStatus = "rejected"
-)
-
 type ProviderProfile struct {
 	UserID               uuid.UUID
 	CommunityID          uuid.UUID
@@ -26,7 +17,6 @@ type ProviderProfile struct {
 	TotalHires           int
 	RecommendationCount  int
 	AvgRating            *float64
-	DocStatus            DocStatus
 	IsVisible            bool
 	UpdatedAt            time.Time
 }

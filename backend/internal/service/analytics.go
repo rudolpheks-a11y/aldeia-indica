@@ -88,6 +88,7 @@ func (s *AnalyticsService) DashboardSummary(ctx context.Context, communityID, pr
 		           COUNT(*) OVER () AS total
 		    FROM provider_services ps
 		    JOIN provider_profiles pp ON pp.user_id = ps.provider_id
+		    JOIN users u ON u.id = pp.user_id
 		    WHERE ps.community_id = $1
 		      AND ps.category_id = (
 		            SELECT category_id FROM provider_services
@@ -95,6 +96,7 @@ func (s *AnalyticsService) DashboardSummary(ctx context.Context, communityID, pr
 		            LIMIT 1
 		          )
 		      AND pp.is_visible = true
+		      AND u.status = 'active'
 		)
 		SELECT rnk, total FROM ranked WHERE provider_id = $2
 	`, communityID, providerID).Scan(&rank, &total)

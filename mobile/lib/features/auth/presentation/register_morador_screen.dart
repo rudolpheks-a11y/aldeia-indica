@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../providers/auth_provider.dart';
 import '../../../shared/widgets/loading_overlay.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 import '../../../core/constants/app_colors.dart';
 
 const _comunidades = {
@@ -38,48 +39,69 @@ class _RegisterMoradorScreenState
   final _nameCtrl = TextEditingController();
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
+  final _inviteCode1Ctrl = TextEditingController();
+  final _inviteCode2Ctrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
   String? _selectedCommunity;
   String? _selectedCondominio;
+  bool _isLoading = false;
 
   @override
   void dispose() {
-    for (final c in [_nameCtrl, _emailCtrl, _passwordCtrl]) {
+    for (final c in [
+      _nameCtrl,
+      _emailCtrl,
+      _passwordCtrl,
+      _inviteCode1Ctrl,
+      _inviteCode2Ctrl
+    ]) {
       c.dispose();
     }
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
   Future<void> _register() async {
     if (!_formKey.currentState!.validate()) return;
-    await ref.read(authProvider.notifier).registerMorador(
-          communityId: _comunidades[_selectedCommunity!]!,
-          email: _emailCtrl.text.trim(),
-          password: _passwordCtrl.text,
-          fullName: _nameCtrl.text.trim(),
-          streetAddress: _selectedCondominio!,
-          houseNumber: '',
+    setState(() => _isLoading = true);
+    try {
+      await ref.read(authRepositoryProvider).registerMorador(
+            communityId: _comunidades[_selectedCommunity!]!,
+            email: _emailCtrl.text.trim(),
+            password: _passwordCtrl.text,
+            fullName: _nameCtrl.text.trim(),
+            streetAddress: _selectedCondominio!,
+            houseNumber: '',
+            inviteCode1: _inviteCode1Ctrl.text.trim(),
+            inviteCode2: _inviteCode2Ctrl.text.trim(),
+          );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Cadastro concluído! Você já pode entrar.')),
         );
+        context.go('/login');
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error900),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _isLoading = false);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = ref.watch(authProvider);
-    final isLoading = auth.isLoading;
-
-    ref.listen(authProvider, (_, next) {
-      final state = next.valueOrNull;
-      if (state is AuthError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(state.message), backgroundColor: AppColors.error900),
-        );
-      }
-    });
-
     return LoadingOverlay(
-      isLoading: isLoading,
+      isLoading: _isLoading,
       child: Scaffold(
         appBar: AppBar(leading: const AppBackButton(), title: const Text('Cadastro de Morador')),
-        body: SingleChildScrollView(
+        body: AppScrollbar(
+          controller: _scrollCtrl,
+          child: SingleChildScrollView(
+          controller: _scrollCtrl,
           padding: const EdgeInsets.all(24),
           child: Form(
             key: _formKey,
@@ -128,9 +150,31 @@ class _RegisterMoradorScreenState
                   validator: (v) =>
                       v == null ? 'Selecione o condomínio' : null,
                 ),
+                const SizedBox(height: 24),
+                Text(
+                  'Peça a 2 moradores da sua comunidade um código de convite '
+                  '(eles geram na home do app, em "Convidar morador").',
+                  style: Theme.of(context).textTheme.bodySmall,
+                ),
+                const SizedBox(height: 12),
+                TextFormField(
+                  controller: _inviteCode1Ctrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Código de convite (morador 1)'),
+                  validator: (v) =>
+                      v?.trim().isEmpty == true ? 'Obrigatório' : null,
+                ),
+                const SizedBox(height: 16),
+                TextFormField(
+                  controller: _inviteCode2Ctrl,
+                  decoration: const InputDecoration(
+                      labelText: 'Código de convite (morador 2)'),
+                  validator: (v) =>
+                      v?.trim().isEmpty == true ? 'Obrigatório' : null,
+                ),
                 const SizedBox(height: 32),
                 ElevatedButton(
-                  onPressed: isLoading ? null : _register,
+                  onPressed: _isLoading ? null : _register,
                   child: const Text('Cadastrar'),
                 ),
                 TextButton(
@@ -139,6 +183,7 @@ class _RegisterMoradorScreenState
                 ),
               ],
             ),
+          ),
           ),
         ),
       ),

@@ -71,6 +71,7 @@ func (s *ProviderService) Search(ctx context.Context, communityID uuid.UUID, f S
 		JOIN users u ON u.id = pp.user_id
 		WHERE pp.community_id = $1
 		  AND pp.is_visible = true
+		  AND u.status = 'active'
 		  AND ($2 = '' OR EXISTS (
 		        SELECT 1 FROM provider_services ps
 		        JOIN service_categories sc ON sc.id = ps.category_id
@@ -127,6 +128,7 @@ func (s *ProviderService) Featured(ctx context.Context, communityID uuid.UUID) (
 		JOIN users u ON u.id = pp.user_id
 		WHERE pp.community_id = $1
 		  AND pp.is_visible = true
+		  AND u.status = 'active'
 		  AND (
 		        (pp.avg_rating >= 4.2 AND pp.total_clients >= 5)
 		     OR pp.recommendation_count >= 3
@@ -606,12 +608,20 @@ func (s *ProviderService) AddPhoto(ctx context.Context, communityID, providerID 
 	return err
 }
 
+var ErrPhotoNotFound = errors.New("photo not found")
+
 func (s *ProviderService) DeletePhoto(ctx context.Context, providerID, photoID uuid.UUID) error {
-	_, err := s.db.Exec(ctx,
+	tag, err := s.db.Exec(ctx,
 		`DELETE FROM provider_photos WHERE id=$1 AND provider_id=$2`,
 		photoID, providerID,
 	)
-	return err
+	if err != nil {
+		return err
+	}
+	if tag.RowsAffected() == 0 {
+		return ErrPhotoNotFound
+	}
+	return nil
 }
 
 func (s *ProviderService) RecomputeScore(ctx context.Context, providerID uuid.UUID) error {

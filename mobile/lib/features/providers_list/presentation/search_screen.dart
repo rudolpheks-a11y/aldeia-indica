@@ -128,11 +128,11 @@ class _CategoryChips extends ConsumerWidget {
             data: (cats) => cats.map((c) => Padding(
                   padding: const EdgeInsets.only(right: 8),
                   child: FilterChip(
-                    label: Text(c['name_pt'] as String),
-                    selected: selected == c['slug'],
+                    label: Text(c.namePt),
+                    selected: selected == c.slug,
                     onSelected: (_) => ref
                         .read(searchFiltersProvider.notifier)
-                        .setCategory(c['slug'] as String),
+                        .setCategory(c.slug),
                   ),
                 )),
             loading: () => [],

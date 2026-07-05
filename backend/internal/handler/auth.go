@@ -26,6 +26,8 @@ func (h *AuthHandler) RegisterMorador(w http.ResponseWriter, r *http.Request) {
 		StreetAddress     string `json:"street_address"`
 		HouseNumber       string `json:"house_number"`
 		NeighborhoodBlock string `json:"neighborhood_block"`
+		InviteCode1       string `json:"invite_code_1"`
+		InviteCode2       string `json:"invite_code_2"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		jsonError(w, "invalid body", http.StatusBadRequest)
@@ -41,6 +43,10 @@ func (h *AuthHandler) RegisterMorador(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "password must be at least 6 characters", http.StatusBadRequest)
 		return
 	}
+	if in.InviteCode1 == "" || in.InviteCode2 == "" {
+		jsonError(w, "two invite codes from residents are required", http.StatusBadRequest)
+		return
+	}
 
 	userID, err := h.svc.RegisterMorador(r.Context(), service.RegisterMoradorInput{
 		CommunityID:       communityID,
@@ -50,17 +56,22 @@ func (h *AuthHandler) RegisterMorador(w http.ResponseWriter, r *http.Request) {
 		StreetAddress:     in.StreetAddress,
 		HouseNumber:       in.HouseNumber,
 		NeighborhoodBlock: in.NeighborhoodBlock,
+		InviteCode1:       in.InviteCode1,
+		InviteCode2:       in.InviteCode2,
 	})
 	if err != nil {
-		if errors.Is(err, service.ErrEmailTaken) {
+		switch {
+		case errors.Is(err, service.ErrEmailTaken):
 			jsonError(w, err.Error(), http.StatusConflict)
-			return
+		case errors.Is(err, service.ErrInvalidInviteCode), errors.Is(err, service.ErrSameInviteSponsor):
+			jsonError(w, err.Error(), http.StatusBadRequest)
+		default:
+			jsonError(w, "registration failed", http.StatusBadRequest)
 		}
-		jsonError(w, "registration failed", http.StatusBadRequest)
 		return
 	}
 
-	jsonOK(w, map[string]string{"user_id": userID.String(), "status": "pending"})
+	jsonOK(w, map[string]string{"user_id": userID.String(), "status": "active"})
 }
 
 func (h *AuthHandler) RegisterPrestador(w http.ResponseWriter, r *http.Request) {
@@ -106,7 +117,7 @@ func (h *AuthHandler) RegisterPrestador(w http.ResponseWriter, r *http.Request) 
 		return
 	}
 
-	jsonOK(w, map[string]string{"user_id": userID.String(), "status": "pending"})
+	jsonOK(w, map[string]string{"user_id": userID.String(), "status": "active"})
 }
 
 func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {

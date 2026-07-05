@@ -13,12 +13,18 @@ class AppScrollbar extends StatefulWidget {
   final double width;
   final double step;
 
+  /// Deve bater com o `reverse` do ListView/scrollable envolvido — inverte a
+  /// posição da alça e o sentido das setas/arrasto (offset 0 fica embaixo,
+  /// não em cima, como no ListView de chat).
+  final bool reverse;
+
   const AppScrollbar({
     super.key,
     required this.controller,
     required this.child,
     this.width = 22,
     this.step = 80,
+    this.reverse = false,
   });
 
   @override
@@ -30,6 +36,15 @@ class _AppScrollbarState extends State<AppScrollbar> {
   void initState() {
     super.initState();
     widget.controller.addListener(_onScroll);
+    // Na primeira montagem, o trilho é medido antes do scrollable irmão
+    // terminar seu próprio layout (Row mede filhos não-flexíveis primeiro),
+    // então `hasContentDimensions` ainda é falso e o trilho fica em branco.
+    // O controller só notifica listeners quando o offset muda, não quando as
+    // dimensões passam a existir — então sem isto o trilho ficaria vazio até
+    // o usuário arrastar a lista manualmente pela primeira vez.
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) setState(() {});
+    });
   }
 
   @override
@@ -41,9 +56,13 @@ class _AppScrollbarState extends State<AppScrollbar> {
   void _onScroll() => setState(() {});
 
   void _step(double delta) {
-    if (!widget.controller.hasClients) return;
+    if (!widget.controller.hasClients ||
+        !widget.controller.position.hasContentDimensions) {
+      return;
+    }
     final max = widget.controller.position.maxScrollExtent;
-    final target = (widget.controller.offset + delta).clamp(0.0, max);
+    final signedDelta = widget.reverse ? -delta : delta;
+    final target = (widget.controller.offset + signedDelta).clamp(0.0, max);
     widget.controller.animateTo(target,
         duration: const Duration(milliseconds: 200), curve: Curves.easeOut);
   }
@@ -56,7 +75,10 @@ class _AppScrollbarState extends State<AppScrollbar> {
         Expanded(child: widget.child),
         SizedBox(
           width: widget.width,
-          child: _Track(controller: widget.controller, step: _step),
+          child: _Track(
+              controller: widget.controller,
+              step: _step,
+              reverse: widget.reverse),
         ),
       ],
     );
@@ -66,7 +88,9 @@ class _AppScrollbarState extends State<AppScrollbar> {
 class _Track extends StatelessWidget {
   final ScrollController controller;
   final void Function(double delta) step;
-  const _Track({required this.controller, required this.step});
+  final bool reverse;
+  const _Track(
+      {required this.controller, required this.step, required this.reverse});
 
   @override
   Widget build(BuildContext context) {
@@ -77,6 +101,7 @@ class _Track extends StatelessWidget {
           child: LayoutBuilder(
             builder: (context, constraints) {
               if (!controller.hasClients ||
+                  !controller.position.hasContentDimensions ||
                   controller.position.maxScrollExtent <= 0) {
                 return Container(color: AppColors.neutral100);
               }
@@ -88,14 +113,16 @@ class _Track extends StatelessWidget {
                   (trackHeight * viewport / contentHeight).clamp(24.0, trackHeight);
               final maxThumbTravel = trackHeight - thumbHeight;
               final scrollFraction = maxScroll <= 0 ? 0.0 : controller.offset / maxScroll;
-              final thumbTop = maxThumbTravel * scrollFraction;
+              final effectiveFraction = reverse ? 1 - scrollFraction : scrollFraction;
+              final thumbTop = maxThumbTravel * effectiveFraction;
 
               return GestureDetector(
                 behavior: HitTestBehavior.opaque,
                 onVerticalDragUpdate: (details) {
                   if (maxThumbTravel <= 0) return;
-                  final deltaScroll =
+                  final rawDelta =
                       (details.delta.dy / maxThumbTravel) * maxScroll;
+                  final deltaScroll = reverse ? -rawDelta : rawDelta;
                   final target =
                       (controller.offset + deltaScroll).clamp(0.0, maxScroll);
                   controller.jumpTo(target);

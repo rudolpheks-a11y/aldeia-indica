@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import '../../../shared/widgets/app_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 import '../providers/chat_provider.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
@@ -43,7 +44,10 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
             child: chat.when(
               loading: () => const Center(child: CircularProgressIndicator()),
               error: (e, _) => Center(child: Text('Erro: $e')),
-              data: (messages) => ListView.builder(
+              data: (messages) => AppScrollbar(
+                controller: _scrollCtrl,
+                reverse: true,
+                child: ListView.builder(
                 controller: _scrollCtrl,
                 reverse: true,
                 padding: const EdgeInsets.all(12),
@@ -76,6 +80,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                     ),
                   );
                 },
+              ),
               ),
             ),
           ),

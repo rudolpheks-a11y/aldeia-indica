@@ -39,8 +39,6 @@ class ApiEndpoints {
 
   static const String presign = '/uploads/presign';
 
-  static const String approvalsPending = '/approvals/pending';
-  static String approvalVote(String id) => '/approvals/$id/vote';
   static const String invites = '/invites';
 
   static const String dashboardSummary = '/dashboard/summary';

@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/app_back_button.dart';
 import '../../../shared/widgets/loading_overlay.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 import '../providers/prestador_provider.dart';
 import '../../providers_list/providers/search_provider.dart';
 
@@ -21,17 +22,19 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
   bool _saving = false;
   String _query = '';
   final _searchCtrl = TextEditingController();
+  final _listCtrl = ScrollController();
 
   @override
   void dispose() {
     _searchCtrl.dispose();
+    _listCtrl.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final profileAsync = ref.watch(prestadorProfileProvider);
-    final categoriesAsync = ref.watch(serviceCategoriesProvider);
+    final categoriesAsync = ref.watch(categoriesProvider);
 
     profileAsync.whenData((profile) {
       if (!_loaded) {
@@ -95,7 +98,10 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
           ),
         ),
         Expanded(
-          child: ListView(
+          child: AppScrollbar(
+            controller: _listCtrl,
+            child: ListView(
+            controller: _listCtrl,
             padding: const EdgeInsets.fromLTRB(16, 8, 16, 0),
             children: [
               if (_query.isEmpty) ...[
@@ -163,6 +169,7 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
               ], // fim if (_query.isEmpty) — seção de transporte
               if (_query.isNotEmpty) const SizedBox(height: 16),
             ],
+            ),
           ),
         ),
         SafeArea(

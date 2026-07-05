@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 
 class CreateRequestScreen extends ConsumerStatefulWidget {
   const CreateRequestScreen({super.key});
@@ -17,6 +18,7 @@ class CreateRequestScreen extends ConsumerStatefulWidget {
 class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
   final _titleCtrl = TextEditingController();
   final _descCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
   String _category = '';
   bool _isLoading = false;
 
@@ -24,6 +26,7 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
   void dispose() {
     _titleCtrl.dispose();
     _descCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -57,7 +60,10 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(leading: const AppBackButton(), title: const Text('Novo Pedido de Serviço')),
-      body: SingleChildScrollView(
+      body: AppScrollbar(
+        controller: _scrollCtrl,
+        child: SingleChildScrollView(
+        controller: _scrollCtrl,
         padding: const EdgeInsets.all(24),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
@@ -85,6 +91,7 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
                   : const Text('Publicar pedido'),
             ),
           ],
+        ),
         ),
       ),
     );

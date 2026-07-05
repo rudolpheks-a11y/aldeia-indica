@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 
 const _comunidades = {
   'Aldeia da Serra': 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
@@ -45,6 +46,7 @@ class _RegisterPrestadorScreenState
   final _emailCtrl = TextEditingController();
   final _passwordCtrl = TextEditingController();
   final _outrosCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
   String? _selectedCommunity;
   final Set<String> _selectedServicos = {};
   int _years = 0;
@@ -54,6 +56,7 @@ class _RegisterPrestadorScreenState
     for (final c in [_nameCtrl, _emailCtrl, _passwordCtrl, _outrosCtrl]) {
       c.dispose();
     }
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -108,7 +111,10 @@ class _RegisterPrestadorScreenState
 
     return Scaffold(
       appBar: AppBar(leading: const AppBackButton(), title: const Text('Cadastro de Prestador')),
-      body: SingleChildScrollView(
+      body: AppScrollbar(
+        controller: _scrollCtrl,
+        child: SingleChildScrollView(
+        controller: _scrollCtrl,
         padding: const EdgeInsets.all(24),
         child: Form(
           key: _formKey,
@@ -225,6 +231,7 @@ class _RegisterPrestadorScreenState
               ),
             ],
           ),
+        ),
         ),
       ),
     );

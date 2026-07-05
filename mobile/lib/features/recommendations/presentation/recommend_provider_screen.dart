@@ -6,6 +6,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../shared/widgets/app_back_button.dart';
 import '../../../shared/widgets/loading_overlay.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../provider_profile/providers/profile_provider.dart';
 
@@ -22,6 +23,7 @@ class _RecommendProviderScreenState
     extends ConsumerState<RecommendProviderScreen> {
   int _stars = 0;
   final _commentCtrl = TextEditingController();
+  final _scrollCtrl = ScrollController();
   bool _isLoading = false;
 
   static const _labels = {
@@ -35,6 +37,7 @@ class _RecommendProviderScreenState
   @override
   void dispose() {
     _commentCtrl.dispose();
+    _scrollCtrl.dispose();
     super.dispose();
   }
 
@@ -110,7 +113,10 @@ class _RecommendProviderScreenState
   }
 
   Widget _buildBody(BuildContext context, String? name, List<String> cats) {
-    return SingleChildScrollView(
+    return AppScrollbar(
+      controller: _scrollCtrl,
+      child: SingleChildScrollView(
+      controller: _scrollCtrl,
       child: Column(
         children: [
           // ── cabeçalho com avatar + nome ──────────────────────────────────
@@ -247,6 +253,7 @@ class _RecommendProviderScreenState
             ),
           ),
         ],
+      ),
       ),
     );
   }

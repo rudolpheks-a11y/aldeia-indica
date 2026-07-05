@@ -66,30 +66,6 @@ class AuthNotifier extends AsyncNotifier<AuthState> {
     }
   }
 
-  Future<void> registerMorador({
-    required String communityId,
-    required String email,
-    required String password,
-    required String fullName,
-    required String streetAddress,
-    required String houseNumber,
-  }) async {
-    state = const AsyncValue.loading();
-    try {
-      await ref.read(authRepositoryProvider).registerMorador(
-            communityId: communityId,
-            email: email,
-            password: password,
-            fullName: fullName,
-            streetAddress: streetAddress,
-            houseNumber: houseNumber,
-          );
-      state = AsyncValue.data(AuthPending());
-    } catch (e) {
-      state = AsyncValue.data(AuthError(e.toString()));
-    }
-  }
-
   Future<void> logout() async {
     await ref.read(authRepositoryProvider).logout();
     state = AsyncValue.data(AuthUnauthenticated());

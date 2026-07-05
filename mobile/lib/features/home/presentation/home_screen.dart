@@ -1,10 +1,12 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../providers_list/providers/search_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/contact_admin_button.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -63,15 +65,32 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-class _MoradorHome extends ConsumerWidget {
+class _MoradorHome extends ConsumerStatefulWidget {
   final BuildContext context;
   const _MoradorHome({required this.context});
 
   @override
-  Widget build(BuildContext ctx, WidgetRef ref) {
+  ConsumerState<_MoradorHome> createState() => _MoradorHomeState();
+}
+
+class _MoradorHomeState extends ConsumerState<_MoradorHome> {
+  final _scrollCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext ctx) {
+    final context = widget.context;
     final featured = ref.watch(featuredProvidersProvider);
 
-    return SingleChildScrollView(
+    return AppScrollbar(
+      controller: _scrollCtrl,
+      child: SingleChildScrollView(
+      controller: _scrollCtrl,
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -114,6 +133,12 @@ class _MoradorHome extends ConsumerWidget {
                 label: 'Mural de\navisos',
                 color: AppColors.informational700,
                 onTap: () => context.push('/bulletin'),
+              ),
+              _HomeTile(
+                icon: Icons.qr_code_2_rounded,
+                label: 'Convidar\nmorador',
+                color: AppColors.accent,
+                onTap: () => _showInviteDialog(context),
               ),
             ],
           ),
@@ -175,16 +200,83 @@ class _MoradorHome extends ConsumerWidget {
           ),
         ],
       ),
+      ),
+    );
+  }
+
+  Future<void> _showInviteDialog(BuildContext context) async {
+    String? token;
+    String? error;
+    try {
+      token = await ref.read(authRepositoryProvider).createInvite();
+    } catch (e) {
+      error = 'Não foi possível gerar o convite: $e';
+    }
+    if (!context.mounted) return;
+
+    showDialog<void>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Convidar morador'),
+        content: error != null
+            ? Text(error, style: const TextStyle(color: AppColors.error900))
+            : Column(
+                mainAxisSize: MainAxisSize.min,
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Compartilhe este código com quem você confia. Válido '
+                    'por 72 horas. O novo morador precisa de 2 códigos, de '
+                    '2 moradores diferentes, para se cadastrar.',
+                  ),
+                  const SizedBox(height: 16),
+                  SelectableText(
+                    token ?? '',
+                    style: const TextStyle(
+                        fontFamily: 'monospace', fontWeight: FontWeight.bold),
+                  ),
+                ],
+              ),
+        actions: [
+          if (token != null)
+            TextButton.icon(
+              icon: const Icon(Icons.copy),
+              label: const Text('Copiar código'),
+              onPressed: () {
+                Clipboard.setData(ClipboardData(text: token!));
+                Navigator.pop(ctx);
+              },
+            ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx),
+            child: const Text('Fechar'),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _PrestadorHome extends StatelessWidget {
+class _PrestadorHome extends StatefulWidget {
   final BuildContext context;
   const _PrestadorHome({required this.context});
 
   @override
+  State<_PrestadorHome> createState() => _PrestadorHomeState();
+}
+
+class _PrestadorHomeState extends State<_PrestadorHome> {
+  final _scrollCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext ctx) {
+    final context = widget.context;
     return Padding(
       padding: const EdgeInsets.fromLTRB(16, 24, 16, 16),
       child: Column(
@@ -198,7 +290,10 @@ class _PrestadorHome extends StatelessWidget {
                   TextStyle(color: AppColors.textSecondary, fontSize: 14)),
           const SizedBox(height: 24),
           Expanded(
-            child: GridView.count(
+            child: AppScrollbar(
+              controller: _scrollCtrl,
+              child: GridView.count(
+              controller: _scrollCtrl,
               crossAxisCount: 2,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
@@ -223,6 +318,7 @@ class _PrestadorHome extends StatelessWidget {
                   onTap: () => context.push('/prestador/agenda'),
                 ),
               ],
+            ),
             ),
           ),
         ],

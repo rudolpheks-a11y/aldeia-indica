@@ -4,12 +4,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 
-class ConversationsScreen extends ConsumerWidget {
+class ConversationsScreen extends ConsumerStatefulWidget {
   const ConversationsScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<ConversationsScreen> createState() => _ConversationsScreenState();
+}
+
+class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
+  final _listCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _listCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final conversations = ref.watch(_conversationsProvider);
 
     return Scaffold(
@@ -21,7 +35,10 @@ class ConversationsScreen extends ConsumerWidget {
             ? const Center(
                 child: Text('Sem conversas ainda.\nContacte um prestador!',
                     textAlign: TextAlign.center))
-            : ListView.builder(
+            : AppScrollbar(
+                controller: _listCtrl,
+                child: ListView.builder(
+                controller: _listCtrl,
                 itemCount: list.length,
                 itemBuilder: (_, i) {
                   final c = list[i];
@@ -36,6 +53,7 @@ class ConversationsScreen extends ConsumerWidget {
                     onTap: () => context.push('/chat/${c['id']}'),
                   );
                 },
+                ),
               ),
       ),
     );

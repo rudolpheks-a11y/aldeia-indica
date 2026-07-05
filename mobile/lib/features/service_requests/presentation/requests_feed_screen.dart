@@ -4,12 +4,26 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 
-class RequestsFeedScreen extends ConsumerWidget {
+class RequestsFeedScreen extends ConsumerStatefulWidget {
   const RequestsFeedScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<RequestsFeedScreen> createState() => _RequestsFeedScreenState();
+}
+
+class _RequestsFeedScreenState extends ConsumerState<RequestsFeedScreen> {
+  final _listCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _listCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     final requests = ref.watch(_requestsProvider);
 
     return Scaffold(
@@ -24,7 +38,10 @@ class RequestsFeedScreen extends ConsumerWidget {
         error: (e, _) => Center(child: Text('Erro: $e')),
         data: (list) => list.isEmpty
             ? const Center(child: Text('Nenhum pedido aberto'))
-            : ListView.builder(
+            : AppScrollbar(
+                controller: _listCtrl,
+                child: ListView.builder(
+                controller: _listCtrl,
                 padding: const EdgeInsets.all(12),
                 itemCount: list.length,
                 itemBuilder: (_, i) {
@@ -47,6 +64,7 @@ class RequestsFeedScreen extends ConsumerWidget {
                     ),
                   );
                 },
+                ),
               ),
       ),
     );

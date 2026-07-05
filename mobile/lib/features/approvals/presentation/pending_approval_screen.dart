@@ -2,15 +2,33 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../shared/widgets/app_scrollbar.dart';
 
-class PendingApprovalScreen extends ConsumerWidget {
+class PendingApprovalScreen extends ConsumerStatefulWidget {
   const PendingApprovalScreen({super.key});
 
   @override
-  Widget build(BuildContext context, WidgetRef ref) {
+  ConsumerState<PendingApprovalScreen> createState() =>
+      _PendingApprovalScreenState();
+}
+
+class _PendingApprovalScreenState extends ConsumerState<PendingApprovalScreen> {
+  final _scrollCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _scrollCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
     return Scaffold(
       body: LayoutBuilder(
-        builder: (context, constraints) => SingleChildScrollView(
+        builder: (context, constraints) => AppScrollbar(
+          controller: _scrollCtrl,
+          child: SingleChildScrollView(
+          controller: _scrollCtrl,
           child: ConstrainedBox(
             constraints: BoxConstraints(minHeight: constraints.maxHeight),
             child: Center(
@@ -42,6 +60,7 @@ class PendingApprovalScreen extends ConsumerWidget {
               ),
             ),
           ),
+        ),
         ),
       ),
     );
