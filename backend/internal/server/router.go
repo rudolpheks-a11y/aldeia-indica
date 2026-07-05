@@ -129,6 +129,7 @@ func NewRouter(
 			// Admin
 			r.Group(func(r chi.Router) {
 				r.Use(middleware.RequireRole("admin"))
+				r.Get("/admin/stats", adminH.Stats)
 				r.Get("/admin/users", adminH.ListUsers)
 				r.Put("/admin/users/{id}/status", adminH.UpdateUserStatus)
 				r.Post("/admin/communities", adminH.CreateCommunity)

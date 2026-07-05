@@ -12,7 +12,7 @@ class AdminDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
-      length: 3,
+      length: 4,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Painel Admin'),
@@ -46,16 +46,148 @@ class AdminDashboardScreen extends ConsumerWidget {
             ),
           ],
           bottom: const TabBar(tabs: [
+            Tab(text: 'Visão Geral'),
             Tab(text: 'Usuários'),
             Tab(text: 'Mural'),
             Tab(text: 'Comunidades'),
           ]),
         ),
         body: const TabBarView(children: [
+          _OverviewTab(),
           _UsersTab(),
           _BulletinTab(),
           _CommunitiesTab(),
         ]),
+      ),
+    );
+  }
+}
+
+class _OverviewTab extends ConsumerStatefulWidget {
+  const _OverviewTab();
+
+  @override
+  ConsumerState<_OverviewTab> createState() => _OverviewTabState();
+}
+
+class _OverviewTabState extends ConsumerState<_OverviewTab> {
+  final _gridCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _gridCtrl.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final stats = ref.watch(_statsProvider);
+    return stats.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (e, _) => Center(child: Text('Erro: $e')),
+      data: (s) => RefreshIndicator(
+        onRefresh: () => ref.refresh(_statsProvider.future),
+        child: AppScrollbar(
+          controller: _gridCtrl,
+          child: GridView.count(
+          controller: _gridCtrl,
+          padding: const EdgeInsets.all(16),
+          crossAxisCount: 2,
+          crossAxisSpacing: 12,
+          mainAxisSpacing: 12,
+          childAspectRatio: 1.3,
+          children: [
+            _StatTile(
+              icon: Icons.home_outlined,
+              label: 'Moradores',
+              value: '${s['moradores_ativos']}',
+              sublabel: '${s['total_moradores']} no total',
+            ),
+            _StatTile(
+              icon: Icons.engineering_outlined,
+              label: 'Prestadores',
+              value: '${s['prestadores_ativos']}',
+              sublabel: '${s['total_prestadores']} no total',
+            ),
+            _StatTile(
+              icon: Icons.category_outlined,
+              label: 'Categorias de serviço',
+              value: '${s['total_categorias']}',
+            ),
+            _StatTile(
+              icon: Icons.handyman_outlined,
+              label: 'Serviços oferecidos',
+              value: '${s['total_servicos_oferecidos']}',
+            ),
+            _StatTile(
+              icon: Icons.assignment_outlined,
+              label: 'Pedidos de serviço',
+              value: '${s['total_pedidos']}',
+            ),
+            _StatTile(
+              icon: Icons.star_outline,
+              label: 'Avaliações',
+              value: '${s['total_avaliacoes']}',
+            ),
+            _StatTile(
+              icon: Icons.thumb_up_outlined,
+              label: 'Recomendações',
+              value: '${s['total_recomendacoes']}',
+            ),
+            _StatTile(
+              icon: Icons.handshake_outlined,
+              label: 'Contratações',
+              value: '${s['total_contratacoes']}',
+            ),
+            _StatTile(
+              icon: Icons.campaign_outlined,
+              label: 'Avisos pendentes',
+              value: '${s['avisos_pendentes']}',
+            ),
+          ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _StatTile extends StatelessWidget {
+  final IconData icon;
+  final String label;
+  final String value;
+  final String? sublabel;
+
+  const _StatTile({
+    required this.icon,
+    required this.label,
+    required this.value,
+    this.sublabel,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return Card(
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(icon, color: AppColors.primary700, size: 26),
+            const SizedBox(height: 6),
+            Text(value,
+                style:
+                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
+            const SizedBox(height: 2),
+            Text(label,
+                style: const TextStyle(fontSize: 12, color: Colors.grey),
+                textAlign: TextAlign.center),
+            if (sublabel != null)
+              Text(sublabel!,
+                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+                  textAlign: TextAlign.center),
+          ],
+        ),
       ),
     );
   }
@@ -338,6 +470,12 @@ class _CommunitiesTabState extends ConsumerState<_CommunitiesTab> {
     );
   }
 }
+
+final _statsProvider = FutureProvider((ref) async {
+  final api = ref.watch(apiClientProvider);
+  final resp = await api.get('/admin/stats');
+  return resp.data as Map<String, dynamic>;
+});
 
 final _usersProvider = FutureProvider((ref) async {
   final api = ref.watch(apiClientProvider);

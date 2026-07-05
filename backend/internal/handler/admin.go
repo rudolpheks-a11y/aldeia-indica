@@ -19,6 +19,54 @@ func NewAdminHandler(db *pgxpool.Pool) *AdminHandler {
 	return &AdminHandler{db: db}
 }
 
+// Stats retorna uma visão geral da comunidade do admin — contagens usadas
+// no dashboard do painel (moradores, prestadores, serviços, atividade).
+// `service_categories` é o único número global (catálogo compartilhado
+// entre comunidades); todo o resto é escopado por community_id.
+func (h *AdminHandler) Stats(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
+
+	var s struct {
+		TotalMoradores          int `json:"total_moradores"`
+		MoradoresAtivos         int `json:"moradores_ativos"`
+		TotalPrestadores        int `json:"total_prestadores"`
+		PrestadoresAtivos       int `json:"prestadores_ativos"`
+		TotalCategorias         int `json:"total_categorias"`
+		TotalServicosOferecidos int `json:"total_servicos_oferecidos"`
+		TotalPedidos            int `json:"total_pedidos"`
+		TotalAvaliacoes         int `json:"total_avaliacoes"`
+		TotalRecomendacoes      int `json:"total_recomendacoes"`
+		TotalContratacoes       int `json:"total_contratacoes"`
+		AvisosPendentes         int `json:"avisos_pendentes"`
+	}
+
+	err := h.db.QueryRow(r.Context(), `
+		SELECT
+			(SELECT COUNT(*) FROM users WHERE community_id=$1 AND role='morador'),
+			(SELECT COUNT(*) FROM users WHERE community_id=$1 AND role='morador' AND status='active'),
+			(SELECT COUNT(*) FROM users WHERE community_id=$1 AND role='prestador'),
+			(SELECT COUNT(*) FROM users WHERE community_id=$1 AND role='prestador' AND status='active'),
+			(SELECT COUNT(*) FROM service_categories),
+			(SELECT COUNT(*) FROM provider_services WHERE community_id=$1),
+			(SELECT COUNT(*) FROM service_requests WHERE community_id=$1),
+			(SELECT COUNT(*) FROM ratings WHERE community_id=$1),
+			(SELECT COUNT(*) FROM recommendations WHERE community_id=$1),
+			(SELECT COUNT(*) FROM provider_hires WHERE community_id=$1),
+			(SELECT COUNT(*) FROM bulletin_posts WHERE community_id=$1 AND status='pending')
+	`, claims.CommunityID).Scan(
+		&s.TotalMoradores, &s.MoradoresAtivos,
+		&s.TotalPrestadores, &s.PrestadoresAtivos,
+		&s.TotalCategorias, &s.TotalServicosOferecidos,
+		&s.TotalPedidos, &s.TotalAvaliacoes, &s.TotalRecomendacoes,
+		&s.TotalContratacoes, &s.AvisosPendentes,
+	)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	jsonOK(w, s)
+}
+
 func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.ClaimsFrom(r.Context())
 	status := r.URL.Query().Get("status")
