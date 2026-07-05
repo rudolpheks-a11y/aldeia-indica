@@ -102,47 +102,126 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
               label: 'Moradores',
               value: '${s['moradores_ativos']}',
               sublabel: '${s['total_moradores']} no total',
+              onTap: () => _showDetailSheet(
+                context,
+                title: 'Moradores',
+                endpoint: '/admin/users?role=morador',
+                itemBuilder: (u) => ListTile(
+                  title: Text(u['full_name'] as String),
+                  subtitle: Text(u['email'] as String),
+                  trailing: _StatusChip(status: u['status'] as String),
+                ),
+              ),
             ),
             _StatTile(
               icon: Icons.engineering_outlined,
               label: 'Prestadores',
               value: '${s['prestadores_ativos']}',
               sublabel: '${s['total_prestadores']} no total',
+              onTap: () => _showDetailSheet(
+                context,
+                title: 'Prestadores',
+                endpoint: '/admin/users?role=prestador',
+                itemBuilder: (u) => ListTile(
+                  title: Text(u['full_name'] as String),
+                  subtitle: Text(u['email'] as String),
+                  trailing: _StatusChip(status: u['status'] as String),
+                ),
+              ),
             ),
             _StatTile(
               icon: Icons.category_outlined,
               label: 'Categorias de serviço',
               value: '${s['total_categorias']}',
+              onTap: () => _showDetailSheet(
+                context,
+                title: 'Categorias de serviço',
+                endpoint: '/categories',
+                itemBuilder: (c) => ListTile(
+                  title: Text(c['name_pt'] as String),
+                  trailing: Text('${c['provider_count']} prestador(es)'),
+                ),
+              ),
             ),
             _StatTile(
               icon: Icons.handyman_outlined,
               label: 'Serviços oferecidos',
               value: '${s['total_servicos_oferecidos']}',
+              onTap: () => _showDetailSheet(
+                context,
+                title: 'Serviços oferecidos',
+                endpoint: '/admin/provider-services',
+                itemBuilder: (item) => ListTile(
+                  title: Text(item['provider_name'] as String),
+                  subtitle: Text(item['category_name'] as String),
+                ),
+              ),
             ),
             _StatTile(
               icon: Icons.assignment_outlined,
               label: 'Pedidos de serviço',
               value: '${s['total_pedidos']}',
+              onTap: () => _showDetailSheet(
+                context,
+                title: 'Pedidos de serviço',
+                endpoint: '/requests?status=all',
+                itemBuilder: (item) => ListTile(
+                  title: Text(item['title'] as String? ?? ''),
+                  subtitle: Text(
+                      '${item['requester'] ?? ''} · ${item['category'] ?? 'Geral'} · ${item['status']}'),
+                ),
+              ),
             ),
             _StatTile(
               icon: Icons.star_outline,
               label: 'Avaliações',
               value: '${s['total_avaliacoes']}',
+              onTap: () => _showDetailSheet(
+                context,
+                title: 'Avaliações',
+                endpoint: '/admin/ratings',
+                itemBuilder: (item) => ListTile(
+                  title: Text(
+                      '${item['rater_name']} → ${item['provider_name']}'),
+                  subtitle: Text(item['comment'] as String? ?? 'Sem comentário'),
+                  trailing: Text(
+                      (item['average'] as num).toStringAsFixed(1)),
+                ),
+              ),
             ),
             _StatTile(
               icon: Icons.thumb_up_outlined,
               label: 'Recomendações',
               value: '${s['total_recomendacoes']}',
+              onTap: () => _showDetailSheet(
+                context,
+                title: 'Recomendações',
+                endpoint: '/admin/recommendations',
+                itemBuilder: (item) => ListTile(
+                  title: Text(
+                      '${item['recommender_name']} → ${item['provider_name']}'),
+                ),
+              ),
             ),
             _StatTile(
               icon: Icons.handshake_outlined,
               label: 'Contratações',
               value: '${s['total_contratacoes']}',
+              onTap: () => _showDetailSheet(
+                context,
+                title: 'Contratações',
+                endpoint: '/admin/hires',
+                itemBuilder: (item) => ListTile(
+                  title: Text(
+                      '${item['hirer_name']} → ${item['provider_name']}'),
+                ),
+              ),
             ),
             _StatTile(
               icon: Icons.campaign_outlined,
               label: 'Avisos pendentes',
               value: '${s['avisos_pendentes']}',
+              onTap: () => DefaultTabController.of(context).animateTo(2),
             ),
           ],
           ),
@@ -157,40 +236,105 @@ class _StatTile extends StatelessWidget {
   final String label;
   final String value;
   final String? sublabel;
+  final VoidCallback? onTap;
 
   const _StatTile({
     required this.icon,
     required this.label,
     required this.value,
     this.sublabel,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
     return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          mainAxisAlignment: MainAxisAlignment.center,
-          children: [
-            Icon(icon, color: AppColors.primary700, size: 26),
-            const SizedBox(height: 6),
-            Text(value,
-                style:
-                    const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-            const SizedBox(height: 2),
-            Text(label,
-                style: const TextStyle(fontSize: 12, color: Colors.grey),
-                textAlign: TextAlign.center),
-            if (sublabel != null)
-              Text(sublabel!,
-                  style: const TextStyle(fontSize: 10, color: Colors.grey),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onTap,
+        child: Padding(
+          padding: const EdgeInsets.all(12),
+          child: Column(
+            mainAxisAlignment: MainAxisAlignment.center,
+            children: [
+              Icon(icon, color: AppColors.primary700, size: 26),
+              const SizedBox(height: 6),
+              Text(value,
+                  style: const TextStyle(
+                      fontSize: 22, fontWeight: FontWeight.bold)),
+              const SizedBox(height: 2),
+              Text(label,
+                  style: const TextStyle(fontSize: 12, color: Colors.grey),
                   textAlign: TextAlign.center),
-          ],
+              if (sublabel != null)
+                Text(sublabel!,
+                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    textAlign: TextAlign.center),
+            ],
+          ),
         ),
       ),
     );
   }
+}
+
+/// Provider genérico pra qualquer lista de detalhe do admin — cada card da
+/// Visão Geral aponta pro endpoint que já tem o dado, sem precisar de um
+/// provider dedicado por categoria.
+final _adminListProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, String>(
+        (ref, endpoint) async {
+  final api = ref.watch(apiClientProvider);
+  final resp = await api.get(endpoint);
+  return (resp.data as List<dynamic>).cast<Map<String, dynamic>>();
+});
+
+void _showDetailSheet(
+  BuildContext context, {
+  required String title,
+  required String endpoint,
+  required Widget Function(Map<String, dynamic> item) itemBuilder,
+}) {
+  showModalBottomSheet(
+    context: context,
+    isScrollControlled: true,
+    builder: (_) => DraggableScrollableSheet(
+      expand: false,
+      initialChildSize: 0.7,
+      builder: (context, scrollController) => Column(
+        children: [
+          Padding(
+            padding: const EdgeInsets.all(16),
+            child: Text(title,
+                style: const TextStyle(
+                    fontSize: 18, fontWeight: FontWeight.bold)),
+          ),
+          const Divider(height: 1),
+          Expanded(
+            child: Consumer(
+              builder: (context, ref, _) {
+                final async = ref.watch(_adminListProvider(endpoint));
+                return async.when(
+                  loading: () =>
+                      const Center(child: CircularProgressIndicator()),
+                  error: (e, _) => Center(child: Text('Erro: $e')),
+                  data: (list) => list.isEmpty
+                      ? const Center(child: Text('Nada encontrado'))
+                      : ListView.separated(
+                          controller: scrollController,
+                          itemCount: list.length,
+                          separatorBuilder: (_, __) =>
+                              const Divider(height: 1),
+                          itemBuilder: (_, i) => itemBuilder(list[i]),
+                        ),
+                );
+              },
+            ),
+          ),
+        ],
+      ),
+    ),
+  );
 }
 
 class _UsersTab extends ConsumerStatefulWidget {

@@ -26,16 +26,23 @@ func (h *RequestHandler) List(w http.ResponseWriter, r *http.Request) {
 		status = "open"
 	}
 
-	rows, err := h.db.Query(r.Context(),
-		`SELECT sr.id, u.full_name, sc.name_pt, sr.title, sr.description,
-		        sr.desired_date, sr.status, sr.created_at
-		 FROM service_requests sr
-		 JOIN users u ON u.id = sr.requester_id
-		 LEFT JOIN service_categories sc ON sc.id = sr.category_id
-		 WHERE sr.community_id=$1 AND sr.status=$2
-		 ORDER BY sr.created_at DESC LIMIT 50`,
-		claims.CommunityID, status,
-	)
+	query := `SELECT sr.id, u.full_name, sc.name_pt, sr.title, sr.description,
+	                 sr.desired_date, sr.status, sr.created_at
+	          FROM service_requests sr
+	          JOIN users u ON u.id = sr.requester_id
+	          LEFT JOIN service_categories sc ON sc.id = sr.category_id
+	          WHERE sr.community_id=$1`
+	args := []any{claims.CommunityID}
+	// status=all é usado pela visão geral do admin, que quer ver pedidos em
+	// qualquer estado — os chamadores normais (feed de morador/prestador)
+	// sempre passam um status específico ou nada (default 'open').
+	if status != "all" {
+		args = append(args, status)
+		query += " AND sr.status=$2"
+	}
+	query += " ORDER BY sr.created_at DESC LIMIT 50"
+
+	rows, err := h.db.Query(r.Context(), query, args...)
 	if err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
@@ -56,6 +63,9 @@ func (h *RequestHandler) List(w http.ResponseWriter, r *http.Request) {
 			"title": title, "description": description,
 			"desired_date": desiredDate, "status": status, "created_at": createdAt,
 		})
+	}
+	if result == nil {
+		result = []map[string]any{}
 	}
 	jsonOK(w, result)
 }

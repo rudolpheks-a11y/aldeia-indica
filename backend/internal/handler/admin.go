@@ -2,6 +2,7 @@ package handler
 
 import (
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -70,17 +71,21 @@ func (h *AdminHandler) Stats(w http.ResponseWriter, r *http.Request) {
 func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.ClaimsFrom(r.Context())
 	status := r.URL.Query().Get("status")
+	role := r.URL.Query().Get("role")
 
 	query := `SELECT id, full_name, email, role, status, created_at
 	           FROM users WHERE community_id=$1`
 	args := []any{claims.CommunityID}
 
 	if status != "" {
-		query += " AND status=$2 ORDER BY created_at DESC"
 		args = append(args, status)
-	} else {
-		query += " ORDER BY created_at DESC"
+		query += fmt.Sprintf(" AND status=$%d", len(args))
 	}
+	if role != "" {
+		args = append(args, role)
+		query += fmt.Sprintf(" AND role=$%d", len(args))
+	}
+	query += " ORDER BY created_at DESC"
 
 	rows, err := h.db.Query(r.Context(), query, args...)
 	if err != nil {
@@ -113,6 +118,173 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 	jsonOK(w, users)
+}
+
+// ListProviderServices — quem oferece qual serviço, pra visão geral do admin.
+func (h *AdminHandler) ListProviderServices(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
+
+	rows, err := h.db.Query(r.Context(), `
+		SELECT u.full_name, sc.name_pt
+		FROM provider_services ps
+		JOIN users u ON u.id = ps.provider_id
+		JOIN service_categories sc ON sc.id = ps.category_id
+		WHERE ps.community_id = $1
+		ORDER BY u.full_name, sc.name_pt`,
+		claims.CommunityID,
+	)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var result []map[string]any
+	for rows.Next() {
+		var providerName, categoryName string
+		if err := rows.Scan(&providerName, &categoryName); err != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		result = append(result, map[string]any{
+			"provider_name": providerName, "category_name": categoryName,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if result == nil {
+		result = []map[string]any{}
+	}
+	jsonOK(w, result)
+}
+
+// ListRatings — todas as avaliações da comunidade, pra visão geral do admin.
+func (h *AdminHandler) ListRatings(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
+
+	rows, err := h.db.Query(r.Context(), `
+		SELECT ru.full_name, pu.full_name, r.quality, r.punctuality, r.politeness, r.reliability, r.comment, r.created_at
+		FROM ratings r
+		JOIN users ru ON ru.id = r.rater_id
+		JOIN users pu ON pu.id = r.provider_id
+		WHERE r.community_id = $1
+		ORDER BY r.created_at DESC LIMIT 200`,
+		claims.CommunityID,
+	)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var result []map[string]any
+	for rows.Next() {
+		var rater, provider string
+		var quality, punctuality, politeness, reliability int
+		var comment *string
+		var createdAt time.Time
+		if err := rows.Scan(&rater, &provider, &quality, &punctuality, &politeness, &reliability, &comment, &createdAt); err != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		avg := float64(quality+punctuality+politeness+reliability) / 4
+		result = append(result, map[string]any{
+			"rater_name": rater, "provider_name": provider,
+			"average": avg, "comment": comment, "created_at": createdAt,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if result == nil {
+		result = []map[string]any{}
+	}
+	jsonOK(w, result)
+}
+
+// ListRecommendations — todas as indicações da comunidade, pra visão geral do admin.
+func (h *AdminHandler) ListRecommendations(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
+
+	rows, err := h.db.Query(r.Context(), `
+		SELECT ru.full_name, pu.full_name, rec.created_at
+		FROM recommendations rec
+		JOIN users ru ON ru.id = rec.recommender_id
+		JOIN users pu ON pu.id = rec.provider_id
+		WHERE rec.community_id = $1
+		ORDER BY rec.created_at DESC LIMIT 200`,
+		claims.CommunityID,
+	)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var result []map[string]any
+	for rows.Next() {
+		var recommender, provider string
+		var createdAt time.Time
+		if err := rows.Scan(&recommender, &provider, &createdAt); err != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		result = append(result, map[string]any{
+			"recommender_name": recommender, "provider_name": provider, "created_at": createdAt,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if result == nil {
+		result = []map[string]any{}
+	}
+	jsonOK(w, result)
+}
+
+// ListHires — todas as contratações confirmadas da comunidade, pra visão geral do admin.
+func (h *AdminHandler) ListHires(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
+
+	rows, err := h.db.Query(r.Context(), `
+		SELECT hu.full_name, pu.full_name, h.created_at
+		FROM provider_hires h
+		JOIN users hu ON hu.id = h.hirer_id
+		JOIN users pu ON pu.id = h.provider_id
+		WHERE h.community_id = $1
+		ORDER BY h.created_at DESC LIMIT 200`,
+		claims.CommunityID,
+	)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	defer rows.Close()
+
+	var result []map[string]any
+	for rows.Next() {
+		var hirer, provider string
+		var createdAt time.Time
+		if err := rows.Scan(&hirer, &provider, &createdAt); err != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
+		result = append(result, map[string]any{
+			"hirer_name": hirer, "provider_name": provider, "created_at": createdAt,
+		})
+	}
+	if err := rows.Err(); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if result == nil {
+		result = []map[string]any{}
+	}
+	jsonOK(w, result)
 }
 
 func (h *AdminHandler) UpdateUserStatus(w http.ResponseWriter, r *http.Request) {
