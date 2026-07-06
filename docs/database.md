@@ -30,6 +30,7 @@ Numeradas sequencialmente em `backend/migrations/`. Rodar via `make migrate-up`.
 | 000022 | remove rastreamento de contratação (`provider_hires`, `total_hires`) |
 | 000023 | `provider_availability`: troca `UNIQUE(provider_id, day_of_week)` por `UNIQUE(provider_id, day_of_week, start_time)` — permite múltiplos horários no mesmo dia |
 | 000024 | remove `provider_photos` ("Trabalhos realizados" — nunca teve tela de upload) |
+| 000025 | `notifications` (in-app: resposta a pedido, avaliação recebida, indicação recebida) |
 
 ## Regras do schema
 

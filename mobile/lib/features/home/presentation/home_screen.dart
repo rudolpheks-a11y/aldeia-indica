@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../providers_list/providers/search_provider.dart';
+import '../../notifications/providers/notification_provider.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/contact_admin_button.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
@@ -17,10 +18,24 @@ class HomeScreen extends ConsumerWidget {
     final isPrestador =
         auth is AuthAuthenticated && auth.role == 'prestador';
 
+    final unreadCount = ref.watch(unreadNotificationsCountProvider).valueOrNull ?? 0;
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('Aldeia Indica'),
         actions: [
+          IconButton(
+            tooltip: 'Notificações',
+            icon: Badge(
+              label: Text('$unreadCount'),
+              isLabelVisible: unreadCount > 0,
+              child: const Icon(Icons.notifications_outlined),
+            ),
+            onPressed: () async {
+              await context.push('/notifications');
+              ref.invalidate(unreadNotificationsCountProvider);
+            },
+          ),
           IconButton(
             tooltip: 'Conversas',
             icon: const Icon(Icons.chat_bubble_outline),

@@ -13,10 +13,11 @@ import (
 type RatingService struct {
 	db          *pgxpool.Pool
 	providerSvc *ProviderService
+	notifSvc    *NotificationService
 }
 
-func NewRatingService(db *pgxpool.Pool, providerSvc *ProviderService) *RatingService {
-	return &RatingService{db: db, providerSvc: providerSvc}
+func NewRatingService(db *pgxpool.Pool, providerSvc *ProviderService, notifSvc *NotificationService) *RatingService {
+	return &RatingService{db: db, providerSvc: providerSvc, notifSvc: notifSvc}
 }
 
 type CreateRatingInput struct {
@@ -76,6 +77,12 @@ func (s *RatingService) Create(ctx context.Context, in CreateRatingInput) error 
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
+
+	// Best-effort: a avaliação já foi salva, não deixamos uma falha aqui
+	// derrubar a resposta de sucesso pro morador.
+	_ = s.notifSvc.Create(ctx, in.CommunityID, in.ProviderID,
+		"rating_received", "Nova avaliação recebida",
+		"Você recebeu uma nova avaliação de um morador.", nil)
 
 	return s.providerSvc.RecomputeScore(ctx, in.ProviderID)
 }

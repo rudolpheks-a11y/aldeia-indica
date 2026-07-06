@@ -54,8 +54,9 @@ func main() {
 	authSvc := service.NewAuthService(db, j, cfg.JWTRefreshExpiry, emailClient)
 	userSvc := service.NewUserService(db)
 	providerSvc := service.NewProviderService(db, log)
-	ratingSvc := service.NewRatingService(db, providerSvc)
-	recSvc := service.NewRecommendationService(db, providerSvc)
+	notifSvc := service.NewNotificationService(db)
+	ratingSvc := service.NewRatingService(db, providerSvc, notifSvc)
+	recSvc := service.NewRecommendationService(db, providerSvc, notifSvc)
 	chatSvc := service.NewChatService(db)
 	analyticsSvc := service.NewAnalyticsService(db)
 	bulletinSvc := service.NewBulletinService(db)
@@ -67,19 +68,20 @@ func main() {
 	providerH := handler.NewProviderHandler(providerSvc, analyticsSvc)
 	ratingH := handler.NewRatingHandler(ratingSvc)
 	recH := handler.NewRecommendationHandler(recSvc)
-	requestH := handler.NewRequestHandler(db)
+	requestH := handler.NewRequestHandler(db, notifSvc)
 	uploadH := handler.NewUploadHandler(s3Client)
 	adminH := handler.NewAdminHandler(db)
 	categoryH := handler.NewCategoryHandler(db)
 	chatH := handler.NewChatHandler(chatSvc, analyticsSvc)
 	bulletinH := handler.NewBulletinHandler(bulletinSvc)
+	notifH := handler.NewNotificationHandler(notifSvc)
 	wsH := ws.NewHandler(hub, chatSvc, fcmClient, j, log)
 
 	router := server.NewRouter(
 		log, j,
 		authH, providerH, ratingH, recH,
 		approvalH, requestH, uploadH, adminH, categoryH,
-		chatH, bulletinH, wsH,
+		chatH, bulletinH, notifH, wsH,
 	)
 
 	srv := server.New(cfg.Port, router)

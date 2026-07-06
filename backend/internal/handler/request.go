@@ -12,14 +12,16 @@ import (
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/domain"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/server/middleware"
+	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/service"
 )
 
 type RequestHandler struct {
-	db *pgxpool.Pool
+	db       *pgxpool.Pool
+	notifSvc *service.NotificationService
 }
 
-func NewRequestHandler(db *pgxpool.Pool) *RequestHandler {
-	return &RequestHandler{db: db}
+func NewRequestHandler(db *pgxpool.Pool, notifSvc *service.NotificationService) *RequestHandler {
+	return &RequestHandler{db: db, notifSvc: notifSvc}
 }
 
 func (h *RequestHandler) List(w http.ResponseWriter, r *http.Request) {
@@ -218,6 +220,19 @@ func (h *RequestHandler) Respond(w http.ResponseWriter, r *http.Request) {
 		jsonError(w, "request not found", http.StatusNotFound)
 		return
 	}
+
+	// Best-effort: a resposta já foi salva, uma falha ao notificar não pode
+	// virar erro pro prestador que acabou de demonstrar interesse.
+	var requesterID uuid.UUID
+	var title string
+	if err := h.db.QueryRow(r.Context(),
+		`SELECT requester_id, title FROM service_requests WHERE id=$1`, requestID,
+	).Scan(&requesterID, &title); err == nil {
+		_ = h.notifSvc.Create(r.Context(), claims.CommunityID, requesterID,
+			"request_response", "Novo interesse no seu pedido",
+			"Um prestador demonstrou interesse em \""+title+"\".", &requestID)
+	}
+
 	w.WriteHeader(http.StatusCreated)
 }
 

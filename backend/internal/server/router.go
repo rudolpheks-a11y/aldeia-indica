@@ -29,6 +29,7 @@ func NewRouter(
 	categoryH *handler.CategoryHandler,
 	chatH *handler.ChatHandler,
 	bulletinH *handler.BulletinHandler,
+	notifH *handler.NotificationHandler,
 	wsH *ws.Handler,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -113,6 +114,11 @@ func NewRouter(
 			r.Put("/requests/{id}", requestH.UpdateStatus)
 			r.Post("/requests/{id}/responses", requestH.Respond)
 			r.Get("/requests/{id}/responses", requestH.ListResponses)
+
+			// Notificações
+			r.Get("/notifications", notifH.List)
+			r.Get("/notifications/unread-count", notifH.UnreadCount)
+			r.Post("/notifications/read-all", notifH.MarkAllRead)
 
 			// Chat (REST)
 			r.Post("/chat/conversations", chatH.GetOrCreate)

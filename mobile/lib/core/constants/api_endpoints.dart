@@ -53,5 +53,9 @@ class ApiEndpoints {
   static const String adminBulletinPending = '/admin/bulletin/pending';
   static String adminBulletinReview(String id) => '/admin/bulletin/$id/review';
 
+  static const String notifications = '/notifications';
+  static const String notificationsUnreadCount = '/notifications/unread-count';
+  static const String notificationsReadAll = '/notifications/read-all';
+
   static const String wsChat = '/ws/chat';
 }

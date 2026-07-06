@@ -14,10 +14,11 @@ var ErrAlreadyRecommended = errors.New("you have already recommended this provid
 type RecommendationService struct {
 	db          *pgxpool.Pool
 	providerSvc *ProviderService
+	notifSvc    *NotificationService
 }
 
-func NewRecommendationService(db *pgxpool.Pool, providerSvc *ProviderService) *RecommendationService {
-	return &RecommendationService{db: db, providerSvc: providerSvc}
+func NewRecommendationService(db *pgxpool.Pool, providerSvc *ProviderService, notifSvc *NotificationService) *RecommendationService {
+	return &RecommendationService{db: db, providerSvc: providerSvc, notifSvc: notifSvc}
 }
 
 // RecommendationCount expõe apenas o total — identidade dos indicadores é preservada.
@@ -56,6 +57,13 @@ func (s *RecommendationService) Create(ctx context.Context, communityID, provide
 	if err := tx.Commit(ctx); err != nil {
 		return err
 	}
+
+	// Best-effort, e sem revelar quem indicou — indicações são anônimas por
+	// desenho do produto (ver recomendação client-side/backend), a
+	// notificação não pode vazar a identidade do recomendador.
+	_ = s.notifSvc.Create(ctx, communityID, providerID,
+		"recommendation_received", "Nova indicação recebida",
+		"Você recebeu uma nova indicação de um morador.", nil)
 
 	return s.providerSvc.RecomputeScore(ctx, providerID)
 }

@@ -25,6 +25,7 @@ import '../../features/prestador/presentation/skills_screen.dart';
 import '../../features/prestador/presentation/anuncio_screen.dart';
 import '../../features/prestador/presentation/agenda_screen.dart';
 import '../../features/bulletin/presentation/bulletin_screen.dart';
+import '../../features/notifications/presentation/notifications_screen.dart';
 
 final routerProvider = Provider<GoRouter>((ref) {
   final auth = ref.watch(authProvider);
@@ -133,6 +134,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/bulletin',
           builder: (_, __) => const BulletinScreen()),
+      GoRoute(
+          path: '/notifications',
+          builder: (_, __) => const NotificationsScreen()),
     ],
   );
 });
