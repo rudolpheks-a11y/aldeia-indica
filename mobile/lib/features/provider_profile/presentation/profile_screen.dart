@@ -8,6 +8,7 @@ import '../../../shared/widgets/app_scrollbar.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../providers_list/providers/search_provider.dart';
 import '../providers/profile_provider.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
@@ -100,6 +101,10 @@ class _HeaderState extends ConsumerState<_Header> {
         await api.post(endpoint);
       }
       ref.invalidate(providerProfileProvider(widget.providerId));
+      // favoriteProvidersProvider não é autoDispose — sem isso, a tela de
+      // Favoritos mostra a lista em cache (sem o item recém-favoritado/
+      // removido) se já tiver sido aberta antes nesta sessão do app.
+      ref.invalidate(favoriteProvidersProvider);
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
