@@ -60,7 +60,7 @@ func NewRouter(
 		// Public
 		r.With(authRateLimit).Post("/auth/register/morador", authH.RegisterMorador)
 		r.With(authRateLimit).Post("/auth/register/prestador", authH.RegisterPrestador)
-		r.Post("/auth/login", authH.Login)
+		r.With(authRateLimit).Post("/auth/login", authH.Login)
 		r.Post("/auth/refresh", authH.Refresh)
 		r.With(authRateLimit).Post("/auth/forgot-password", authH.ForgotPassword)
 		r.With(authRateLimit).Post("/auth/reset-password", authH.ResetPassword)

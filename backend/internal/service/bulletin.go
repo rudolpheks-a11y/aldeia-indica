@@ -18,12 +18,12 @@ func NewBulletinService(db *pgxpool.Pool) *BulletinService {
 }
 
 type BulletinPost struct {
-	ID          uuid.UUID  `json:"id"`
-	AuthorName  string     `json:"author_name"`
-	Content     string     `json:"content"`
-	Status      string     `json:"status"`
-	CreatedAt   time.Time  `json:"created_at"`
-	ApprovedAt  *time.Time `json:"approved_at,omitempty"`
+	ID         uuid.UUID  `json:"id"`
+	AuthorName string     `json:"author_name"`
+	Content    string     `json:"content"`
+	Status     string     `json:"status"`
+	CreatedAt  time.Time  `json:"created_at"`
+	ApprovedAt *time.Time `json:"approved_at,omitempty"`
 }
 
 var ErrBulletinNotFound = errors.New("bulletin post not found")
@@ -54,7 +54,9 @@ func (s *BulletinService) ListApproved(ctx context.Context, communityID uuid.UUI
 	var posts []BulletinPost
 	for rows.Next() {
 		var p BulletinPost
-		rows.Scan(&p.ID, &p.AuthorName, &p.Content, &p.Status, &p.CreatedAt, &p.ApprovedAt)
+		if err := rows.Scan(&p.ID, &p.AuthorName, &p.Content, &p.Status, &p.CreatedAt, &p.ApprovedAt); err != nil {
+			return nil, err
+		}
 		posts = append(posts, p)
 	}
 	return posts, rows.Err()
@@ -77,7 +79,9 @@ func (s *BulletinService) ListPending(ctx context.Context, communityID uuid.UUID
 	var posts []BulletinPost
 	for rows.Next() {
 		var p BulletinPost
-		rows.Scan(&p.ID, &p.AuthorName, &p.Content, &p.Status, &p.CreatedAt, &p.ApprovedAt)
+		if err := rows.Scan(&p.ID, &p.AuthorName, &p.Content, &p.Status, &p.CreatedAt, &p.ApprovedAt); err != nil {
+			return nil, err
+		}
 		posts = append(posts, p)
 	}
 	return posts, rows.Err()

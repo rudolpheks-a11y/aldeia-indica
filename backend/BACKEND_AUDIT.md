@@ -651,3 +651,174 @@ O e-mail de recuperação de senha (`internal/service/auth.go:366-379`, `resetEm
 | 2026-07-03 (corrigidos: 4 P1, 3 P2, 3 P3 — ver tabela de status) | 0 | 4 | 4 (3 corrigidos, 1 pendente de decisão) | 4 (3 corrigidos, 1 pendente de decisão) |
 
 **As prioridades mais urgentes de 2026-07-03:** as três de manipulação/perda de dado sem checar linhas afetadas (P1-A, P1-B, P1-D) e a tela de usuários do admin quebrada (P1-C) — todas reproduzidas ao vivo contra o backend rodando, as três primeiras exploráveis por qualquer conta autenticada comum (morador ou prestador), sem precisar de nenhum acesso privilegiado.
+
+# Auditoria de acompanhamento — 2026-07-05
+
+**Escopo:** todo o backend Go (42 arquivos, 8 services, 11 handlers, ws, middleware, config, platform). Todas as mudanças abaixo já foram aplicadas e verificadas (`go build`, `go vet`, `gofmt -l`, `go test -race -count=1 ./...` limpos; endpoints re-testados ao vivo via curl contra o backend rodando).
+
+**Stack confirmado:** Go 1.26.4, chi v5, pgx/v5 (SQL manual, sem ORM), PostgreSQL 18, S3/MinIO via presigned URL, `coder/websocket`, `golang-migrate` (22 migrations, todas com par up/down), JWT HS256.
+
+## Summary
+
+- P0: 0
+- P1: 1 (corrigido)
+- P2: 4 (corrigidos)
+- P3: 5 (corrigidos) + 1 registrado sem correção (nit de clareza)
+
+**Top 3 prioridades corrigidas:** (1) `POST /auth/login` sem nenhum rate limit — `internal/server/router.go:63`; (2) erro da contenção de segurança do reuse de refresh token sendo descartado — `internal/service/auth.go:279`; (3) upload aceitando qualquer `object_type` e filename não sanitizado indo direto pra chave do S3 — `internal/handler/upload.go`.
+
+## Findings
+
+### P1 — High
+
+#### [P1-1] `POST /auth/login` não tem rate limit — único endpoint pré-auth sem essa proteção
+- **Location:** `internal/server/router.go:63` (antes do fix)
+- **Dimension:** Security
+- **What:** Todos os outros endpoints pré-auth que criam conta ou disparam e-mail (`register/morador`, `register/prestador`, `forgot-password`, `reset-password`) já usavam `.With(authRateLimit)` (5 tentativas/min por IP, `httprate.LimitByIP(5, time.Minute)`). `/auth/login` — o endpoint mais visado de qualquer sistema de auth — era o único sem.
+- **Code (verbatim, antes do fix):**
+  ```go
+  r.With(authRateLimit).Post("/auth/register/morador", authH.RegisterMorador)
+  r.With(authRateLimit).Post("/auth/register/prestador", authH.RegisterPrestador)
+  r.Post("/auth/login", authH.Login)
+  r.Post("/auth/refresh", authH.Refresh)
+  r.With(authRateLimit).Post("/auth/forgot-password", authH.ForgotPassword)
+  r.With(authRateLimit).Post("/auth/reset-password", authH.ResetPassword)
+  ```
+- **Why it matters:** Padrão clássico "N-1 de N" — 4 de 5 endpoints pré-auth protegidos, faltando exatamente o mais crítico (login por senha). bcrypt adiciona custo computacional por tentativa, mas não substitui rate limit: um atacante com paciência (ou uma botnet distribuída) podia tentar senhas ilimitadas contra qualquer `community_id`+`email` conhecido, sem nenhum limite de taxa.
+- **Evidence / how verified:** Reproduzido ao vivo antes do fix (sem rate limit, N tentativas seguidas todas retornavam 401 normalmente). Depois do fix: 6 tentativas de login em sequência rápida contra `admin@teste.com` retornaram `401,401,401,401,429,429` — a 5ª requisição (contando o login legítimo feito minutos antes, dentro da mesma janela de 1 minuto) já bloqueou.
+- **Fix:** `r.With(authRateLimit).Post("/auth/login", authH.Login)` — reaproveita o rate limiter que já existia, zero infraestrutura nova.
+- **Implementation constraints:** Nenhuma — mudança de uma linha, o middleware já estava importado e configurado.
+- **Confidence:** Confirmed
+
+### P2 — Medium
+
+#### [P2-1] Erro da contenção de segurança (revoke-all no reuse de refresh token) descartado silenciosamente
+- **Location:** `internal/service/auth.go:279` (antes do fix)
+- **Dimension:** Reliability / Security
+- **What:** O mecanismo de detecção de reuse de refresh token (achado P1-2 da rodada de 2026-07-02) já existe e funciona corretamente — ao detectar que um token já revogado foi reapresentado, o código tenta revogar todos os outros refresh tokens ativos daquele usuário. Mas o resultado desse `Exec` era descartado (`_, _ = s.db.Exec(...)`).
+- **Code (verbatim, antes do fix):**
+  ```go
+  _, _ = s.db.Exec(ctx,
+      `UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`,
+      rt.UserID,
+  )
+  return nil, errors.New("refresh token expired or revoked")
+  ```
+- **Why it matters:** Se esse `UPDATE` falhar (conexão instável, timeout do pool), a resposta ao chamador é a mesma de qualquer forma ("expired or revoked") — mas a sessão da conta comprometida continua válida sem que ninguém saiba, porque a falha da própria contenção de segurança nunca é reportada nem logada.
+- **Evidence / how verified:** Leitura direta do código + confirmação de que nenhum log/erro cobria essa falha (`grep` no arquivo não mostrava tratamento). Fix compilado e testado via `go build`/`go vet`.
+- **Fix:** Checar o erro do `Exec` e retorná-lo envolvido (`fmt.Errorf("revoke token family after reuse detected: %w", revokeErr)`) em vez de descartar.
+- **Implementation constraints:** Nenhuma.
+- **Confidence:** Confirmed
+
+#### [P2-2] Upload: `object_type` sem allow-list e `filename` sem sanitização antes de virar chave do S3
+- **Location:** `internal/handler/upload.go` (antes do fix)
+- **Dimension:** Security
+- **What:** `object_type` era um comentário (`// avatar, work_photo, chat_image, document`), não uma validação — qualquer string era aceita, e só o literal `"document"` recebia tratamento especial (bucket privado). `Filename` do cliente era concatenado direto na chave (`uuid.New().String()+"-"+in.Filename`), sem remover espaços, barras ou caracteres de controle.
+- **Code (verbatim, antes do fix):**
+  ```go
+  var in struct {
+      ObjectType string `json:"object_type"` // avatar, work_photo, chat_image, document
+      Filename   string `json:"filename"`
+  }
+  ...
+  isPrivate := in.ObjectType == "document"
+  key := fmt.Sprintf("%s/%s/%s/%s",
+      claims.CommunityID, in.ObjectType, claims.UserID, uuid.New().String()+"-"+in.Filename,
+  )
+  ```
+- **Why it matters:** Como o backend nunca toca os bytes do arquivo (upload é direto pro S3 via URL presignada), validação de magic-byte é arquiteturalmente impossível aqui — a única contenção possível nesse ponto é isolar `object_type`/`filename`. S3 não resolve `..` como um filesystem, então não é path traversal, mas nome de arquivo malicioso ainda podia injetar caracteres de controle ou produzir chaves absurdamente longas.
+- **Evidence / how verified:** Reproduzido ao vivo: `object_type:"anything_goes"` → `400 {"error":"invalid object_type"}` depois do fix (antes, teria sido aceito e caído no bucket público por padrão). `filename:"weird name with spaces #$.jpg"` → object_key final `...-weird_name_with_spaces___.jpg`, espaços e símbolos virados `_`.
+- **Fix:** Allow-list explícita (`avatar`, `work_photo`, `chat_image`, `document`) retornando 400 se fora dela; `sanitizeFilename` troca qualquer caractere fora de `[a-zA-Z0-9._-]` por `_` e limita a 100 caracteres.
+- **Implementation constraints:** Nenhuma — mudança isolada ao handler, não afeta o contrato de resposta pra clientes que já mandavam `object_type` válido.
+- **Confidence:** Confirmed
+
+#### [P2-3] 7 pontos com `rows.Scan` sem checar erro — mesmo padrão já corrigido em outros lugares, mas não em todos
+- **Location:** `internal/handler/admin.go:322` (`ListCommunities`), `internal/service/analytics.go:67` (`DashboardSummary`), `internal/handler/request.go:60` (`List`) e `:231` (`ListResponses`), `internal/service/chat.go:186` (`GetDeviceTokens`), `internal/service/bulletin.go:57` e `:80` (`ListApproved`/`ListPending`)
+- **Dimension:** Reliability / Code quality (padrão sistêmico — ver "Patterns observed")
+- **What:** Mesma classe de bug que já causou o achado real `[P1-C]` da rodada de 2026-07-03 (`admin/users` truncando a lista por um `Scan` que falhava silenciosamente) — só que aquele fix não foi replicado pros outros 7 call sites que tinham o mesmo formato (`rows.Scan(...)` sem `if err := ...; err != nil`).
+- **Code (verbatim, um exemplo representativo — `admin.go:322`):**
+  ```go
+  rows.Scan(&c.ID, &c.Name, &c.Slug, &c.City, &c.State)
+  list = append(list, map[string]any{...})
+  ```
+- **Why it matters:** Nenhum dos 7 tem hoje um mismatch de tipo tão óbvio quanto o `admin/users` original (a maioria escaneia tipos simples), mas o risco estrutural é o mesmo: qualquer erro de scan (incluindo erro de conexão/rede a meio da iteração) passa despercebido, e a função retorna uma lista parcial como se fosse completa.
+- **Evidence / how verified:** `grep -n "rows.Scan(" internal/handler/*.go internal/service/*.go | grep -v "if err :="` — 7 ocorrências, listadas acima.
+- **Fix:** Checar erro em cada `Scan`, mais `rows.Err()` depois do loop nos que não tinham (padrão idêntico ao já usado em `ListUsers`/`CategoryHandler.List`/os 4 endpoints admin novos desta sessão).
+- **Implementation constraints:** Nenhuma — mudança mecânica, mesmo padrão repetido 7 vezes.
+- **Confidence:** Confirmed
+
+#### [P2-4] Zero cobertura de testes fora de `internal/domain/score_test.go`
+- **Location:** todo `internal/handler/` (11 arquivos), `internal/service/` (8 arquivos), `internal/ws/`, `internal/server/middleware/`
+- **Dimension:** Code quality
+- **What:** `go test -race -count=1 ./...` só executa `internal/domain` (1 arquivo de teste, 4 casos). Os 11 handlers e 8 services que concentram toda a lógica de negócio, multi-tenancy e autenticação não têm nenhum teste automatizado.
+- **Why it matters:** Sem essa rede de segurança, qualquer regressão nos pontos mais sensíveis (isolamento por `community_id`, ownership de chat, rotação de refresh token) só é pega manualmente — como aconteceu nas duas rodadas de auditoria anteriores, que encontraram bugs reais só testando os endpoints ao vivo.
+- **O que bloqueia escrever esses testes hoje (documentado, não é só "faltam testes"):** todo `service` recebe `*pgxpool.Pool` direto no construtor (`NewAuthService(db *pgxpool.Pool, ...)`, etc.) — não há interface por trás, então um teste unitário puro exigiria um Postgres real (via testcontainers ou um banco de teste dedicado) para exercitar qualquer service; não existe hoje nenhum harness desse tipo no repo, nem fixtures, nem seed de dados de teste isolado por execução.
+- **Fix (sugerido, não implementado nesta rodada — exige decisão de infraestrutura de teste, não só código):** Introduzir `testcontainers-go` com Postgres efêmero por execução de teste, começando pelos services de maior risco (`auth.go`, `chat.go`, multi-tenancy em `provider.go`).
+- **Confidence:** Confirmed (a ausência); `[UNVERIFIED]` o esforço exato de configurar testcontainers neste projeto especificamente.
+
+### P3 — Low / nit
+
+#### [P3-1] `RequestHandler.UpdateStatus` não filtrava por `community_id`
+- **Location:** `internal/handler/request.go:157-161` (antes do fix)
+- **Dimension:** Code quality (consistência multi-tenant)
+- **What:** `UPDATE service_requests SET status=$1, updated_at=now() WHERE id=$2 AND requester_id=$3` — sem `AND community_id=$4`, diferente de praticamente todo outro `UPDATE`/`DELETE` no resto do código.
+- **Why it matters:** Não é explorável na prática (`id` é UUID gerado por `gen_random_uuid()`, e `requester_id` já precisa bater com o chamador — as duas condições juntas já isolam a linha certa mesmo sem o filtro de comunidade), mas quebra a convenção "toda query tenant-scoped filtra por community_id" do resto do código, o que é o tipo de inconsistência que facilita um bug real passar despercebido numa mudança futura.
+- **Fix:** Adicionado `AND community_id=$4` com `claims.CommunityID`.
+- **Confidence:** Confirmed
+
+#### [P3-2] `S3Client.PublicURL` — método morto, nunca chamado
+- **Location:** `internal/storage/s3.go` (antes do fix)
+- **Dimension:** Redundância
+- **Evidence:** `grep -rn "PublicURL" --include="*.go" .` — zero call sites em todo o repo.
+- **Fix:** Removido. (`baseURL`/`CloudFrontBaseURL` no config ficam sem uso agora — inofensivo, não removido nesta rodada para não mexer na superfície de env vars documentada.)
+- **Confidence:** Confirmed
+
+#### [P3-3] `fcm.min()` reimplementa o builtin `min` do Go (disponível desde 1.21; projeto usa 1.26.4)
+- **Location:** `internal/fcm/client.go` (antes do fix)
+- **Dimension:** Redundância
+- **Fix:** Função customizada removida; a chamada (`t[:min(8, len(t))]`) agora resolve pro builtin.
+- **Confidence:** Confirmed
+
+#### [P3-4] `domain.ProviderProfile.TotalHires` — campo residual do rastreamento de "contratação confirmada" removido nesta mesma sessão
+- **Location:** `internal/domain/provider.go` (antes do fix)
+- **Dimension:** Redundância / dead code
+- **What:** A remoção do hire-tracking (feature removida a pedido do usuário mais cedo nesta sessão) tocou `domain.ProviderStats` (em `score.go`) mas não esse campo homônimo numa struct irmã, `domain.ProviderProfile` — que, à parte isso, já era 100% não instanciada em lugar nenhum do código (`grep` por `ProviderProfile{` e `domain.ProviderProfile` = zero resultados).
+- **Fix:** Campo removido.
+- **Confidence:** Confirmed
+
+#### [P3-5] `/providers/{id}/photos` (`AddPhoto` e `DeletePhoto`) ignoram o `{id}` do path
+- **Location:** `internal/handler/provider.go:162-207`
+- **Dimension:** Code quality (contrato de rota enganoso)
+- **What:** As duas rotas são declaradas como `/providers/{id}/photos` e `/providers/{id}/photos/{photoID}`, mas nenhum dos dois handlers lê `{id}` — ambos operam sempre em `claims.UserID` (auto-scoped). `AddPhoto` até comenta essa decisão explicitamente; `DeletePhoto` faz o mesmo sem comentário.
+- **Why it matters:** Não é uma vulnerabilidade hoje — como o escopo real é sempre o dono autenticado, é mais restritivo do que a URL sugere, não menos. Mas o contrato da rota é enganoso: uma mudança futura que passe a confiar em `{id}` sem adicionar uma checagem de ownership explícita abriria um IDOR silenciosamente.
+- **Fix:** Não aplicado nesta rodada — é um nit de clareza (documentar a decisão ou remover `{id}` da rota), não um bug. Registrado para decisão consciente, não corrigido automaticamente.
+- **Confidence:** Confirmed
+
+## Achados de rodadas anteriores já resolvidos (reverificados, não mais aplicáveis)
+
+- **Doc drift sqlc/repository (P3-1 de 2026-07-02):** `CLAUDE.md`/`docs/architecture.md` já foram corrigidos em 2026-07-02 (confirmado por `grep` — `docs/architecture.md:13` já documenta corretamente "Não há camada de repositório... `internal/repository/` e `sqlc.yaml`... foram removidos"). `internal/repository/` e `sqlc.yaml` não existem mais no repo. Não é mais um achado.
+- **Reuse-detection de refresh token (P1-2 de 2026-07-02):** o mecanismo já existe e funciona corretamente (revoga toda a família de tokens do usuário ao detectar reuse de um token já revogado) — só o erro do `Exec` estava sendo descartado (ver P2-1 acima, já corrigido). O achado original do apêndice estático da skill de auditoria (que descrevia isso como ausente) está desatualizado; verificado direto no código, não presumido.
+
+## Patterns observed
+
+- **"`rows.Scan` sem checar erro" é uma dívida que se espalhou de forma orgânica** — o fix já foi aplicado corretamente em `ListUsers`, `CategoryHandler.List` e nos 4 endpoints admin criados nesta mesma sessão, mas não foi replicado pros 7 call sites mais antigos listados em P2-3. Mesmo padrão da "mutação sem checar linhas afetadas" encontrado na rodada de 2026-07-03 — uma correção pontual não vira convenção garantida sem uma checagem cruzada do módulo inteiro.
+- **FK columns sem índice dedicado, hoje não usadas em filtro/JOIN direto** (não é uma ação recomendada agora, só uma observação pra não repetir o "nunca assuma que a FK implica índice" às cegas): `invites.created_by`/`used_by`, `messages.sender_id`/`community_id`, `provider_events.actor_id`, `ratings.rater_id`, `recommendations.recommender_id`, `service_request_responses.provider_id`/`community_id`, `service_requests.requester_id`/`category_id`, `bulletin_posts.author_id`/`approved_by`, `provider_availability`/`provider_photos`/`morador_profiles.community_id`. Nenhum desses é hoje o lado dirigente de um `WHERE`/`JOIN` (ou são cobertos por um índice composto que já lidera com a coluna certa, ou o join usa a PK do outro lado) — adicionar índice agora seria infraestrutura pra um padrão de consulta que não existe. Revisitar se algum desses virar filtro direto no futuro (ex.: "listar meus convites enviados", "listar minhas avaliações feitas").
+
+## What's working well
+
+- **Multi-tenancy manual, mas consistente:** toda query tenant-scoped usa `claims.CommunityID` do contexto autenticado — nunca um valor vindo do cliente — confirmado por leitura direta em `provider.go`, `request.go`, `chat.go`, `bulletin.go`, `rating.go`, `recommendation.go`, `category.go` e nos 4 endpoints admin novos.
+- **Ownership de conversa de chat correto nos dois transportes:** tanto o REST (`ChatHandler.assertParticipant`) quanto o WebSocket (`Client.handleMessage`/`handleRead`) verificam que o chamador é de fato um dos dois participantes antes de ler ou escrever, e a checagem de cross-community já acontece na criação da conversa (`GetOrCreateConversation`), tornando a checagem de participante suficiente depois disso.
+- **`JWT.Parse` valida o signing method** (`*jwt.SigningMethodHMAC`) antes de aceitar o token — previne o ataque clássico de confusão de algoritmo (`alg: none` ou troca pra RS256 usando a chave pública como segredo HMAC).
+- **Timeouts de 10s configurados** nos clients HTTP de e-mail (Resend) e push (FCM) — nenhuma chamada externa sem timeout.
+- **22/22 migrations pareadas** (up/down), numeração sequencial sem lacunas.
+- **CORS com `AllowCredentials: false`** — seguro dado que a autenticação é 100% via bearer token, nunca cookie (o alerta do apêndice estático sobre isso continua válido como vigilância futura, não como achado atual).
+
+## Resumo consolidado (2026-07-02 + 2026-07-03 + 2026-07-05)
+
+| Data | P0 | P1 | P2 | P3 |
+|---|---|---|---|---|
+| 2026-07-02 (todos corrigidos) | 1 | 4 | 6 | 5 |
+| 2026-07-03 (corrigidos: 4 P1, 3 P2, 3 P3) | 0 | 4 | 4 | 4 |
+| 2026-07-05 (corrigidos: 1 P1, 4 P2, 4 P3; 1 P3 registrado sem correção) | 0 | 1 | 4 | 5 |
+
+**Prioridade mais urgente desta rodada:** o rate limit ausente em `/auth/login` (P1-1) — único ponto sem essa proteção entre os endpoints pré-auth, e o mais óbvio alvo de força bruta em qualquer sistema de autenticação. Já corrigido e confirmado ao vivo (6 tentativas em sequência bloqueadas a partir da 5ª).

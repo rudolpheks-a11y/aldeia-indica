@@ -319,10 +319,17 @@ func (h *AdminHandler) ListCommunities(w http.ResponseWriter, r *http.Request) {
 			City  string
 			State string
 		}
-		rows.Scan(&c.ID, &c.Name, &c.Slug, &c.City, &c.State)
+		if err := rows.Scan(&c.ID, &c.Name, &c.Slug, &c.City, &c.State); err != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 		list = append(list, map[string]any{
 			"id": c.ID, "name": c.Name, "slug": c.Slug, "city": c.City, "state": c.State,
 		})
+	}
+	if err := rows.Err(); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
 	}
 	if list == nil {
 		list = []map[string]any{}

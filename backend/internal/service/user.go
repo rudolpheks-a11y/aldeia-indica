@@ -13,8 +13,8 @@ import (
 )
 
 var (
-	ErrInvalidInvite  = errors.New("invalid or expired invite")
-	ErrOnlyResidents  = errors.New("only residents can create invites")
+	ErrInvalidInvite = errors.New("invalid or expired invite")
+	ErrOnlyResidents = errors.New("only residents can create invites")
 )
 
 type UserService struct {

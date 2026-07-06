@@ -276,10 +276,15 @@ func (s *AuthService) Refresh(ctx context.Context, rawToken string) (*TokenPair,
 		// already redeemed this token. Kill every other refresh token for
 		// this user so the legitimate session (and the attacker's) both
 		// have to log in again, instead of only the attacker staying valid.
-		_, _ = s.db.Exec(ctx,
+		if _, revokeErr := s.db.Exec(ctx,
 			`UPDATE refresh_tokens SET revoked_at = now() WHERE user_id = $1 AND revoked_at IS NULL`,
 			rt.UserID,
-		)
+		); revokeErr != nil {
+			// Não deixar a falha da contenção de segurança passar em
+			// silêncio — se isso não rodar, a sessão roubada continua
+			// válida sem que ninguém saiba.
+			return nil, fmt.Errorf("revoke token family after reuse detected: %w", revokeErr)
+		}
 		return nil, errors.New("refresh token expired or revoked")
 	}
 	if rt.ExpiresAt.Before(time.Now()) {

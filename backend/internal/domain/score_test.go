@@ -8,10 +8,10 @@ import (
 
 func TestCalculateScore(t *testing.T) {
 	tests := []struct {
-		name     string
-		stats    domain.ProviderStats
-		wantMin  float64
-		wantMax  float64
+		name    string
+		stats   domain.ProviderStats
+		wantMin float64
+		wantMax float64
 	}{
 		{
 			name: "perfect provider",

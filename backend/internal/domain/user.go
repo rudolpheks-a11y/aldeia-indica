@@ -10,9 +10,9 @@ type UserRole string
 type UserStatus string
 
 const (
-	RoleMorador  UserRole = "morador"
+	RoleMorador   UserRole = "morador"
 	RolePrestador UserRole = "prestador"
-	RoleAdmin    UserRole = "admin"
+	RoleAdmin     UserRole = "admin"
 
 	StatusPending   UserStatus = "pending"
 	StatusActive    UserStatus = "active"

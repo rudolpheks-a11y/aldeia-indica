@@ -24,16 +24,16 @@ type Conversation struct {
 }
 
 type Message struct {
-	ID             uuid.UUID   `json:"id"`
-	ConversationID uuid.UUID   `json:"conversation_id"`
-	SenderID       uuid.UUID   `json:"sender_id"`
-	Type           string      `json:"type"`
-	Body           *string     `json:"body,omitempty"`
-	MediaKey       *string     `json:"media_key,omitempty"`
-	Lat            *float64    `json:"lat,omitempty"`
-	Lng            *float64    `json:"lng,omitempty"`
-	ReadAt         *time.Time  `json:"read_at,omitempty"`
-	CreatedAt      time.Time   `json:"created_at"`
+	ID             uuid.UUID  `json:"id"`
+	ConversationID uuid.UUID  `json:"conversation_id"`
+	SenderID       uuid.UUID  `json:"sender_id"`
+	Type           string     `json:"type"`
+	Body           *string    `json:"body,omitempty"`
+	MediaKey       *string    `json:"media_key,omitempty"`
+	Lat            *float64   `json:"lat,omitempty"`
+	Lng            *float64   `json:"lng,omitempty"`
+	ReadAt         *time.Time `json:"read_at,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
 }
 
 // WSMessage is the JSON frame sent over WebSocket.

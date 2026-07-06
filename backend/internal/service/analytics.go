@@ -64,13 +64,18 @@ func (s *AnalyticsService) DashboardSummary(ctx context.Context, communityID, pr
 	for rows.Next() {
 		var evType string
 		var count int
-		rows.Scan(&evType, &count)
+		if err := rows.Scan(&evType, &count); err != nil {
+			return nil, err
+		}
 		switch evType {
 		case EventProfileView:
 			stats.ViewCount30d = count
 		case EventContactInitiated:
 			stats.ContactCount30d = count
 		}
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
 	}
 
 	// Category rank: position of this provider sorted by score within their primary category

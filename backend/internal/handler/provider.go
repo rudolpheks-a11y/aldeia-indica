@@ -13,7 +13,7 @@ import (
 )
 
 type ProviderHandler struct {
-	svc      *service.ProviderService
+	svc       *service.ProviderService
 	analytics *service.AnalyticsService
 }
 

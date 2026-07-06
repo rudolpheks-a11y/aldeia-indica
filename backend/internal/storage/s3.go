@@ -81,10 +81,3 @@ func (c *S3Client) PresignPut(ctx context.Context, objectKey string, isPrivate b
 		ExpiresIn: 900,
 	}, nil
 }
-
-func (c *S3Client) PublicURL(objectKey string) string {
-	if c.baseURL != "" {
-		return c.baseURL + "/" + objectKey
-	}
-	return fmt.Sprintf("https://%s.s3.amazonaws.com/%s", c.publicBucket, objectKey)
-}

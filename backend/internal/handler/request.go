@@ -57,12 +57,19 @@ func (h *RequestHandler) List(w http.ResponseWriter, r *http.Request) {
 		var desiredDate *time.Time
 		var status string
 		var createdAt time.Time
-		rows.Scan(&id, &requester, &category, &title, &description, &desiredDate, &status, &createdAt)
+		if err := rows.Scan(&id, &requester, &category, &title, &description, &desiredDate, &status, &createdAt); err != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 		result = append(result, map[string]any{
 			"id": id, "requester": requester, "category": category,
 			"title": title, "description": description,
 			"desired_date": desiredDate, "status": status, "created_at": createdAt,
 		})
+	}
+	if err := rows.Err(); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
 	}
 	if result == nil {
 		result = []map[string]any{}
@@ -149,8 +156,8 @@ func (h *RequestHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 
 	tag, err := h.db.Exec(r.Context(),
 		`UPDATE service_requests SET status=$1, updated_at=now()
-		 WHERE id=$2 AND requester_id=$3`,
-		in.Status, requestID, claims.UserID,
+		 WHERE id=$2 AND requester_id=$3 AND community_id=$4`,
+		in.Status, requestID, claims.UserID, claims.CommunityID,
 	)
 	if err != nil {
 		jsonError(w, "invalid status", http.StatusBadRequest)
@@ -221,8 +228,18 @@ func (h *RequestHandler) ListResponses(w http.ResponseWriter, r *http.Request) {
 	for rows.Next() {
 		var name, msg string
 		var t time.Time
-		rows.Scan(&name, &msg, &t)
+		if err := rows.Scan(&name, &msg, &t); err != nil {
+			jsonError(w, "internal error", http.StatusInternalServerError)
+			return
+		}
 		result = append(result, map[string]any{"provider": name, "message": msg, "created_at": t})
+	}
+	if err := rows.Err(); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if result == nil {
+		result = []map[string]any{}
 	}
 	jsonOK(w, result)
 }

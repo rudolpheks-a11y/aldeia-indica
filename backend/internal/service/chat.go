@@ -72,13 +72,13 @@ func (s *ChatService) GetOrCreateConversation(ctx context.Context, communityID, 
 }
 
 type ConversationSummary struct {
-	ID           uuid.UUID  `json:"id"`
-	OtherUserID  uuid.UUID  `json:"other_user_id"`
-	OtherName    string     `json:"other_name"`
-	OtherAvatar  *string    `json:"other_avatar"`
-	LastBody     *string    `json:"last_body"`
-	LastAt       *time.Time `json:"last_at"`
-	UnreadCount  int        `json:"unread_count"`
+	ID          uuid.UUID  `json:"id"`
+	OtherUserID uuid.UUID  `json:"other_user_id"`
+	OtherName   string     `json:"other_name"`
+	OtherAvatar *string    `json:"other_avatar"`
+	LastBody    *string    `json:"last_body"`
+	LastAt      *time.Time `json:"last_at"`
+	UnreadCount int        `json:"unread_count"`
 }
 
 func (s *ChatService) ListConversations(ctx context.Context, communityID, userID uuid.UUID) ([]ConversationSummary, error) {
@@ -183,7 +183,9 @@ func (s *ChatService) GetDeviceTokens(ctx context.Context, userID uuid.UUID) ([]
 	var tokens []string
 	for rows.Next() {
 		var t string
-		rows.Scan(&t)
+		if err := rows.Scan(&t); err != nil {
+			return nil, err
+		}
 		tokens = append(tokens, t)
 	}
 	return tokens, rows.Err()

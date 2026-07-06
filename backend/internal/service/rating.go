@@ -81,15 +81,15 @@ func (s *RatingService) Create(ctx context.Context, in CreateRatingInput) error 
 }
 
 type RatingRow struct {
-	ID          uuid.UUID  `json:"id"`
-	RaterName   string     `json:"rater_name"`
-	Quality     int        `json:"quality"`
-	Punctuality int        `json:"punctuality"`
-	Politeness  int        `json:"politeness"`
-	Reliability int        `json:"reliability"`
-	Overall     float64    `json:"overall"`
-	Comment     *string    `json:"comment"`
-	CreatedAt   time.Time  `json:"created_at"`
+	ID          uuid.UUID `json:"id"`
+	RaterName   string    `json:"rater_name"`
+	Quality     int       `json:"quality"`
+	Punctuality int       `json:"punctuality"`
+	Politeness  int       `json:"politeness"`
+	Reliability int       `json:"reliability"`
+	Overall     float64   `json:"overall"`
+	Comment     *string   `json:"comment"`
+	CreatedAt   time.Time `json:"created_at"`
 }
 
 func (s *RatingService) ListByProvider(ctx context.Context, communityID, providerID uuid.UUID, page, limit int) ([]RatingRow, error) {
