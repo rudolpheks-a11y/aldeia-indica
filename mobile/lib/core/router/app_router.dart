@@ -43,7 +43,8 @@ final routerProvider = Provider<GoRouter>((ref) {
               state.matchedLocation == '/home') {
             return '/admin';
           }
-        } else if (state.matchedLocation.startsWith('/admin')) {
+        } else if (state.matchedLocation == '/login' ||
+            state.matchedLocation.startsWith('/admin')) {
           return '/home';
         }
         return null;
