@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
+import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
 
 class RequestsFeedScreen extends ConsumerStatefulWidget {
@@ -25,6 +26,8 @@ class _RequestsFeedScreenState extends ConsumerState<RequestsFeedScreen> {
   @override
   Widget build(BuildContext context) {
     final requests = ref.watch(_requestsProvider);
+    final auth = ref.watch(authProvider).valueOrNull;
+    final myUserId = auth is AuthAuthenticated ? auth.userId : null;
 
     return Scaffold(
       appBar: AppBar(leading: const AppBackButton(), title: const Text('Pedidos de Serviço')),
@@ -46,6 +49,8 @@ class _RequestsFeedScreenState extends ConsumerState<RequestsFeedScreen> {
                 itemCount: list.length,
                 itemBuilder: (_, i) {
                   final req = list[i];
+                  final isMine = myUserId != null && req['requester_id'] == myUserId;
+                  final responseCount = req['response_count'] as int? ?? 0;
                   return Card(
                     margin: const EdgeInsets.only(bottom: 8),
                     child: ListTile(
@@ -60,7 +65,27 @@ class _RequestsFeedScreenState extends ConsumerState<RequestsFeedScreen> {
                           Text(req['requester'] as String? ?? ''),
                         ],
                       ),
-                      trailing: const Icon(Icons.chevron_right),
+                      trailing: isMine
+                          ? Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              children: [
+                                Text(
+                                  responseCount == 0
+                                      ? 'Sem respostas'
+                                      : '$responseCount ${responseCount == 1 ? 'resposta' : 'respostas'}',
+                                  style: TextStyle(
+                                    fontSize: 12,
+                                    fontWeight: FontWeight.w600,
+                                    color: responseCount == 0
+                                        ? AppColors.textSecondary
+                                        : AppColors.primary,
+                                  ),
+                                ),
+                                const Icon(Icons.chevron_right),
+                              ],
+                            )
+                          : const Icon(Icons.chevron_right),
+                      onTap: () => context.push('/requests/${req['id']}'),
                     ),
                   );
                 },

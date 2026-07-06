@@ -18,6 +18,7 @@ import '../../features/chat/presentation/conversations_screen.dart';
 import '../../features/chat/presentation/chat_screen.dart';
 import '../../features/service_requests/presentation/requests_feed_screen.dart';
 import '../../features/service_requests/presentation/create_request_screen.dart';
+import '../../features/service_requests/presentation/request_detail_screen.dart';
 import '../../features/dashboard/presentation/dashboard_screen.dart';
 import '../../features/admin/presentation/admin_dashboard_screen.dart';
 import '../../features/prestador/presentation/skills_screen.dart';
@@ -111,6 +112,10 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/requests/new',
           builder: (_, __) => const CreateRequestScreen()),
+      GoRoute(
+          path: '/requests/:id',
+          builder: (_, state) =>
+              RequestDetailScreen(requestId: state.pathParameters['id']!)),
       GoRoute(
           path: '/dashboard', builder: (_, __) => const DashboardScreen()),
       GoRoute(
