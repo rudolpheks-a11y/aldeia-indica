@@ -141,12 +141,6 @@ class _MoradorHomeState extends ConsumerState<_MoradorHome> {
                 onTap: () => context.push('/recommend'),
               ),
               _HomeTile(
-                icon: Icons.person_add_alt_1,
-                label: 'Cadastre um\nprestador',
-                color: AppColors.success,
-                onTap: () => context.push('/register/prestador'),
-              ),
-              _HomeTile(
                 icon: Icons.campaign_rounded,
                 label: 'Mural de\navisos',
                 color: AppColors.informational700,
