@@ -20,8 +20,8 @@ class AgendaScreen extends ConsumerStatefulWidget {
 }
 
 class _AgendaScreenState extends ConsumerState<AgendaScreen> {
-  // day_of_week → {start, end} — null means day is off
-  final Map<int, _DaySlot> _slots = {};
+  // day_of_week → lista de horários daquele dia; ausente/vazio = dia desativado
+  final Map<int, List<_DaySlot>> _slots = {};
   final _listCtrl = ScrollController();
   bool _loaded = false;
   bool _saving = false;
@@ -39,10 +39,10 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
     profileAsync.whenData((profile) {
       if (!_loaded) {
         for (final sl in profile.availability) {
-          _slots[sl.dayOfWeek] = _DaySlot(
-            start: _parseTime(sl.startTime),
-            end: _parseTime(sl.endTime),
-          );
+          _slots.putIfAbsent(sl.dayOfWeek, () => []).add(_DaySlot(
+                start: _parseTime(sl.startTime),
+                end: _parseTime(sl.endTime),
+              ));
         }
         _loaded = true;
       }
@@ -71,19 +71,30 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
                   const SizedBox(height: 16),
                   ...List.generate(7, (i) => _DayRow(
                     dayIndex: i,
-                    slot: _slots[i],
+                    daySlots: _slots[i] ?? const [],
                     onToggle: (enabled) => setState(() {
                       if (enabled) {
-                        _slots[i] = const _DaySlot(
-                          start: TimeOfDay(hour: 8, minute: 0),
-                          end: TimeOfDay(hour: 18, minute: 0),
-                        );
+                        _slots[i] = [
+                          const _DaySlot(
+                            start: TimeOfDay(hour: 8, minute: 0),
+                            end: TimeOfDay(hour: 18, minute: 0),
+                          ),
+                        ];
                       } else {
                         _slots.remove(i);
                       }
                     }),
-                    onPickStart: () => _pickTime(i, isStart: true),
-                    onPickEnd: () => _pickTime(i, isStart: false),
+                    onAddSlot: () => setState(() {
+                      _slots[i]!.add(const _DaySlot(
+                        start: TimeOfDay(hour: 8, minute: 0),
+                        end: TimeOfDay(hour: 18, minute: 0),
+                      ));
+                    }),
+                    onRemoveSlot: (slotIndex) => setState(() {
+                      _slots[i]!.removeAt(slotIndex);
+                    }),
+                    onPickStart: (slotIndex) => _pickTime(i, slotIndex, isStart: true),
+                    onPickEnd: (slotIndex) => _pickTime(i, slotIndex, isStart: false),
                   )),
                   const SizedBox(height: 24),
                 ],
@@ -108,9 +119,10 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
     );
   }
 
-  Future<void> _pickTime(int dayIndex, {required bool isStart}) async {
-    final current = _slots[dayIndex];
-    if (current == null) return;
+  Future<void> _pickTime(int dayIndex, int slotIndex, {required bool isStart}) async {
+    final daySlots = _slots[dayIndex];
+    if (daySlots == null || slotIndex >= daySlots.length) return;
+    final current = daySlots[slotIndex];
 
     final picked = await showTimePicker(
       context: context,
@@ -123,36 +135,54 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
     if (picked == null) return;
 
     setState(() {
-      _slots[dayIndex] = isStart
+      daySlots[slotIndex] = isStart
           ? current.copyWith(start: picked)
           : current.copyWith(end: picked);
     });
   }
 
   Future<void> _save() async {
-    // Validate: end must be after start
+    // Valida cada horário e evita sobreposição entre horários do mesmo dia
     for (final entry in _slots.entries) {
-      final sl = entry.value;
-      final startMins = sl.start.hour * 60 + sl.start.minute;
-      final endMins = sl.end.hour * 60 + sl.end.minute;
-      if (endMins <= startMins) {
-        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text(
-              'Horário inválido em ${_dayFullNames[entry.key]}: o fim deve ser após o início.'),
-          backgroundColor: AppColors.error900,
-        ));
-        return;
+      final daySlots = entry.value;
+      for (final sl in daySlots) {
+        final startMins = sl.start.hour * 60 + sl.start.minute;
+        final endMins = sl.end.hour * 60 + sl.end.minute;
+        if (endMins <= startMins) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Horário inválido em ${_dayFullNames[entry.key]}: o fim deve ser após o início.'),
+            backgroundColor: AppColors.error900,
+          ));
+          return;
+        }
+      }
+
+      final sorted = [...daySlots]
+        ..sort((a, b) =>
+            (a.start.hour * 60 + a.start.minute).compareTo(b.start.hour * 60 + b.start.minute));
+      for (var i = 1; i < sorted.length; i++) {
+        final prevEnd = sorted[i - 1].end.hour * 60 + sorted[i - 1].end.minute;
+        final curStart = sorted[i].start.hour * 60 + sorted[i].start.minute;
+        if (curStart < prevEnd) {
+          ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text(
+                'Horários sobrepostos em ${_dayFullNames[entry.key]}. Ajuste os intervalos.'),
+            backgroundColor: AppColors.error900,
+          ));
+          return;
+        }
       }
     }
 
     setState(() => _saving = true);
     try {
       final slots = _slots.entries
-          .map((e) => AvailabilitySlot(
+          .expand((e) => e.value.map((sl) => AvailabilitySlot(
                 dayOfWeek: e.key,
-                startTime: _formatTime(e.value.start),
-                endTime: _formatTime(e.value.end),
-              ))
+                startTime: _formatTime(sl.start),
+                endTime: _formatTime(sl.end),
+              )))
           .toList()
         ..sort((a, b) => a.dayOfWeek.compareTo(b.dayOfWeek));
 
@@ -198,22 +228,26 @@ class _DaySlot {
 
 class _DayRow extends StatelessWidget {
   final int dayIndex;
-  final _DaySlot? slot;
+  final List<_DaySlot> daySlots;
   final ValueChanged<bool> onToggle;
-  final VoidCallback onPickStart;
-  final VoidCallback onPickEnd;
+  final VoidCallback onAddSlot;
+  final ValueChanged<int> onRemoveSlot;
+  final ValueChanged<int> onPickStart;
+  final ValueChanged<int> onPickEnd;
 
   const _DayRow({
     required this.dayIndex,
-    required this.slot,
+    required this.daySlots,
     required this.onToggle,
+    required this.onAddSlot,
+    required this.onRemoveSlot,
     required this.onPickStart,
     required this.onPickEnd,
   });
 
   @override
   Widget build(BuildContext context) {
-    final enabled = slot != null;
+    final enabled = daySlots.isNotEmpty;
 
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
@@ -259,28 +293,53 @@ class _DayRow extends StatelessWidget {
               ],
             ),
             if (enabled) ...[
-              const SizedBox(height: 4),
-              Row(
-                children: [
-                  const Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
-                  const SizedBox(width: 6),
-                  const Text('Das', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
-                  const SizedBox(width: 8),
-                  _TimeButton(
-                    time: slot!.start,
-                    onTap: onPickStart,
+              for (var i = 0; i < daySlots.length; i++)
+                Padding(
+                  padding: const EdgeInsets.only(bottom: 4),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.access_time, size: 16, color: AppColors.textSecondary),
+                      const SizedBox(width: 6),
+                      const Text('Das', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                      const SizedBox(width: 8),
+                      _TimeButton(
+                        time: daySlots[i].start,
+                        onTap: () => onPickStart(i),
+                      ),
+                      const Padding(
+                        padding: EdgeInsets.symmetric(horizontal: 8),
+                        child: Text('às', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                      ),
+                      _TimeButton(
+                        time: daySlots[i].end,
+                        onTap: () => onPickEnd(i),
+                      ),
+                      if (daySlots.length > 1) ...[
+                        const Spacer(),
+                        IconButton(
+                          icon: const Icon(Icons.close, size: 18),
+                          color: Colors.grey[600],
+                          visualDensity: VisualDensity.compact,
+                          onPressed: () => onRemoveSlot(i),
+                        ),
+                      ],
+                    ],
                   ),
-                  const Padding(
-                    padding: EdgeInsets.symmetric(horizontal: 8),
-                    child: Text('às', style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+                ),
+              Padding(
+                padding: const EdgeInsets.only(bottom: 8),
+                child: TextButton.icon(
+                  onPressed: onAddSlot,
+                  icon: const Icon(Icons.add, size: 18),
+                  label: const Text('Adicionar horário'),
+                  style: TextButton.styleFrom(
+                    padding: const EdgeInsets.symmetric(horizontal: 4),
+                    minimumSize: Size.zero,
+                    tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                    foregroundColor: AppColors.primary,
                   ),
-                  _TimeButton(
-                    time: slot!.end,
-                    onTap: onPickEnd,
-                  ),
-                ],
+                ),
               ),
-              const SizedBox(height: 8),
             ],
           ],
         ),

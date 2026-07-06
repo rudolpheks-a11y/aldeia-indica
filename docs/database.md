@@ -24,6 +24,11 @@ Numeradas sequencialmente em `backend/migrations/`. Rodar via `make migrate-up`.
 | 000016 | `messages`: colunas `media_key`, `lat`, `lng` |
 | 000017 | `bulletin_posts` (mural de avisos, com aprovação admin) |
 | 000018 | índices `provider_services(provider_id)` e `service_request_responses(request_id)` |
+| 000019 | `provider_hires` |
+| 000020 | remove aprovação de documentos do prestador |
+| 000021 | remove `approval_votes` |
+| 000022 | remove rastreamento de contratação (`provider_hires`, `total_hires`) |
+| 000023 | `provider_availability`: troca `UNIQUE(provider_id, day_of_week)` por `UNIQUE(provider_id, day_of_week, start_time)` — permite múltiplos horários no mesmo dia |
 
 ## Regras do schema
 
@@ -32,7 +37,7 @@ Numeradas sequencialmente em `backend/migrations/`. Rodar via `make migrate-up`.
 - `conversations`: `CHECK (participant_a < participant_b)` — par canônico, evita duplicatas.
 - `ratings`: `UNIQUE(community_id, provider_id, rater_id)` — um morador avalia um prestador uma vez.
 - `recommendations`: `UNIQUE(community_id, provider_id, recommender_id)` — idem.
-- `provider_availability`: `UNIQUE(provider_id, day_of_week)` — um slot por dia.
+- `provider_availability`: `UNIQUE(provider_id, day_of_week, start_time)` — permite múltiplos horários no mesmo dia, desde que não comecem no mesmo horário (migration 000023).
 
 ## Score Aldeia
 

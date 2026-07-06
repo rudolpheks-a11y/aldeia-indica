@@ -1,0 +1,3 @@
+ALTER TABLE provider_availability DROP CONSTRAINT provider_availability_provider_id_day_of_week_start_time_key;
+ALTER TABLE provider_availability ADD CONSTRAINT provider_availability_provider_id_day_of_week_key
+    UNIQUE (provider_id, day_of_week);
