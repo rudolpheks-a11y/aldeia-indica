@@ -32,6 +32,7 @@ Numeradas sequencialmente em `backend/migrations/`. Rodar via `make migrate-up`.
 | 000024 | remove `provider_photos` ("Trabalhos realizados" — nunca teve tela de upload) |
 | 000025 | `notifications` (in-app: resposta a pedido, avaliação recebida, indicação recebida) |
 | 000026 | `provider_questions` + `provider_question_answers` (perguntas públicas no perfil do prestador) |
+| 000027 | `provider_favorites` (morador salva prestador para ver depois) |
 
 ## Regras do schema
 

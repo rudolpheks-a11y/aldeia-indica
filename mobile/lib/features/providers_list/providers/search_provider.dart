@@ -120,6 +120,15 @@ final featuredProvidersProvider =
       .toList();
 });
 
+final favoriteProvidersProvider =
+    FutureProvider<List<ProviderSummary>>((ref) async {
+  final api = ref.watch(apiClientProvider);
+  final resp = await api.get(ApiEndpoints.favorites);
+  return (resp.data as List<dynamic>)
+      .map((e) => ProviderSummary.fromJson(e as Map<String, dynamic>))
+      .toList();
+});
+
 class ServiceCategory {
   final String slug;
   final String namePt;

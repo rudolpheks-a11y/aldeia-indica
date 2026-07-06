@@ -164,6 +164,12 @@ class _MoradorHomeState extends ConsumerState<_MoradorHome> {
                 color: AppColors.secondary700,
                 onTap: () => context.push('/requests'),
               ),
+              _HomeTile(
+                icon: Icons.favorite_rounded,
+                label: 'Favoritos',
+                color: AppColors.veteran900,
+                onTap: () => context.push('/favorites'),
+              ),
             ],
           ),
           const SizedBox(height: 32),

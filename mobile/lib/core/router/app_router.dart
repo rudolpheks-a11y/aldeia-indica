@@ -10,6 +10,7 @@ import '../../features/approvals/presentation/pending_approval_screen.dart';
 import '../../features/home/presentation/home_screen.dart';
 import '../../features/providers_list/presentation/search_screen.dart';
 import '../../features/providers_list/presentation/service_picker_screen.dart';
+import '../../features/providers_list/presentation/favorites_screen.dart';
 import '../../features/recommendations/presentation/recommend_select_screen.dart';
 import '../../features/recommendations/presentation/recommend_provider_screen.dart';
 import '../../features/provider_profile/presentation/profile_screen.dart';
@@ -137,6 +138,9 @@ final routerProvider = Provider<GoRouter>((ref) {
       GoRoute(
           path: '/notifications',
           builder: (_, __) => const NotificationsScreen()),
+      GoRoute(
+          path: '/favorites',
+          builder: (_, __) => const FavoritesScreen()),
     ],
   );
 });

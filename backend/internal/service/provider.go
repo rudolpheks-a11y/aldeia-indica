@@ -427,9 +427,10 @@ type ProviderDetail struct {
 	TransportType   *string            `json:"transport_type"`
 	CategorySlugs   []string           `json:"category_slugs"`
 	Availability    []AvailabilitySlot `json:"availability"`
+	IsFavorited     bool               `json:"is_favorited"`
 }
 
-func (s *ProviderService) Get(ctx context.Context, communityID, providerID uuid.UUID) (*ProviderDetail, error) {
+func (s *ProviderService) Get(ctx context.Context, communityID, providerID, viewerID uuid.UUID) (*ProviderDetail, error) {
 	var d ProviderDetail
 	err := s.db.QueryRow(ctx,
 		`SELECT u.id, u.full_name, u.avatar_key,
@@ -455,11 +456,78 @@ func (s *ProviderService) Get(ctx context.Context, communityID, providerID uuid.
 	d.CategorySlugs = s.getCategorySlugs(ctx, providerID)
 	d.Availability = s.getAvailability(ctx, providerID)
 	d.Seals = s.computeSeals(ctx, providerID, d.RecommendationCount, d.AvgRating, d.TotalClients)
+	_ = s.db.QueryRow(ctx,
+		`SELECT EXISTS (SELECT 1 FROM provider_favorites WHERE community_id=$1 AND morador_id=$2 AND provider_id=$3)`,
+		communityID, viewerID, providerID,
+	).Scan(&d.IsFavorited)
 	return &d, nil
 }
 
 func (s *ProviderService) GetMe(ctx context.Context, communityID, userID uuid.UUID) (*ProviderDetail, error) {
-	return s.Get(ctx, communityID, userID)
+	return s.Get(ctx, communityID, userID, userID)
+}
+
+var ErrCannotFavoriteSelf = errors.New("cannot favorite yourself")
+
+func (s *ProviderService) Favorite(ctx context.Context, communityID, moradorID, providerID uuid.UUID) error {
+	if moradorID == providerID {
+		return ErrCannotFavoriteSelf
+	}
+	_, err := s.db.Exec(ctx,
+		`INSERT INTO provider_favorites (community_id, morador_id, provider_id)
+		 SELECT $1, $2, pp.user_id FROM provider_profiles pp
+		 WHERE pp.user_id=$3 AND pp.community_id=$1
+		 ON CONFLICT (community_id, morador_id, provider_id) DO NOTHING`,
+		communityID, moradorID, providerID,
+	)
+	return err
+}
+
+func (s *ProviderService) Unfavorite(ctx context.Context, communityID, moradorID, providerID uuid.UUID) error {
+	_, err := s.db.Exec(ctx,
+		`DELETE FROM provider_favorites WHERE community_id=$1 AND morador_id=$2 AND provider_id=$3`,
+		communityID, moradorID, providerID,
+	)
+	return err
+}
+
+func (s *ProviderService) ListFavorites(ctx context.Context, communityID, moradorID uuid.UUID) ([]ProviderSummary, error) {
+	rows, err := s.db.Query(ctx,
+		`SELECT u.id, u.full_name, u.avatar_key,
+		        pp.city, pp.years_in_neighborhood, pp.score_aldeia,
+		        pp.avg_rating, pp.recommendation_count
+		 FROM provider_favorites pf
+		 JOIN provider_profiles pp ON pp.user_id = pf.provider_id AND pp.community_id = pf.community_id
+		 JOIN users u ON u.id = pp.user_id
+		 WHERE pf.community_id=$1 AND pf.morador_id=$2
+		 ORDER BY pf.created_at DESC`,
+		communityID, moradorID,
+	)
+	if err != nil {
+		return nil, err
+	}
+	defer rows.Close()
+
+	var results []ProviderSummary
+	for rows.Next() {
+		var p ProviderSummary
+		if err := rows.Scan(
+			&p.UserID, &p.FullName, &p.AvatarKey,
+			&p.City, &p.YearsInNeighborhood, &p.ScoreAldeia,
+			&p.AvgRating, &p.RecommendationCount,
+		); err != nil {
+			return nil, err
+		}
+		results = append(results, p)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+
+	if err := s.attachExtras(ctx, results); err != nil {
+		return nil, err
+	}
+	return results, nil
 }
 
 // RatingSummary é o que o prestador pode ver sobre suas próprias avaliações.

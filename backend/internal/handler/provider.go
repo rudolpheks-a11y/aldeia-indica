@@ -84,7 +84,7 @@ func (h *ProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	detail, err := h.svc.Get(r.Context(), claims.CommunityID, providerID)
+	detail, err := h.svc.Get(r.Context(), claims.CommunityID, providerID, claims.UserID)
 	if err != nil {
 		jsonError(w, "not found", http.StatusNotFound)
 		return
@@ -95,6 +95,51 @@ func (h *ProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 	go h.analytics.RecordEvent(r.Context(), claims.CommunityID, providerID, &actorID, service.EventProfileView)
 
 	jsonOK(w, detail)
+}
+
+func (h *ProviderHandler) Favorite(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
+	providerID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	if err := h.svc.Favorite(r.Context(), claims.CommunityID, claims.UserID, providerID); err != nil {
+		if errors.Is(err, service.ErrCannotFavoriteSelf) {
+			jsonError(w, "cannot favorite yourself", http.StatusForbidden)
+			return
+		}
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ProviderHandler) Unfavorite(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
+	providerID, err := uuid.Parse(chi.URLParam(r, "id"))
+	if err != nil {
+		jsonError(w, "invalid id", http.StatusBadRequest)
+		return
+	}
+	if err := h.svc.Unfavorite(r.Context(), claims.CommunityID, claims.UserID, providerID); err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	w.WriteHeader(http.StatusNoContent)
+}
+
+func (h *ProviderHandler) ListFavorites(w http.ResponseWriter, r *http.Request) {
+	claims, _ := middleware.ClaimsFrom(r.Context())
+	results, err := h.svc.ListFavorites(r.Context(), claims.CommunityID, claims.UserID)
+	if err != nil {
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if results == nil {
+		results = []service.ProviderSummary{}
+	}
+	jsonOK(w, results)
 }
 
 func (h *ProviderHandler) GetMe(w http.ResponseWriter, r *http.Request) {

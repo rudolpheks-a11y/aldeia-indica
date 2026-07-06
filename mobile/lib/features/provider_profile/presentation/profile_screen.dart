@@ -50,7 +50,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              _Header(p: p),
+              _Header(p: p, providerId: providerId, isSelf: isSelf),
               _Seals(p: p),
               const Divider(),
               _InfoSection(p: p),
@@ -75,12 +75,46 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
   }
 }
 
-class _Header extends StatelessWidget {
+class _Header extends ConsumerStatefulWidget {
   final Map<String, dynamic> p;
-  const _Header({required this.p});
+  final String providerId;
+  final bool isSelf;
+  const _Header(
+      {required this.p, required this.providerId, required this.isSelf});
+
+  @override
+  ConsumerState<_Header> createState() => _HeaderState();
+}
+
+class _HeaderState extends ConsumerState<_Header> {
+  bool _toggling = false;
+
+  Future<void> _toggleFavorite(bool isFavorited) async {
+    setState(() => _toggling = true);
+    try {
+      final api = ref.read(apiClientProvider);
+      final endpoint = ApiEndpoints.favoriteProvider(widget.providerId);
+      if (isFavorited) {
+        await api.delete(endpoint);
+      } else {
+        await api.post(endpoint);
+      }
+      ref.invalidate(providerProfileProvider(widget.providerId));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error900),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _toggling = false);
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final p = widget.p;
+    final isFavorited = p['is_favorited'] == true;
     return Padding(
       padding: const EdgeInsets.all(16),
       child: Row(
@@ -113,6 +147,15 @@ class _Header extends StatelessWidget {
               ],
             ),
           ),
+          if (!widget.isSelf)
+            IconButton(
+              tooltip: isFavorited ? 'Remover dos favoritos' : 'Favoritar',
+              onPressed: _toggling ? null : () => _toggleFavorite(isFavorited),
+              icon: Icon(
+                isFavorited ? Icons.favorite : Icons.favorite_border,
+                color: isFavorited ? AppColors.error900 : AppColors.textSecondary,
+              ),
+            ),
           ScoreBadge(score: (p['score_aldeia'] as num).toDouble()),
         ],
       ),
