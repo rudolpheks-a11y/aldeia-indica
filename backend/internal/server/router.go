@@ -30,6 +30,7 @@ func NewRouter(
 	chatH *handler.ChatHandler,
 	bulletinH *handler.BulletinHandler,
 	notifH *handler.NotificationHandler,
+	questionH *handler.QuestionHandler,
 	wsH *ws.Handler,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -85,6 +86,9 @@ func NewRouter(
 			r.Put("/providers/me/availability", providerH.UpdateMyAvailability)
 			r.Get("/providers/{id}", providerH.Get)
 			r.Put("/providers/me", providerH.UpdateMe)
+			r.Get("/providers/{id}/questions", questionH.List)
+			r.Post("/providers/{id}/questions", questionH.Ask)
+			r.Post("/providers/{id}/questions/{qid}/answers", questionH.Answer)
 			r.Get("/dashboard/summary", providerH.Dashboard)
 
 			// Mural de avisos (apenas moradores lêem e postam)

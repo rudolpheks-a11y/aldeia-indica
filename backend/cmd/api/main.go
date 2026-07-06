@@ -75,13 +75,14 @@ func main() {
 	chatH := handler.NewChatHandler(chatSvc, analyticsSvc)
 	bulletinH := handler.NewBulletinHandler(bulletinSvc)
 	notifH := handler.NewNotificationHandler(notifSvc)
+	questionH := handler.NewQuestionHandler(db, notifSvc)
 	wsH := ws.NewHandler(hub, chatSvc, fcmClient, j, log)
 
 	router := server.NewRouter(
 		log, j,
 		authH, providerH, ratingH, recH,
 		approvalH, requestH, uploadH, adminH, categoryH,
-		chatH, bulletinH, notifH, wsH,
+		chatH, bulletinH, notifH, questionH, wsH,
 	)
 
 	srv := server.New(cfg.Port, router)

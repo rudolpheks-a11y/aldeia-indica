@@ -6,6 +6,7 @@ import '../../../shared/widgets/star_rating_bar.dart';
 import '../../../shared/widgets/score_badge.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../core/constants/api_endpoints.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/profile_provider.dart';
 
@@ -57,6 +58,8 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               _Categories(p: p),
               const Divider(),
               _Availability(p: p),
+              const Divider(),
+              _Questions(providerId: providerId, isSelf: isSelf),
               const Divider(),
               _RecommendedBy(providerId: providerId),
               const Divider(),
@@ -292,6 +295,179 @@ class _Availability extends StatelessWidget {
                 ),
               );
             }).toList(),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+final _questionsProvider =
+    FutureProvider.family<List<Map<String, dynamic>>, String>((ref, id) async {
+  final api = ref.watch(apiClientProvider);
+  final resp = await api.get(ApiEndpoints.providerQuestions(id));
+  return (resp.data as List<dynamic>).cast<Map<String, dynamic>>();
+});
+
+class _Questions extends ConsumerStatefulWidget {
+  final String providerId;
+  final bool isSelf;
+  const _Questions({required this.providerId, required this.isSelf});
+
+  @override
+  ConsumerState<_Questions> createState() => _QuestionsState();
+}
+
+class _QuestionsState extends ConsumerState<_Questions> {
+  Future<void> _askDialog() async {
+    final ctrl = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Fazer uma pergunta'),
+        content: TextField(
+          controller: ctrl,
+          maxLines: 3,
+          autofocus: true,
+          decoration: const InputDecoration(
+              hintText: 'Ex: Atende aos finais de semana?'),
+        ),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+              child: const Text('Enviar')),
+        ],
+      ),
+    );
+    if (result == null || result.isEmpty || !mounted) return;
+    try {
+      await ref.read(apiClientProvider).post(
+        ApiEndpoints.providerQuestions(widget.providerId),
+        data: {'question': result},
+      );
+      ref.invalidate(_questionsProvider(widget.providerId));
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Pergunta enviada!')));
+      }
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Erro ao enviar: $e'),
+            backgroundColor: AppColors.error900));
+      }
+    }
+  }
+
+  Future<void> _answerDialog(String questionId) async {
+    final ctrl = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Responder'),
+        content:
+            TextField(controller: ctrl, maxLines: 3, autofocus: true),
+        actions: [
+          TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancelar')),
+          TextButton(
+              onPressed: () => Navigator.pop(ctx, ctrl.text.trim()),
+              child: const Text('Enviar')),
+        ],
+      ),
+    );
+    if (result == null || result.isEmpty || !mounted) return;
+    try {
+      await ref.read(apiClientProvider).post(
+        ApiEndpoints.providerQuestionAnswers(widget.providerId, questionId),
+        data: {'answer': result},
+      );
+      ref.invalidate(_questionsProvider(widget.providerId));
+    } catch (e) {
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(SnackBar(
+            content: Text('Erro ao responder: $e'),
+            backgroundColor: AppColors.error900));
+      }
+    }
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final questions = ref.watch(_questionsProvider(widget.providerId));
+
+    return Padding(
+      padding: const EdgeInsets.all(16),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              const Text('Perguntas',
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+              const Spacer(),
+              if (!widget.isSelf)
+                TextButton.icon(
+                  icon: const Icon(Icons.add_comment_outlined, size: 18),
+                  label: const Text('Perguntar'),
+                  onPressed: _askDialog,
+                ),
+            ],
+          ),
+          const SizedBox(height: 8),
+          questions.when(
+            loading: () => const Center(child: CircularProgressIndicator()),
+            error: (e, _) => Text('Erro: $e'),
+            data: (list) => list.isEmpty
+                ? const Text('Nenhuma pergunta ainda.',
+                    style: TextStyle(color: AppColors.textSecondary))
+                : Column(
+                    children: list.map((q) {
+                      final answers =
+                          (q['answers'] as List<dynamic>? ?? [])
+                              .cast<Map<String, dynamic>>();
+                      return Card(
+                        margin: const EdgeInsets.only(bottom: 8),
+                        child: Padding(
+                          padding: const EdgeInsets.all(12),
+                          child: Column(
+                            crossAxisAlignment: CrossAxisAlignment.start,
+                            children: [
+                              Text('${q['asker']} perguntou:',
+                                  style: const TextStyle(
+                                      fontSize: 12,
+                                      color: AppColors.textSecondary)),
+                              const SizedBox(height: 2),
+                              Text(q['question'] as String? ?? '',
+                                  style: const TextStyle(
+                                      fontWeight: FontWeight.w600)),
+                              for (final a in answers) ...[
+                                const Divider(height: 20),
+                                Text('${a['responder']} respondeu:',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        color: AppColors.textSecondary)),
+                                const SizedBox(height: 2),
+                                Text(a['answer'] as String? ?? ''),
+                              ],
+                              Align(
+                                alignment: Alignment.centerRight,
+                                child: TextButton(
+                                  onPressed: () =>
+                                      _answerDialog(q['id'] as String),
+                                  child: const Text('Responder'),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                      );
+                    }).toList(),
+                  ),
           ),
         ],
       ),

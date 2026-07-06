@@ -46,6 +46,12 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
       case 'recommendation_received':
         context.push('/dashboard');
         break;
+      case 'question_received':
+        final auth = ref.read(authProvider).valueOrNull;
+        if (auth is AuthAuthenticated) {
+          context.push('/provider/${auth.userId}');
+        }
+        break;
     }
   }
 
@@ -53,6 +59,8 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
     switch (type) {
       case 'request_response':
         return Icons.assignment_rounded;
+      case 'question_received':
+        return Icons.help_rounded;
       case 'rating_received':
         return Icons.star_rounded;
       case 'recommendation_received':
