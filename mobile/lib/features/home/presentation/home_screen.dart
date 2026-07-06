@@ -58,7 +58,10 @@ class HomeScreen extends ConsumerWidget {
       ),
       body: SafeArea(
         child: isPrestador
-            ? _PrestadorHome(context: context)
+            ? _PrestadorHome(
+                context: context,
+                providerId: auth.userId,
+              )
             : _MoradorHome(context: context),
       ),
     );
@@ -259,7 +262,8 @@ class _MoradorHomeState extends ConsumerState<_MoradorHome> {
 
 class _PrestadorHome extends StatefulWidget {
   final BuildContext context;
-  const _PrestadorHome({required this.context});
+  final String providerId;
+  const _PrestadorHome({required this.context, required this.providerId});
 
   @override
   State<_PrestadorHome> createState() => _PrestadorHomeState();
@@ -322,6 +326,12 @@ class _PrestadorHomeState extends State<_PrestadorHome> {
                   label: 'Meu\npainel',
                   color: AppColors.accent,
                   onTap: () => context.push('/dashboard'),
+                ),
+                _HomeTile(
+                  icon: Icons.visibility_rounded,
+                  label: 'Ver meu perfil\npúblico',
+                  color: AppColors.informational700,
+                  onTap: () => context.push('/provider/${widget.providerId}'),
                 ),
               ],
             ),
