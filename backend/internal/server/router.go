@@ -84,8 +84,6 @@ func NewRouter(
 			r.Put("/providers/me/availability", providerH.UpdateMyAvailability)
 			r.Get("/providers/{id}", providerH.Get)
 			r.Put("/providers/me", providerH.UpdateMe)
-			r.Post("/providers/{id}/photos", providerH.AddPhoto)
-			r.Delete("/providers/{id}/photos/{photoID}", providerH.DeletePhoto)
 			r.Get("/dashboard/summary", providerH.Dashboard)
 
 			// Mural de avisos (apenas moradores lêem e postam)

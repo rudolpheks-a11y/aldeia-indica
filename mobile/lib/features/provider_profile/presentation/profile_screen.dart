@@ -58,8 +58,6 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
               const Divider(),
               _Availability(p: p),
               const Divider(),
-              _Photos(p: p),
-              const Divider(),
               _RecommendedBy(providerId: providerId),
               const Divider(),
               if (!isSelf) _Reviews(providerId: providerId),
@@ -297,45 +295,6 @@ class _Availability extends StatelessWidget {
           ),
         ],
       ),
-    );
-  }
-}
-
-class _Photos extends StatelessWidget {
-  final Map<String, dynamic> p;
-  const _Photos({required this.p});
-
-  @override
-  Widget build(BuildContext context) {
-    final photos =
-        (p['photos'] as List<dynamic>?)?.cast<Map<String, dynamic>>() ?? [];
-    if (photos.isEmpty) return const SizedBox.shrink();
-
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        const Padding(
-          padding: EdgeInsets.fromLTRB(16, 8, 16, 8),
-          child: Text('Trabalhos realizados',
-              style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
-        ),
-        SizedBox(
-          height: 120,
-          child: ListView.builder(
-            scrollDirection: Axis.horizontal,
-            padding: const EdgeInsets.symmetric(horizontal: 16),
-            itemCount: photos.length,
-            itemBuilder: (_, i) => Container(
-              width: 120,
-              margin: const EdgeInsets.only(right: 8),
-              decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(8),
-                color: Colors.grey[200],
-              ),
-            ),
-          ),
-        ),
-      ],
     );
   }
 }

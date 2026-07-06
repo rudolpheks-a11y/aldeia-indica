@@ -135,7 +135,6 @@ func (s *ProviderService) Featured(ctx context.Context, communityID uuid.UUID) (
 		          pp.professional_bio IS NOT NULL
 		          AND EXISTS (SELECT 1 FROM provider_services WHERE provider_id = pp.user_id)
 		          AND EXISTS (SELECT 1 FROM provider_availability WHERE provider_id = pp.user_id)
-		          AND EXISTS (SELECT 1 FROM provider_photos WHERE provider_id = pp.user_id)
 		        )
 		  )
 		ORDER BY MD5(pp.user_id::text || current_date::text)
@@ -194,7 +193,7 @@ func (s *ProviderService) attachExtras(ctx context.Context, results []ProviderSu
 		p := &results[i]
 		p.Categories = categories[p.UserID]
 		e := extras[p.UserID]
-		p.Seals = sealsFromFacts(p.RecommendationCount, p.AvgRating, e.totalClients, e.createdAt, e.hasBio, e.hasCat, e.hasAvail, e.hasPhoto)
+		p.Seals = sealsFromFacts(p.RecommendationCount, p.AvgRating, e.totalClients, e.createdAt, e.hasBio, e.hasCat, e.hasAvail)
 	}
 	return nil
 }
@@ -235,7 +234,6 @@ type providerSealExtras struct {
 	hasBio       bool
 	hasCat       bool
 	hasAvail     bool
-	hasPhoto     bool
 }
 
 // batchSealExtras loads, in one query, exactly the facts computeSeals/
@@ -246,8 +244,7 @@ func (s *ProviderService) batchSealExtras(ctx context.Context, providerIDs []uui
 		`SELECT pp.user_id, pp.total_clients, u.created_at,
 		        pp.professional_bio IS NOT NULL,
 		        EXISTS (SELECT 1 FROM provider_services WHERE provider_id = pp.user_id),
-		        EXISTS (SELECT 1 FROM provider_availability WHERE provider_id = pp.user_id),
-		        EXISTS (SELECT 1 FROM provider_photos WHERE provider_id = pp.user_id)
+		        EXISTS (SELECT 1 FROM provider_availability WHERE provider_id = pp.user_id)
 		 FROM provider_profiles pp
 		 JOIN users u ON u.id = pp.user_id
 		 WHERE pp.user_id = ANY($1)`,
@@ -262,7 +259,7 @@ func (s *ProviderService) batchSealExtras(ctx context.Context, providerIDs []uui
 	for rows.Next() {
 		var id uuid.UUID
 		var e providerSealExtras
-		if err := rows.Scan(&id, &e.totalClients, &e.createdAt, &e.hasBio, &e.hasCat, &e.hasAvail, &e.hasPhoto); err != nil {
+		if err := rows.Scan(&id, &e.totalClients, &e.createdAt, &e.hasBio, &e.hasCat, &e.hasAvail); err != nil {
 			return nil, err
 		}
 		out[id] = e
@@ -280,20 +277,19 @@ func (s *ProviderService) computeSeals(ctx context.Context, providerID uuid.UUID
 		s.log.Error("compute seals: load created_at", "provider", providerID, "error", err)
 	}
 
-	var hasBio, hasCat, hasAvail, hasPhoto bool
+	var hasBio, hasCat, hasAvail bool
 	if err := s.db.QueryRow(ctx,
 		`SELECT
 		    pp.professional_bio IS NOT NULL,
 		    EXISTS (SELECT 1 FROM provider_services WHERE provider_id=$1),
-		    EXISTS (SELECT 1 FROM provider_availability WHERE provider_id=$1),
-		    EXISTS (SELECT 1 FROM provider_photos WHERE provider_id=$1)
+		    EXISTS (SELECT 1 FROM provider_availability WHERE provider_id=$1)
 		 FROM provider_profiles pp WHERE pp.user_id=$1`,
 		providerID,
-	).Scan(&hasBio, &hasCat, &hasAvail, &hasPhoto); err != nil {
+	).Scan(&hasBio, &hasCat, &hasAvail); err != nil {
 		s.log.Error("compute seals: load completeness facts", "provider", providerID, "error", err)
 	}
 
-	return sealsFromFacts(recCount, avgRating, totalClients, createdAt, hasBio, hasCat, hasAvail, hasPhoto)
+	return sealsFromFacts(recCount, avgRating, totalClients, createdAt, hasBio, hasCat, hasAvail)
 }
 
 // sealsFromFacts is the pure seal-decision logic, shared between the
@@ -301,7 +297,7 @@ func (s *ProviderService) computeSeals(ctx context.Context, providerID uuid.UUID
 // path (attachExtras), which loads the same facts via batchSealExtras.
 // Keeping this identical in both places is what guarantees the batched
 // rewrite doesn't change what seals a provider gets.
-func sealsFromFacts(recCount int, avgRating *float64, totalClients int, createdAt time.Time, hasBio, hasCat, hasAvail, hasPhoto bool) []string {
+func sealsFromFacts(recCount int, avgRating *float64, totalClients int, createdAt time.Time, hasBio, hasCat, hasAvail bool) []string {
 	var seals []string
 
 	if avgRating != nil && *avgRating >= 4.2 && totalClients >= 5 {
@@ -313,7 +309,7 @@ func sealsFromFacts(recCount int, avgRating *float64, totalClients int, createdA
 	if !createdAt.IsZero() && time.Since(createdAt) >= 365*24*time.Hour {
 		seals = append(seals, "veterano")
 	}
-	if hasBio && hasCat && hasAvail && hasPhoto {
+	if hasBio && hasCat && hasAvail {
 		seals = append(seals, "completo")
 	}
 
@@ -425,13 +421,12 @@ type AvailabilitySlot struct {
 
 type ProviderDetail struct {
 	ProviderSummary
-	ProfessionalBio *string                `json:"professional_bio"`
-	TotalClients    int                    `json:"total_clients"`
-	NeedsTransport  bool                   `json:"needs_transport"`
-	TransportType   *string                `json:"transport_type"`
-	CategorySlugs   []string               `json:"category_slugs"`
-	Availability    []AvailabilitySlot     `json:"availability"`
-	Photos          []domain.ProviderPhoto `json:"photos"`
+	ProfessionalBio *string            `json:"professional_bio"`
+	TotalClients    int                `json:"total_clients"`
+	NeedsTransport  bool               `json:"needs_transport"`
+	TransportType   *string            `json:"transport_type"`
+	CategorySlugs   []string           `json:"category_slugs"`
+	Availability    []AvailabilitySlot `json:"availability"`
 }
 
 func (s *ProviderService) Get(ctx context.Context, communityID, providerID uuid.UUID) (*ProviderDetail, error) {
@@ -459,7 +454,6 @@ func (s *ProviderService) Get(ctx context.Context, communityID, providerID uuid.
 	d.Categories = s.getCategories(ctx, providerID)
 	d.CategorySlugs = s.getCategorySlugs(ctx, providerID)
 	d.Availability = s.getAvailability(ctx, providerID)
-	d.Photos = s.getPhotos(ctx, providerID)
 	d.Seals = s.computeSeals(ctx, providerID, d.RecommendationCount, d.AvgRating, d.TotalClients)
 	return &d, nil
 }
@@ -486,29 +480,6 @@ func (s *ProviderService) MyRatingSummary(ctx context.Context, communityID, prov
 		return nil, err
 	}
 	return &rs, nil
-}
-
-func (s *ProviderService) getPhotos(ctx context.Context, providerID uuid.UUID) []domain.ProviderPhoto {
-	rows, err := s.db.Query(ctx,
-		`SELECT id, provider_id, s3_key, caption, sort_order, uploaded_at
-		 FROM provider_photos WHERE provider_id = $1 ORDER BY sort_order, uploaded_at`,
-		providerID,
-	)
-	if err != nil {
-		s.log.Error("get photos", "provider", providerID, "error", err)
-		return nil
-	}
-	defer rows.Close()
-	var photos []domain.ProviderPhoto
-	for rows.Next() {
-		var p domain.ProviderPhoto
-		if err := rows.Scan(&p.ID, &p.ProviderID, &p.S3Key, &p.Caption, &p.SortOrder, &p.UploadedAt); err != nil {
-			s.log.Error("get photos: scan", "provider", providerID, "error", err)
-			return photos
-		}
-		photos = append(photos, p)
-	}
-	return photos
 }
 
 type UpdateProviderInput struct {
@@ -595,30 +566,6 @@ func (s *ProviderService) UpdateMe(ctx context.Context, communityID, userID uuid
 	}
 
 	return tx.Commit(ctx)
-}
-
-func (s *ProviderService) AddPhoto(ctx context.Context, communityID, providerID uuid.UUID, s3Key, caption string) error {
-	_, err := s.db.Exec(ctx,
-		`INSERT INTO provider_photos (provider_id, community_id, s3_key, caption) VALUES ($1,$2,$3,$4)`,
-		providerID, communityID, s3Key, caption,
-	)
-	return err
-}
-
-var ErrPhotoNotFound = errors.New("photo not found")
-
-func (s *ProviderService) DeletePhoto(ctx context.Context, providerID, photoID uuid.UUID) error {
-	tag, err := s.db.Exec(ctx,
-		`DELETE FROM provider_photos WHERE id=$1 AND provider_id=$2`,
-		photoID, providerID,
-	)
-	if err != nil {
-		return err
-	}
-	if tag.RowsAffected() == 0 {
-		return ErrPhotoNotFound
-	}
-	return nil
 }
 
 func (s *ProviderService) RecomputeScore(ctx context.Context, providerID uuid.UUID) error {

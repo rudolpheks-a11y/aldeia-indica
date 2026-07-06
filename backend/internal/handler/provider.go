@@ -159,53 +159,6 @@ func (h *ProviderHandler) UpdateMyAvailability(w http.ResponseWriter, r *http.Re
 	w.WriteHeader(http.StatusNoContent)
 }
 
-func (h *ProviderHandler) AddPhoto(w http.ResponseWriter, r *http.Request) {
-	claims, _ := middleware.ClaimsFrom(r.Context())
-
-	// The route is self-service only — {id} must match the caller. Parsed
-	// and checked explicitly so the route's own contract can't silently
-	// start trusting a foreign id if this handler is extended later.
-	pathID, err := uuid.Parse(chi.URLParam(r, "id"))
-	if err != nil {
-		jsonError(w, "invalid id", http.StatusBadRequest)
-		return
-	}
-	if pathID != claims.UserID {
-		jsonError(w, "forbidden", http.StatusForbidden)
-		return
-	}
-
-	var in struct {
-		S3Key   string `json:"s3_key"`
-		Caption string `json:"caption"`
-	}
-	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
-		jsonError(w, "invalid body", http.StatusBadRequest)
-		return
-	}
-
-	if err := h.svc.AddPhoto(r.Context(), claims.CommunityID, claims.UserID, in.S3Key, in.Caption); err != nil {
-		jsonError(w, "internal error", http.StatusInternalServerError)
-		return
-	}
-	w.WriteHeader(http.StatusCreated)
-}
-
-func (h *ProviderHandler) DeletePhoto(w http.ResponseWriter, r *http.Request) {
-	claims, _ := middleware.ClaimsFrom(r.Context())
-	photoID, err := uuid.Parse(chi.URLParam(r, "photoID"))
-	if err != nil {
-		jsonError(w, "invalid id", http.StatusBadRequest)
-		return
-	}
-
-	if err := h.svc.DeletePhoto(r.Context(), claims.UserID, photoID); err != nil {
-		jsonError(w, "not found", http.StatusNotFound)
-		return
-	}
-	w.WriteHeader(http.StatusNoContent)
-}
-
 func (h *ProviderHandler) Dashboard(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.ClaimsFrom(r.Context())
 

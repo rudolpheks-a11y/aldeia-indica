@@ -19,12 +19,3 @@ type ProviderProfile struct {
 	IsVisible           bool
 	UpdatedAt           time.Time
 }
-
-type ProviderPhoto struct {
-	ID         uuid.UUID
-	ProviderID uuid.UUID
-	S3Key      string
-	Caption    *string
-	SortOrder  int
-	UploadedAt time.Time
-}

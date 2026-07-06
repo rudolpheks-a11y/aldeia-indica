@@ -21,7 +21,6 @@ func NewUploadHandler(s3 *storage.S3Client) *UploadHandler {
 
 var validObjectTypes = map[string]bool{
 	"avatar":     true,
-	"work_photo": true,
 	"chat_image": true,
 	"document":   true,
 }
@@ -48,7 +47,7 @@ func (h *UploadHandler) Presign(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.ClaimsFrom(r.Context())
 
 	var in struct {
-		ObjectType string `json:"object_type"` // avatar, work_photo, chat_image, document
+		ObjectType string `json:"object_type"` // avatar, chat_image, document
 		Filename   string `json:"filename"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
