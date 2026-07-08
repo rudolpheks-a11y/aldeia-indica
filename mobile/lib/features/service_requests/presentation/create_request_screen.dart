@@ -6,6 +6,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
+import '../../providers_list/providers/search_provider.dart';
 import '../providers/request_providers.dart';
 
 class CreateRequestScreen extends ConsumerStatefulWidget {
@@ -61,6 +62,8 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final categories = ref.watch(categoriesProvider);
+
     return Scaffold(
       appBar: AppBar(leading: const AppBackButton(), title: const Text('Novo Pedido de Serviço')),
       body: AppScrollbar(
@@ -79,6 +82,28 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
               ),
             ),
             const SizedBox(height: 16),
+            // Se as categorias não carregarem, o campo some e o pedido sai
+            // sem categoria ("Geral") — nunca bloqueia a publicação.
+            categories.when(
+              loading: () => const SizedBox.shrink(),
+              error: (_, __) => const SizedBox.shrink(),
+              data: (list) => Padding(
+                padding: const EdgeInsets.only(bottom: 16),
+                child: DropdownButtonFormField<String>(
+                  initialValue: _category,
+                  decoration: const InputDecoration(
+                    labelText: 'Categoria (opcional)',
+                  ),
+                  items: [
+                    const DropdownMenuItem(
+                        value: '', child: Text('Geral (sem categoria)')),
+                    ...list.map((c) => DropdownMenuItem(
+                        value: c.slug, child: Text(c.namePt))),
+                  ],
+                  onChanged: (v) => setState(() => _category = v ?? ''),
+                ),
+              ),
+            ),
             TextField(
               controller: _descCtrl,
               maxLines: 3,
