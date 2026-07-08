@@ -8,6 +8,7 @@ import (
 
 	"github.com/go-chi/chi/v5"
 	"github.com/google/uuid"
+	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgconn"
 	"github.com/jackc/pgx/v5/pgxpool"
 	"github.com/rudolpheks-a11y/aldeia-indica/backend/internal/domain"
@@ -87,6 +88,12 @@ func (h *RequestHandler) List(w http.ResponseWriter, r *http.Request) {
 
 func (h *RequestHandler) Create(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.ClaimsFrom(r.Context())
+	// Decisão de produto (2026-07-08): pedido de serviço é do morador;
+	// prestador participa respondendo (Respond já exige role prestador).
+	if claims.Role == domain.RolePrestador {
+		jsonError(w, "forbidden", http.StatusForbidden)
+		return
+	}
 
 	var in struct {
 		CategorySlug string `json:"category_slug"`
@@ -133,10 +140,15 @@ func (h *RequestHandler) Get(w http.ResponseWriter, r *http.Request) {
 		requestID, claims.CommunityID,
 	)
 	var id, requesterID uuid.UUID
-	var requester, category, title, description, status string
+	var category, description *string
+	var requester, title, status string
 	var createdAt time.Time
 	if err := row.Scan(&id, &requesterID, &requester, &category, &title, &description, &status, &createdAt); err != nil {
-		jsonError(w, "not found", http.StatusNotFound)
+		if errors.Is(err, pgx.ErrNoRows) {
+			jsonError(w, "not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
 	}
 	result = map[string]any{
@@ -162,17 +174,34 @@ func (h *RequestHandler) UpdateStatus(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	tag, err := h.db.Exec(r.Context(),
+	// Checagem explícita de dono, separada da mutação: pedido inexistente
+	// na comunidade é 404, pedido de outra pessoa é 403 — não um 404 genérico
+	// vindo de RowsAffected()==0, que confunde os dois casos.
+	var requesterID uuid.UUID
+	err = h.db.QueryRow(r.Context(),
+		`SELECT requester_id FROM service_requests WHERE id=$1 AND community_id=$2`,
+		requestID, claims.CommunityID,
+	).Scan(&requesterID)
+	if err != nil {
+		if errors.Is(err, pgx.ErrNoRows) {
+			jsonError(w, "request not found", http.StatusNotFound)
+			return
+		}
+		jsonError(w, "internal error", http.StatusInternalServerError)
+		return
+	}
+	if requesterID != claims.UserID {
+		jsonError(w, "forbidden", http.StatusForbidden)
+		return
+	}
+
+	_, err = h.db.Exec(r.Context(),
 		`UPDATE service_requests SET status=$1, updated_at=now()
-		 WHERE id=$2 AND requester_id=$3 AND community_id=$4`,
-		in.Status, requestID, claims.UserID, claims.CommunityID,
+		 WHERE id=$2 AND community_id=$3`,
+		in.Status, requestID, claims.CommunityID,
 	)
 	if err != nil {
 		jsonError(w, "invalid status", http.StatusBadRequest)
-		return
-	}
-	if tag.RowsAffected() == 0 {
-		jsonError(w, "request not found", http.StatusNotFound)
 		return
 	}
 	w.WriteHeader(http.StatusNoContent)

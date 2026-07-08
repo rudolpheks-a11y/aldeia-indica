@@ -34,9 +34,13 @@ type CreateRatingInput struct {
 var (
 	ErrAlreadyRated       = errors.New("you have already rated this provider")
 	ErrInvalidRatingValue = errors.New("rating values must be between 1 and 5")
+	ErrCannotRateSelf     = errors.New("cannot rate yourself")
 )
 
 func (s *RatingService) Create(ctx context.Context, in CreateRatingInput) error {
+	if in.RaterID == in.ProviderID {
+		return ErrCannotRateSelf
+	}
 	tx, err := s.db.Begin(ctx)
 	if err != nil {
 		return err

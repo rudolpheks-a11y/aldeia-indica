@@ -58,6 +58,8 @@ func (h *RatingHandler) Create(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, err.Error(), http.StatusConflict)
 		case errors.Is(err, service.ErrInvalidRatingValue):
 			jsonError(w, err.Error(), http.StatusBadRequest)
+		case errors.Is(err, service.ErrCannotRateSelf):
+			jsonError(w, err.Error(), http.StatusForbidden)
 		default:
 			jsonError(w, "internal error", http.StatusInternalServerError)
 		}
