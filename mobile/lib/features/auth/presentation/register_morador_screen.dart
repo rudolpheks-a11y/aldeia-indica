@@ -88,7 +88,7 @@ class _RegisterMoradorScreenState
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error900),
+          const SnackBar(content: Text('Não foi possível concluir o cadastro. Verifique os dados e tente novamente.'), backgroundColor: AppColors.error900),
         );
       }
     } finally {

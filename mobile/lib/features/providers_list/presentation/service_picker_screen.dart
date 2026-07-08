@@ -5,6 +5,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/app_back_button.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
 import '../providers/search_provider.dart';
+import '../../../shared/widgets/app_error_view.dart';
 
 class ServicePickerScreen extends ConsumerStatefulWidget {
   const ServicePickerScreen({super.key});
@@ -69,7 +70,7 @@ class _ServicePickerScreenState extends ConsumerState<ServicePickerScreen> {
               loading: () =>
                   const Center(child: CircularProgressIndicator()),
               error: (e, _) =>
-                  Center(child: Text('Erro ao carregar serviços: $e')),
+                  Center(child: AppErrorView(onRetry: () => ref.invalidate(categoriesProvider))),
               data: (categories) {
                 final filtered = _query.isEmpty
                     ? categories

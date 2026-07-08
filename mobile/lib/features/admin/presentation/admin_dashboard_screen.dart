@@ -5,6 +5,7 @@ import '../../bulletin/providers/bulletin_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
+import '../../../shared/widgets/app_error_view.dart';
 
 class AdminDashboardScreen extends ConsumerWidget {
   const AdminDashboardScreen({super.key});
@@ -84,7 +85,7 @@ class _OverviewTabState extends ConsumerState<_OverviewTab> {
     final stats = ref.watch(_statsProvider);
     return stats.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Erro: $e')),
+      error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(_statsProvider))),
       data: (s) => RefreshIndicator(
         onRefresh: () => ref.refresh(_statsProvider.future),
         child: AppScrollbar(
@@ -303,7 +304,7 @@ void _showDetailSheet(
                 return async.when(
                   loading: () =>
                       const Center(child: CircularProgressIndicator()),
-                  error: (e, _) => Center(child: Text('Erro: $e')),
+                  error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(_adminListProvider(endpoint)))),
                   data: (list) => list.isEmpty
                       ? const Center(child: Text('Nada encontrado'))
                       : ListView.separated(
@@ -344,7 +345,7 @@ class _UsersTabState extends ConsumerState<_UsersTab> {
     final users = ref.watch(_usersProvider);
     return users.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Erro: $e')),
+      error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(_usersProvider))),
       data: (list) => AppScrollbar(
         controller: _listCtrl,
         child: ListView.builder(
@@ -414,7 +415,7 @@ class _UsersTabState extends ConsumerState<_UsersTab> {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
+          const SnackBar(content: Text('Não foi possível atualizar o usuário. Tente novamente.')),
         );
       }
     }
@@ -464,7 +465,7 @@ class _BulletinTabState extends ConsumerState<_BulletinTab> {
     final pending = ref.watch(bulletinPendingProvider);
     return pending.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Center(child: Text('Erro: $e')),
+      error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(bulletinPendingProvider))),
       data: (list) => list.isEmpty
           ? const Center(child: Text('Nenhum aviso pendente'))
           : AppScrollbar(
@@ -530,7 +531,7 @@ class _BulletinTabState extends ConsumerState<_BulletinTab> {
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e')),
+          const SnackBar(content: Text('Não foi possível revisar o aviso. Tente novamente.')),
         );
       }
     }
@@ -588,7 +589,7 @@ class _CommunitiesTabState extends ConsumerState<_CommunitiesTab> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error900),
+          const SnackBar(content: Text('Não foi possível criar a comunidade. Tente novamente.'), backgroundColor: AppColors.error900),
         );
       }
     } finally {
@@ -640,7 +641,7 @@ class _CommunitiesTabState extends ConsumerState<_CommunitiesTab> {
           const SizedBox(height: 8),
           communities.when(
             loading: () => const CircularProgressIndicator(),
-            error: (e, _) => Text('Erro: $e'),
+            error: (_, __) => AppErrorView(compact: true, onRetry: () => ref.invalidate(_communitiesProvider)),
             data: (list) => Column(
               children: list.map((c) => ListTile(
                 title: Text(c['name'] as String),

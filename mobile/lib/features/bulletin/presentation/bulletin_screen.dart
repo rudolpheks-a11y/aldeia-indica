@@ -4,6 +4,7 @@ import '../../../shared/widgets/app_back_button.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
 import '../../../core/constants/app_colors.dart';
 import '../providers/bulletin_provider.dart';
+import '../../../shared/widgets/app_error_view.dart';
 
 class BulletinScreen extends ConsumerStatefulWidget {
   const BulletinScreen({super.key});
@@ -42,7 +43,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao enviar: $e')),
+          const SnackBar(content: Text('Não foi possível enviar o aviso. Tente novamente.')),
         );
       }
     } finally {
@@ -65,7 +66,7 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
             child: posts.when(
               loading: () =>
                   const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Erro: $e')),
+              error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(bulletinProvider))),
               data: (list) => list.isEmpty
                   ? const Center(
                       child: Column(

@@ -10,6 +10,7 @@ import '../../../core/constants/api_endpoints.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../providers_list/providers/search_provider.dart';
 import '../providers/profile_provider.dart';
+import '../../../shared/widgets/app_error_view.dart';
 
 class ProfileScreen extends ConsumerStatefulWidget {
   final String providerId;
@@ -43,7 +44,7 @@ class _ProfileScreenState extends ConsumerState<ProfileScreen> {
       ),
       body: profile.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
+        error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(providerProfileProvider(providerId)))),
         data: (p) => AppScrollbar(
           controller: _scrollCtrl,
           child: SingleChildScrollView(
@@ -108,7 +109,7 @@ class _HeaderState extends ConsumerState<_Header> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error900),
+          const SnackBar(content: Text('Não foi possível concluir a ação. Tente novamente.'), backgroundColor: AppColors.error900),
         );
       }
     } finally {
@@ -404,7 +405,7 @@ class _QuestionsState extends ConsumerState<_Questions> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Erro ao enviar: $e'),
+            content: Text('Não foi possível enviar a pergunta. Tente novamente.'),
             backgroundColor: AppColors.error900));
       }
     }
@@ -438,7 +439,7 @@ class _QuestionsState extends ConsumerState<_Questions> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-            content: Text('Erro ao responder: $e'),
+            content: Text('Não foi possível enviar a resposta. Tente novamente.'),
             backgroundColor: AppColors.error900));
       }
     }
@@ -469,7 +470,7 @@ class _QuestionsState extends ConsumerState<_Questions> {
           const SizedBox(height: 8),
           questions.when(
             loading: () => const Center(child: CircularProgressIndicator()),
-            error: (e, _) => Text('Erro: $e'),
+            error: (_, __) => AppErrorView(compact: true, onRetry: () => ref.invalidate(_questionsProvider(widget.providerId))),
             data: (list) => list.isEmpty
                 ? const Text('Nenhuma pergunta ainda.',
                     style: TextStyle(color: AppColors.textSecondary))
@@ -633,7 +634,7 @@ class _BottomActionsState extends ConsumerState<_BottomActions> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao iniciar conversa: $e')),
+          const SnackBar(content: Text('Não foi possível iniciar a conversa. Tente novamente.')),
         );
       }
     } finally {

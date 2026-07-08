@@ -5,6 +5,7 @@ import '../../../shared/widgets/app_scrollbar.dart';
 import '../../../core/constants/app_colors.dart';
 import '../providers/search_provider.dart';
 import 'provider_card.dart';
+import '../../../shared/widgets/app_error_view.dart';
 
 class FavoritesScreen extends ConsumerStatefulWidget {
   const FavoritesScreen({super.key});
@@ -31,7 +32,7 @@ class _FavoritesScreenState extends ConsumerState<FavoritesScreen> {
           leading: const AppBackButton(), title: const Text('Favoritos')),
       body: favorites.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
+        error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(favoriteProvidersProvider))),
         data: (list) => list.isEmpty
             ? const Center(
                 child: Padding(

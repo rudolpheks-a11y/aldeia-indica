@@ -7,6 +7,7 @@ import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../providers/notification_provider.dart';
+import '../../../shared/widgets/app_error_view.dart';
 
 class NotificationsScreen extends ConsumerStatefulWidget {
   const NotificationsScreen({super.key});
@@ -79,7 +80,7 @@ class _NotificationsScreenState extends ConsumerState<NotificationsScreen> {
           leading: const AppBackButton(), title: const Text('Notificações')),
       body: notifications.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
+        error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(notificationsProvider))),
         data: (list) => list.isEmpty
             ? const Center(child: Text('Nenhuma notificação ainda'))
             : AppScrollbar(

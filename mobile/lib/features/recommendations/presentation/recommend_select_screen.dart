@@ -6,6 +6,7 @@ import '../../../shared/widgets/app_back_button.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
 import '../../providers_list/data/models/provider_summary.dart';
 import '../../providers_list/providers/search_provider.dart';
+import '../../../shared/widgets/app_error_view.dart';
 
 class RecommendSelectScreen extends ConsumerStatefulWidget {
   const RecommendSelectScreen({super.key});
@@ -69,7 +70,7 @@ class _RecommendSelectScreenState
           Expanded(
             child: async.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Erro: $e')),
+              error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(allProvidersProvider))),
               data: (providers) {
                 final filtered = _query.isEmpty
                     ? providers

@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
 import '../providers/chat_provider.dart';
+import '../../../shared/widgets/app_error_view.dart';
 
 class ChatScreen extends ConsumerStatefulWidget {
   final String conversationId;
@@ -43,7 +44,7 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
           Expanded(
             child: chat.when(
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Erro: $e')),
+              error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(chatProvider(widget.conversationId)))),
               data: (messages) => AppScrollbar(
                 controller: _scrollCtrl,
                 reverse: true,

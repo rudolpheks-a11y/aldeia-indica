@@ -6,6 +6,7 @@ import '../../../shared/widgets/app_scrollbar.dart';
 import '../../../core/constants/app_colors.dart';
 import '../providers/search_provider.dart';
 import 'provider_card.dart';
+import '../../../shared/widgets/app_error_view.dart';
 
 const _days = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 
@@ -82,7 +83,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                       ),
                     ),
               loading: () => const Center(child: CircularProgressIndicator()),
-              error: (e, _) => Center(child: Text('Erro: $e')),
+              error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(searchProvider))),
             ),
           ),
         ],

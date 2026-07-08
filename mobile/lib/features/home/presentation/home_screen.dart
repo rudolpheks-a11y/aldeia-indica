@@ -234,7 +234,7 @@ class _MoradorHomeState extends ConsumerState<_MoradorHome> {
     try {
       token = await ref.read(authRepositoryProvider).createInvite();
     } catch (e) {
-      error = 'Não foi possível gerar o convite: $e';
+      error = 'Não foi possível gerar o convite. Tente novamente.';
     }
     if (!context.mounted) return;
 

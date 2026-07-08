@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
+import '../../../shared/widgets/app_error_view.dart';
 
 class ConversationsScreen extends ConsumerStatefulWidget {
   const ConversationsScreen({super.key});
@@ -30,7 +31,7 @@ class _ConversationsScreenState extends ConsumerState<ConversationsScreen> {
       appBar: AppBar(leading: const AppBackButton(), title: const Text('Mensagens')),
       body: conversations.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
+        error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(_conversationsProvider))),
         data: (list) => list.isEmpty
             ? const Center(
                 child: Text('Sem conversas ainda.\nContacte um prestador!',

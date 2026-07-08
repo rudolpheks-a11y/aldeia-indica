@@ -6,6 +6,7 @@ import '../../../core/constants/api_endpoints.dart';
 import '../../../shared/widgets/score_badge.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
 import '../../../core/constants/app_colors.dart';
+import '../../../shared/widgets/app_error_view.dart';
 
 class DashboardScreen extends ConsumerStatefulWidget {
   const DashboardScreen({super.key});
@@ -31,7 +32,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
       appBar: AppBar(leading: const AppBackButton(), title: const Text('Meu Painel')),
       body: dashboard.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
+        error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(_dashboardProvider))),
         data: (data) => AppScrollbar(
           controller: _scrollCtrl,
           child: SingleChildScrollView(
