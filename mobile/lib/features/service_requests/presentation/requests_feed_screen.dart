@@ -3,9 +3,10 @@ import '../../../shared/widgets/app_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
-import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
+import '../providers/request_providers.dart';
+import '../../../shared/widgets/app_error_view.dart';
 
 class RequestsFeedScreen extends ConsumerStatefulWidget {
   const RequestsFeedScreen({super.key});
@@ -25,20 +26,25 @@ class _RequestsFeedScreenState extends ConsumerState<RequestsFeedScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final requests = ref.watch(_requestsProvider);
+    final requests = ref.watch(requestsProvider);
     final auth = ref.watch(authProvider).valueOrNull;
     final myUserId = auth is AuthAuthenticated ? auth.userId : null;
+    // Pedido é do morador; prestador só responde (o backend também bloqueia
+    // POST /requests para role prestador — decisão de produto 2026-07-08).
+    final isPrestador = auth is AuthAuthenticated && auth.role == 'prestador';
 
     return Scaffold(
       appBar: AppBar(leading: const AppBackButton(), title: const Text('Pedidos de Serviço')),
-      floatingActionButton: FloatingActionButton.extended(
-        icon: const Icon(Icons.add),
-        label: const Text('Novo pedido'),
-        onPressed: () => context.push('/requests/new'),
-      ),
+      floatingActionButton: isPrestador
+          ? null
+          : FloatingActionButton.extended(
+              icon: const Icon(Icons.add),
+              label: const Text('Novo pedido'),
+              onPressed: () => context.push('/requests/new'),
+            ),
       body: requests.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
+        error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(requestsProvider))),
         data: (list) => list.isEmpty
             ? const Center(child: Text('Nenhum pedido aberto'))
             : AppScrollbar(
@@ -96,8 +102,3 @@ class _RequestsFeedScreenState extends ConsumerState<RequestsFeedScreen> {
   }
 }
 
-final _requestsProvider = FutureProvider((ref) async {
-  final api = ref.watch(apiClientProvider);
-  final resp = await api.get(ApiEndpoints.requests, params: {'status': 'open'});
-  return (resp.data as List<dynamic>).cast<Map<String, dynamic>>();
-});

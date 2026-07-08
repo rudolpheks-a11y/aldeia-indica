@@ -59,6 +59,7 @@ class _RecommendProviderScreenState
         'reliability': _stars,
         'comment': _commentCtrl.text.trim(),
       });
+      invalidateProviderData(ref, widget.providerId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Obrigado pela avaliação!')),

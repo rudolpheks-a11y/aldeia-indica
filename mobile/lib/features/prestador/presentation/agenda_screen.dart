@@ -6,6 +6,7 @@ import '../../../shared/widgets/loading_overlay.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
 import '../data/prestador_repository.dart';
 import '../providers/prestador_provider.dart';
+import '../../provider_profile/providers/profile_provider.dart';
 
 const _dayNames = ['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'];
 const _dayFullNames = [
@@ -188,6 +189,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
 
       await ref.read(prestadorRepositoryProvider).updateAvailability(slots);
       ref.invalidate(prestadorProfileProvider);
+      invalidateOwnProviderData(ref);
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
@@ -198,7 +200,7 @@ class _AgendaScreenState extends ConsumerState<AgendaScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(SnackBar(
-          content: Text('Erro ao salvar: $e'),
+          content: Text('Não foi possível salvar. Tente novamente.'),
           backgroundColor: AppColors.error900,
         ));
       }

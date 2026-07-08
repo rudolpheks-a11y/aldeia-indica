@@ -5,7 +5,9 @@ import '../../../shared/widgets/app_back_button.dart';
 import '../../../shared/widgets/loading_overlay.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
 import '../providers/prestador_provider.dart';
+import '../../provider_profile/providers/profile_provider.dart';
 import '../../providers_list/providers/search_provider.dart';
+import '../../../shared/widgets/app_error_view.dart';
 
 class SkillsScreen extends ConsumerStatefulWidget {
   const SkillsScreen({super.key});
@@ -54,7 +56,7 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
         ),
         body: categoriesAsync.when(
           loading: () => const Center(child: CircularProgressIndicator()),
-          error: (e, _) => Center(child: Text('Erro ao carregar: $e')),
+          error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(categoriesProvider))),
           data: (categories) => _buildBody(context, categories),
         ),
       ),
@@ -207,6 +209,7 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
             transportType: _transportType,
           );
       ref.invalidate(prestadorProfileProvider);
+      invalidateOwnProviderData(ref);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -219,7 +222,7 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao salvar: $e'),
+            content: Text('Não foi possível salvar. Tente novamente.'),
             backgroundColor: AppColors.error900,
           ),
         );

@@ -7,20 +7,8 @@ import '../../../shared/widgets/app_scrollbar.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../auth/providers/auth_provider.dart';
-
-final _requestDetailProvider =
-    FutureProvider.family<Map<String, dynamic>, String>((ref, id) async {
-  final api = ref.watch(apiClientProvider);
-  final resp = await api.get(ApiEndpoints.requestById(id));
-  return resp.data as Map<String, dynamic>;
-});
-
-final _requestResponsesProvider =
-    FutureProvider.family<List<Map<String, dynamic>>, String>((ref, id) async {
-  final api = ref.watch(apiClientProvider);
-  final resp = await api.get(ApiEndpoints.requestResponses(id));
-  return (resp.data as List<dynamic>).cast<Map<String, dynamic>>();
-});
+import '../providers/request_providers.dart';
+import '../../../shared/widgets/app_error_view.dart';
 
 class RequestDetailScreen extends ConsumerStatefulWidget {
   final String requestId;
@@ -84,7 +72,10 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
         ApiEndpoints.requestById(widget.requestId),
         data: {'status': 'closed'},
       );
-      ref.invalidate(_requestDetailProvider(widget.requestId));
+      ref.invalidate(requestDetailProvider(widget.requestId));
+      // A lista de Pedidos filtra por status=open — sem isso, o pedido
+      // recém-encerrado continua aparecendo como aberto na tela anterior.
+      ref.invalidate(requestsProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Pedido encerrado.')),
@@ -93,7 +84,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error900),
+          const SnackBar(content: Text('Não foi possível encerrar o pedido. Tente novamente.'), backgroundColor: AppColors.error900),
         );
       }
     } finally {
@@ -111,7 +102,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro ao iniciar conversa: $e')),
+          const SnackBar(content: Text('Não foi possível iniciar a conversa. Tente novamente.')),
         );
       }
     }
@@ -119,7 +110,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
 
   @override
   Widget build(BuildContext context) {
-    final detail = ref.watch(_requestDetailProvider(widget.requestId));
+    final detail = ref.watch(requestDetailProvider(widget.requestId));
     final auth = ref.watch(authProvider).valueOrNull;
 
     return Scaffold(
@@ -127,7 +118,7 @@ class _RequestDetailScreenState extends ConsumerState<RequestDetailScreen> {
           leading: const AppBackButton(), title: const Text('Pedido de Serviço')),
       body: detail.when(
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (e, _) => Center(child: Text('Erro: $e')),
+        error: (_, __) => Center(child: AppErrorView(onRetry: () => ref.invalidate(requestDetailProvider(widget.requestId)))),
         data: (req) {
           final isOwner =
               auth is AuthAuthenticated && auth.userId == req['requester_id'];
@@ -263,10 +254,10 @@ class _ResponsesList extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final responses = ref.watch(_requestResponsesProvider(requestId));
+    final responses = ref.watch(requestResponsesProvider(requestId));
     return responses.when(
       loading: () => const Center(child: CircularProgressIndicator()),
-      error: (e, _) => Text('Erro ao carregar respostas: $e'),
+      error: (_, __) => AppErrorView(compact: true, onRetry: () => ref.invalidate(requestResponsesProvider(requestId))),
       data: (list) => list.isEmpty
           ? const Text('Nenhum prestador demonstrou interesse ainda.',
               style: TextStyle(color: AppColors.textSecondary))

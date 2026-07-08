@@ -6,6 +6,7 @@ import '../../auth/providers/auth_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/app_scrollbar.dart';
+import '../providers/request_providers.dart';
 
 class CreateRequestScreen extends ConsumerStatefulWidget {
   const CreateRequestScreen({super.key});
@@ -39,6 +40,8 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
         'description': _descCtrl.text.trim(),
         'category_slug': _category,
       });
+      // O pedido novo precisa aparecer na lista assim que o usuário volta.
+      ref.invalidate(requestsProvider);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Pedido publicado!')),
@@ -48,7 +51,7 @@ class _CreateRequestScreenState extends ConsumerState<CreateRequestScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error900),
+          const SnackBar(content: Text('Não foi possível publicar o pedido. Tente novamente.'), backgroundColor: AppColors.error900),
         );
       }
     } finally {

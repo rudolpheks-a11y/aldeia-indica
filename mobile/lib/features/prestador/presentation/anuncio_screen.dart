@@ -4,6 +4,7 @@ import '../../../core/constants/app_colors.dart';
 import '../../../shared/widgets/app_back_button.dart';
 import '../../../shared/widgets/loading_overlay.dart';
 import '../providers/prestador_provider.dart';
+import '../../provider_profile/providers/profile_provider.dart';
 
 class AnuncioScreen extends ConsumerStatefulWidget {
   const AnuncioScreen({super.key});
@@ -92,6 +93,7 @@ class _AnuncioScreenState extends ConsumerState<AnuncioScreen> {
     try {
       await ref.read(prestadorRepositoryProvider).updateBio(_ctrl.text.trim());
       ref.invalidate(prestadorProfileProvider);
+      invalidateOwnProviderData(ref);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
@@ -104,7 +106,7 @@ class _AnuncioScreenState extends ConsumerState<AnuncioScreen> {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(
-            content: Text('Erro ao salvar: $e'),
+            content: Text('Não foi possível salvar. Tente novamente.'),
             backgroundColor: AppColors.error900,
           ),
         );

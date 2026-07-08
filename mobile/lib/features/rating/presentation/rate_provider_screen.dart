@@ -3,6 +3,7 @@ import '../../../shared/widgets/app_back_button.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 import '../../auth/providers/auth_provider.dart';
+import '../../provider_profile/providers/profile_provider.dart';
 import '../../../core/constants/api_endpoints.dart';
 import '../../../shared/widgets/star_rating_bar.dart';
 import '../../../shared/widgets/loading_overlay.dart';
@@ -52,6 +53,7 @@ class _RateProviderScreenState extends ConsumerState<RateProviderScreen> {
         'reliability': _reliability,
         'comment': _commentCtrl.text.trim(),
       });
+      invalidateProviderData(ref, widget.providerId);
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(content: Text('Avaliação enviada!')),
@@ -61,7 +63,7 @@ class _RateProviderScreenState extends ConsumerState<RateProviderScreen> {
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Erro: $e'), backgroundColor: AppColors.error900),
+          const SnackBar(content: Text('Não foi possível enviar a avaliação. Tente novamente.'), backgroundColor: AppColors.error900),
         );
       }
     } finally {
