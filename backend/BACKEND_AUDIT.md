@@ -822,3 +822,86 @@ O e-mail de recuperação de senha (`internal/service/auth.go:366-379`, `resetEm
 | 2026-07-05 (corrigidos: 1 P1, 4 P2, 4 P3; 1 P3 registrado sem correção) | 0 | 1 | 4 | 5 |
 
 **Prioridade mais urgente desta rodada:** o rate limit ausente em `/auth/login` (P1-1) — único ponto sem essa proteção entre os endpoints pré-auth, e o mais óbvio alvo de força bruta em qualquer sistema de autenticação. Já corrigido e confirmado ao vivo (6 tentativas em sequência bloqueadas a partir da 5ª).
+
+---
+
+# Auditoria de acompanhamento — 2026-07-09
+
+**Data:** 2026-07-09
+**Escopo:** backend inteiro (`internal/`, `cmd/`), com foco no que mudou desde 2026-07-05 — os fluxos de pedidos de serviço, avaliação, notificação, perguntas e favoritos, além dos endpoints admin. Migrations 000001–000027 aplicadas (era 000017 no baseline do apêndice do skill).
+**Stack:** Go 1.26.4, chi v5, pgx/v5, PostgreSQL 18, S3/MinIO presigned, `coder/websocket`, JWT HS256. Sem ORM, sem RLS, sem fila.
+**Método:** leitura direta dos handlers/services + reprodução via `curl`/`psql` contra o banco local. Suíte de testes: 1 arquivo (`domain/score_test.go`), passa; o resto do código não tem teste (constraint conhecida — services dependem de `pgxpool.Pool`, não há setup de teste com banco).
+
+## Summary
+
+- P0: 0
+- P1: 0
+- P2: 2 (ambos corrigidos e verificados nesta sessão)
+- P3: 0
+
+**Top prioridade:** [P2-1] Score Aldeia congelava ao editar `years_in_neighborhood` via `PUT /providers/me` — `internal/service/provider.go:564`. Corrigido.
+
+## Findings
+
+### P2 — Medium
+
+#### [P2-1] `PUT /providers/me` não recomputava o Score Aldeia ao alterar `years_in_neighborhood`
+- **Location:** `internal/service/provider.go:564` (`UpdateMe`)
+- **Dimension:** Code quality (derived-column merge) / Reliability
+- **What:** `years_in_neighborhood` é um dos quatro insumos de `domain.CalculateScore` (peso 15), mas `UpdateMe` gravava a coluna e retornava sem chamar `RecomputeScore`. Só `rating.go` e `recommendation.go` recomputavam — então o `score_aldeia` persistido ficava obsoleto até a próxima avaliação/indicação daquele prestador.
+- **Code (verbatim, antes do fix):**
+  ```go
+  transport_type       = CASE WHEN $4 IS NOT NULL THEN $5 ELSE transport_type END,
+  updated_at           = now()
+  WHERE user_id=$6 AND community_id=$7`,
+  // ... categorias ...
+  return tx.Commit(ctx)
+  ```
+- **Why it matters:** o Score Aldeia é a métrica central do produto (ordena busca, destaques, ranking de categoria). Um score defasado ordena prestadores errado e mostra um número mentiroso no perfil e no painel. Blast radius baixo em frequência (editar tenure é raro, e o app hoje trata `years` como quase estático), mas corrompe silenciosamente o dado mais importante quando acontece.
+- **Evidence / how verified:** reproduzido via `curl` — `PUT /providers/me {"years_in_neighborhood":1}` no prestador de teste (`5cfe3c5e…`) deixou `score_aldeia` parado em 46.85 apesar de `years` cair de 9→1 (deveria perder ~12 pts de tenure). A varredura confirmou que dos 4 insumos do score, `years_in_neighborhood` era o único escrito por um caminho sem `RecomputeScore` (`grep` de todos os call sites).
+- **Fix:** após o `tx.Commit`, chamar `RecomputeScore(ctx, userID)` quando `in.YearsInNeighborhood != nil`. Recompute lê a linha inteira já commitada, então roda fora da transação sem risco de ler valor não-commitado.
+- **Implementation constraints:** `RecomputeScore` tem que rodar **depois** do commit (lê o próprio `provider_profiles` de volta) — chamar dentro da tx leria o valor antigo. Verificado.
+- **Confidence:** Confirmed — pós-fix, `years` 9→1 baixou o score em 12.00 pts exatos, e restaurar pra 9 recomputou pra 52.85 (o valor correto: o 46.85 anterior era ele mesmo um resíduo corrompido por essa mesma falha em sessão anterior — o fix, ao rodar recompute, também sarou a linha). Controle: editar só a bio não moveu o score.
+
+#### [P2-2] Eventos de analytics eram perdidos silenciosamente — goroutine usando o contexto da request
+- **Location:** `internal/service/analytics.go:24` (`RecordEvent`), chamado em `internal/handler/provider.go:95` e `internal/handler/chat.go:59`
+- **Dimension:** Reliability
+- **What:** os dois call sites disparam `go h.analytics.RecordEvent(r.Context(), ...)`. O `r.Context()` é cancelado assim que o handler retorna; a goroutine destacada corre contra esse cancelamento e, quando perde, o `INSERT` é abortado. Como `RecordEvent` engole o erro (`_, _ =`), o evento some sem rastro.
+- **Code (verbatim, antes do fix):**
+  ```go
+  func (s *AnalyticsService) RecordEvent(ctx context.Context, ...) {
+      // Fire-and-forget: analytics failures must not block the main flow.
+      _, _ = s.db.Exec(ctx,
+          `INSERT INTO provider_events ...`,
+          ...)
+  }
+  ```
+- **Why it matters:** `provider_events` alimenta o painel do prestador (`ViewCount30d`, `ContactCount30d`) e o ranking de categoria. Visualizações de perfil e contatos iniciados eram subcontados de forma não-determinística — o painel mostra menos atividade do que aconteceu de verdade, minando justamente a "confiança visível" que é o produto.
+- **Evidence / how verified:** confirmado por leitura (padrão clássico Go: contexto request-scoped passado a goroutine que sobrevive à request) e por reprodução pós-fix — 10 `GET /providers/{id}` seguidos produziram exatamente 10 `profile_view` em `provider_events` (antes do fix, parte se perderia na corrida).
+- **Fix:** dentro de `RecordEvent`, desacoplar do cancelamento com `context.WithoutCancel(ctx)` e dar um deadline próprio de 5s (`context.WithTimeout`) — corrige os dois call sites de uma vez sem mudar a assinatura, e evita vazar goroutine se o banco travar.
+- **Implementation constraints:** `context.WithoutCancel` é Go 1.21+ (projeto está em 1.26, ok). Preserva os values do contexto (irrelevante aqui) mas descarta o cancelamento — exatamente o desejado para fire-and-forget.
+- **Confidence:** Confirmed — build + vet limpos, 10/10 eventos persistidos na reprodução.
+
+## Patterns observed
+
+- **A regra "toda escrita numa coluna que alimenta o score chama `RecomputeScore`" não estava centralizada** — three call sites (rating, recommendation ×2) acertavam, o quarto (UpdateMe) esquecia. É a mesma família do achado de auto-avaliação da auditoria de frontend/produto de 08/07: o Score Aldeia tem várias portas de escrita e nem todas passam pelo mesmo guardião. Não justifica refactor agora (4 call sites), mas se surgir um quinto, considerar um método único `writeAndRescore`.
+- **Multi-tenancy segue consistente:** reverifiquei `notification.go`, `chat.go`, `question.go`, `request.go`, `admin.go` e os services de rating/recommendation — toda query tenant-scoped usa `claims.CommunityID` do contexto, nunca valor do cliente. `notifications` filtra por `user_id` (dono direto), o que é suficiente.
+
+## What's working well
+
+- **Refresh token reuse detection implementado corretamente** (`auth.go:274`) — replay de token revogado agora derruba toda a família de refresh tokens do usuário, com o erro da contenção propagado (não engolido). Fecha o P1 do apêndice do skill.
+- **Rate limit presente** em todos os endpoints pré-auth (`register`, `login`, `forgot-password`, `reset-password` a 5/min/IP) e no `presign` (30/min/IP) — o alerta do apêndice já foi endereçado.
+- **Índices saudáveis:** o `token_hash` do refresh tem UNIQUE (índice automático, confirmado por `EXPLAIN`), e as colunas de FK usadas como lado dirigente de `WHERE`/`JOIN` têm índice composto liderando com a coluna certa. Nenhum seq scan em caminho quente.
+- **Timeouts em tudo que é externo:** HTTP server (Read/Write/Idle), clients Resend e FCM (10s), e a goroutine de push do WS já tinha seu próprio `context.WithTimeout` de 10s.
+- **`sanitizeFilename` no presign** — o filename do cliente é limpo (regex allow-list + corte de 100 chars) antes de virar chave S3.
+
+## Resumo consolidado (2026-07-02 → 2026-07-09)
+
+| Data | P0 | P1 | P2 | P3 |
+|---|---|---|---|---|
+| 2026-07-02 (todos corrigidos) | 1 | 4 | 6 | 5 |
+| 2026-07-03 (corrigidos: 4 P1, 3 P2, 3 P3) | 0 | 4 | 4 | 4 |
+| 2026-07-05 (corrigidos: 1 P1, 4 P2, 4 P3; 1 P3 sem correção) | 0 | 1 | 4 | 5 |
+| 2026-07-09 (2 P2 corrigidos e verificados) | 0 | 0 | 2 | 0 |
+
+A tendência de severidade caindo a cada rodada (P0/P1 zerados desde 07-05) é o sinal esperado de um backend que já passou por várias auditorias: o que resta são bugs de correção de baixa frequência, não buracos estruturais.
