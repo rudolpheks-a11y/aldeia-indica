@@ -633,7 +633,22 @@ func (s *ProviderService) UpdateMe(ctx context.Context, communityID, userID uuid
 		}
 	}
 
-	return tx.Commit(ctx)
+	if err := tx.Commit(ctx); err != nil {
+		return err
+	}
+
+	// years_in_neighborhood alimenta o Score Aldeia (peso 15 em
+	// domain.CalculateScore). Sem recomputar aqui, o score fica congelado no
+	// valor antigo até a próxima avaliação/indicação disparar RecomputeScore
+	// — só rating.go e recommendation.go faziam isso, PUT /providers/me não.
+	// Recompute lê a linha inteira já commitada, então roda fora da tx.
+	if in.YearsInNeighborhood != nil {
+		if err := s.RecomputeScore(ctx, userID); err != nil {
+			return fmt.Errorf("recompute score after tenure change: %w", err)
+		}
+	}
+
+	return nil
 }
 
 func (s *ProviderService) RecomputeScore(ctx context.Context, providerID uuid.UUID) error {

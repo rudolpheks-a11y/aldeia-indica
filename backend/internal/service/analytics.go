@@ -22,8 +22,15 @@ func NewAnalyticsService(db *pgxpool.Pool) *AnalyticsService {
 }
 
 func (s *AnalyticsService) RecordEvent(ctx context.Context, communityID, providerID uuid.UUID, actorID *uuid.UUID, eventType string) {
+	// Os chamadores rodam isto em `go RecordEvent(r.Context(), ...)` — mas o
+	// contexto da request é cancelado assim que o handler retorna, então a
+	// goroutine perdia a corrida e o INSERT era abortado silenciosamente
+	// (o erro já era ignorado). Desacopla do cancelamento da request e dá um
+	// deadline próprio pra não vazar goroutine se o banco travar.
+	bg, cancel := context.WithTimeout(context.WithoutCancel(ctx), 5*time.Second)
+	defer cancel()
 	// Fire-and-forget: analytics failures must not block the main flow.
-	_, _ = s.db.Exec(ctx,
+	_, _ = s.db.Exec(bg,
 		`INSERT INTO provider_events (community_id, provider_id, actor_id, event_type)
 		 VALUES ($1, $2, $3, $4)`,
 		communityID, providerID, actorID, eventType,
