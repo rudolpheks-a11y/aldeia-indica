@@ -67,7 +67,7 @@ class _AnuncioScreenState extends ConsumerState<AnuncioScreen> {
                     decoration: InputDecoration(
                       hintText: 'Escreva aqui...',
                       filled: true,
-                      fillColor: Colors.grey[50],
+                      fillColor: AppColors.neutral50,
                       border: OutlineInputBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),

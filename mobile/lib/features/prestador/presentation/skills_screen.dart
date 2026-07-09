@@ -89,7 +89,7 @@ class _SkillsScreenState extends ConsumerState<SkillsScreen> {
                     )
                   : null,
               filled: true,
-              fillColor: Colors.grey[100],
+              fillColor: AppColors.neutral100,
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(14),
                 borderSide: BorderSide.none,

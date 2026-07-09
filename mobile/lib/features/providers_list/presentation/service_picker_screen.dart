@@ -56,7 +56,7 @@ class _ServicePickerScreenState extends ConsumerState<ServicePickerScreen> {
                       )
                     : null,
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: AppColors.neutral100,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
@@ -123,12 +123,12 @@ class _CategoryTile extends ConsumerWidget {
         decoration: BoxDecoration(
           color: hasProviders
               ? AppColors.primary.withValues(alpha: 0.12)
-              : Colors.grey[200],
+              : AppColors.neutral200,
           borderRadius: BorderRadius.circular(12),
         ),
         child: Icon(
           _iconFor(category.iconName),
-          color: hasProviders ? AppColors.primary : Colors.grey[400],
+          color: hasProviders ? AppColors.primary : AppColors.neutral500,
           size: 24,
         ),
       ),
@@ -136,7 +136,7 @@ class _CategoryTile extends ConsumerWidget {
         category.namePt,
         style: TextStyle(
           fontWeight: FontWeight.w600,
-          color: hasProviders ? AppColors.textPrimary : Colors.grey[400],
+          color: hasProviders ? AppColors.textPrimary : AppColors.neutral500,
         ),
       ),
       subtitle: Text(
@@ -145,7 +145,7 @@ class _CategoryTile extends ConsumerWidget {
             : 'Nenhum prestador encontrado',
         style: TextStyle(
           fontSize: 12,
-          color: hasProviders ? AppColors.textSecondary : Colors.grey[400],
+          color: hasProviders ? AppColors.textSecondary : AppColors.neutral500,
         ),
       ),
       trailing: hasProviders

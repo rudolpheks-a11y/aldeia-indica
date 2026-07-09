@@ -127,7 +127,7 @@ class _RecommendProviderScreenState
             decoration: const BoxDecoration(
               color: AppColors.surface,
               border: Border(
-                bottom: BorderSide(color: Color(0xFFE0E0E0)),
+                bottom: BorderSide(color: AppColors.neutral200),
               ),
             ),
             child: Column(
@@ -224,7 +224,7 @@ class _RecommendProviderScreenState
               decoration: InputDecoration(
                 hintText: 'Deixe um comentário (opcional)...',
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: AppColors.neutral100,
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(14),
                   borderSide: BorderSide.none,
@@ -279,7 +279,7 @@ class _StarRow extends StatelessWidget {
             child: Icon(
               filled ? Icons.star_rounded : Icons.star_outline_rounded,
               size: 52,
-              color: filled ? AppColors.accent : Colors.grey[300],
+              color: filled ? AppColors.accent : AppColors.neutral300,
             ),
           ),
         );

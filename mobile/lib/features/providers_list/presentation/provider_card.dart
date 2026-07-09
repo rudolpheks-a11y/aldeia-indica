@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import '../data/models/provider_summary.dart';
 import '../../../shared/widgets/star_rating_bar.dart';
 import '../../../shared/widgets/score_badge.dart';
+import '../../../core/constants/app_colors.dart';
 
 class ProviderCard extends StatelessWidget {
   final ProviderSummary provider;
@@ -23,7 +24,7 @@ class ProviderCard extends StatelessWidget {
             children: [
               CircleAvatar(
                 radius: 30,
-                backgroundColor: Colors.grey[200],
+                backgroundColor: AppColors.neutral200,
                 child: provider.avatarKey != null
                     ? null
                     : Text(
@@ -43,7 +44,7 @@ class ProviderCard extends StatelessWidget {
                     const SizedBox(height: 4),
                     Text(
                       provider.categories.take(2).join(' • '),
-                      style: TextStyle(color: Colors.grey[600], fontSize: 13),
+                      style: TextStyle(color: AppColors.textSecondary, fontSize: 13),
                     ),
                     const SizedBox(height: 4),
                     Row(
@@ -57,18 +58,18 @@ class ProviderCard extends StatelessWidget {
                           const SizedBox(width: 8),
                         ],
                         Icon(Icons.thumb_up_alt_outlined,
-                            size: 14, color: Colors.grey[600]),
+                            size: 14, color: AppColors.textSecondary),
                         const SizedBox(width: 2),
                         Text('${provider.recommendationCount}',
                             style: TextStyle(
-                                color: Colors.grey[600], fontSize: 13)),
+                                color: AppColors.textSecondary, fontSize: 13)),
                       ],
                     ),
                     const SizedBox(height: 2),
                     Text(
                       '${provider.city} · ${provider.yearsInNeighborhood} anos no bairro',
                       style:
-                          TextStyle(color: Colors.grey[500], fontSize: 12),
+                          TextStyle(color: AppColors.textSecondary, fontSize: 12),
                     ),
                   ],
                 ),

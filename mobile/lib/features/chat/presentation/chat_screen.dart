@@ -69,13 +69,13 @@ class _ChatScreenState extends ConsumerState<ChatScreen> {
                       decoration: BoxDecoration(
                         color: isMine
                             ? AppColors.primary700
-                            : Colors.grey[200],
+                            : AppColors.neutral200,
                         borderRadius: BorderRadius.circular(16),
                       ),
                       child: Text(
                         msg['body'] as String? ?? '',
                         style: TextStyle(
-                          color: isMine ? Colors.white : Colors.black87,
+                          color: isMine ? Colors.white : AppColors.textPrimary,
                         ),
                       ),
                     ),

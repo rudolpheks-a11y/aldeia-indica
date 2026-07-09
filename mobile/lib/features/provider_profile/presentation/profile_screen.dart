@@ -127,7 +127,7 @@ class _HeaderState extends ConsumerState<_Header> {
         children: [
           CircleAvatar(
             radius: 40,
-            backgroundColor: Colors.grey[200],
+            backgroundColor: AppColors.neutral200,
             child: Text(
               (p['full_name'] as String)[0].toUpperCase(),
               style: const TextStyle(fontSize: 32, fontWeight: FontWeight.bold),
@@ -252,7 +252,7 @@ class _InfoRow extends StatelessWidget {
       padding: const EdgeInsets.symmetric(vertical: 4),
       child: Row(
         children: [
-          Icon(icon, size: 18, color: Colors.grey[600]),
+          Icon(icon, size: 18, color: AppColors.textSecondary),
           const SizedBox(width: 8),
           Expanded(child: Text(text, style: const TextStyle(fontSize: 14))),
         ],
@@ -339,7 +339,7 @@ class _Availability extends StatelessWidget {
                     const SizedBox(width: 6),
                     Text('$start–$end',
                         style: const TextStyle(
-                            fontSize: 12, color: Colors.black87)),
+                            fontSize: 12, color: AppColors.textPrimary)),
                   ],
                 ),
               );
@@ -573,7 +573,7 @@ class _Reviews extends ConsumerWidget {
           ratings.when(
             data: (list) => list.isEmpty
                 ? const Text('Sem avaliações ainda',
-                    style: TextStyle(color: Colors.grey))
+                    style: TextStyle(color: AppColors.textSecondary))
                 : Column(
                     children: list.take(3).map((r) {
                       return Card(

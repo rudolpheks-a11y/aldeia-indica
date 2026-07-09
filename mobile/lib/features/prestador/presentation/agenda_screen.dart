@@ -254,11 +254,11 @@ class _DayRow extends StatelessWidget {
     return Card(
       margin: const EdgeInsets.only(bottom: 8),
       elevation: 0,
-      color: enabled ? AppColors.primary.withValues(alpha: 0.05) : Colors.grey[50],
+      color: enabled ? AppColors.primary.withValues(alpha: 0.05) : AppColors.neutral50,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(12),
         side: BorderSide(
-          color: enabled ? AppColors.primary.withValues(alpha: 0.3) : Colors.grey[200]!,
+          color: enabled ? AppColors.primary.withValues(alpha: 0.3) : AppColors.neutral200,
         ),
       ),
       child: Padding(
@@ -274,7 +274,7 @@ class _DayRow extends StatelessWidget {
                     _dayNames[dayIndex],
                     style: TextStyle(
                       fontWeight: FontWeight.w600,
-                      color: enabled ? AppColors.primary : Colors.grey[600],
+                      color: enabled ? AppColors.primary : AppColors.textSecondary,
                     ),
                   ),
                 ),
@@ -283,7 +283,7 @@ class _DayRow extends StatelessWidget {
                     _dayFullNames[dayIndex],
                     style: TextStyle(
                       fontSize: 13,
-                      color: enabled ? AppColors.textPrimary : Colors.grey[500],
+                      color: enabled ? AppColors.textPrimary : AppColors.textSecondary,
                     ),
                   ),
                 ),
@@ -320,7 +320,7 @@ class _DayRow extends StatelessWidget {
                         const Spacer(),
                         IconButton(
                           icon: const Icon(Icons.close, size: 18),
-                          color: Colors.grey[600],
+                          color: AppColors.textSecondary,
                           visualDensity: VisualDensity.compact,
                           onPressed: () => onRemoveSlot(i),
                         ),

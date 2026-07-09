@@ -22,7 +22,12 @@ class ScoreBadge extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Container(
+    return Semantics(
+      label: 'Score Aldeia: ${score.round()} de 100',
+      // "47" + "score" como textos soltos não dizem nada no leitor de tela;
+      // o label acima substitui os dois.
+      excludeSemantics: true,
+      child: Container(
       width: size,
       height: size,
       decoration: BoxDecoration(
@@ -48,6 +53,7 @@ class ScoreBadge extends StatelessWidget {
             ),
           ),
         ],
+      ),
       ),
     );
   }

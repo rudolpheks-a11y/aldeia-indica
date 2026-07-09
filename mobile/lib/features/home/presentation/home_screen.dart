@@ -25,7 +25,9 @@ class HomeScreen extends ConsumerWidget {
         title: const Text('Aldeia Indica'),
         actions: [
           IconButton(
-            tooltip: 'Notificações',
+            tooltip: unreadCount > 0
+                ? 'Notificações: $unreadCount não lida${unreadCount == 1 ? '' : 's'}'
+                : 'Notificações',
             icon: Badge(
               label: Text('$unreadCount'),
               isLabelVisible: unreadCount > 0,
@@ -126,35 +128,38 @@ class _MoradorHomeState extends ConsumerState<_MoradorHome> {
             crossAxisCount: 2,
             crossAxisSpacing: 16,
             mainAxisSpacing: 16,
-            childAspectRatio: 1,
+            // Tiles ficam mais altos quando o usuário aumenta o texto do sistema
+            // (Dynamic Type) — proporção fixa estourava com escala >1.2.
+            childAspectRatio:
+                1 / MediaQuery.textScalerOf(ctx).scale(1.0).clamp(1.0, 1.6),
             children: [
               _HomeTile(
                 icon: Icons.search,
-                label: 'Encontre um\nserviço',
+                label: 'Encontre um serviço',
                 color: AppColors.primary,
                 onTap: () => context.push('/service-picker'),
               ),
               _HomeTile(
                 icon: Icons.star_rounded,
-                label: 'Recomende um\nprestador',
+                label: 'Recomende um prestador',
                 color: AppColors.secondary,
                 onTap: () => context.push('/recommend'),
               ),
               _HomeTile(
                 icon: Icons.campaign_rounded,
-                label: 'Mural de\navisos',
+                label: 'Mural de avisos',
                 color: AppColors.informational700,
                 onTap: () => context.push('/bulletin'),
               ),
               _HomeTile(
                 icon: Icons.qr_code_2_rounded,
-                label: 'Convidar\nmorador',
+                label: 'Convidar morador',
                 color: AppColors.accent,
                 onTap: () => _showInviteDialog(context),
               ),
               _HomeTile(
                 icon: Icons.assignment_rounded,
-                label: 'Meus\npedidos',
+                label: 'Meus pedidos',
                 color: AppColors.secondary700,
                 onTap: () => context.push('/requests'),
               ),
@@ -322,41 +327,44 @@ class _PrestadorHomeState extends State<_PrestadorHome> {
               crossAxisCount: 2,
               crossAxisSpacing: 16,
               mainAxisSpacing: 16,
-              childAspectRatio: 1,
+              // Tiles ficam mais altos quando o usuário aumenta o texto do sistema
+            // (Dynamic Type) — proporção fixa estourava com escala >1.2.
+            childAspectRatio:
+                1 / MediaQuery.textScalerOf(ctx).scale(1.0).clamp(1.0, 1.6),
               children: [
                 _HomeTile(
                   icon: Icons.checklist_rounded,
-                  label: 'Cadastre suas\nhabilidades',
+                  label: 'Cadastre suas habilidades',
                   color: AppColors.primary,
                   onTap: () => context.push('/prestador/skills'),
                 ),
                 _HomeTile(
                   icon: Icons.campaign_rounded,
-                  label: 'Anuncie seu\ntrabalho',
+                  label: 'Anuncie seu trabalho',
                   color: AppColors.secondary,
                   onTap: () => context.push('/prestador/anuncio'),
                 ),
                 _HomeTile(
                   icon: Icons.calendar_month_rounded,
-                  label: 'Minha\nagenda',
+                  label: 'Minha agenda',
                   color: AppColors.success,
                   onTap: () => context.push('/prestador/agenda'),
                 ),
                 _HomeTile(
                   icon: Icons.insights_rounded,
-                  label: 'Meu\npainel',
+                  label: 'Meu painel',
                   color: AppColors.accent,
                   onTap: () => context.push('/dashboard'),
                 ),
                 _HomeTile(
                   icon: Icons.visibility_rounded,
-                  label: 'Ver meu perfil\npúblico',
+                  label: 'Ver meu perfil público',
                   color: AppColors.informational700,
                   onTap: () => context.push('/provider/${widget.providerId}'),
                 ),
                 _HomeTile(
                   icon: Icons.assignment_rounded,
-                  label: 'Pedidos\nabertos',
+                  label: 'Pedidos abertos',
                   color: AppColors.veteran900,
                   onTap: () => context.push('/requests'),
                 ),
@@ -385,6 +393,14 @@ class _HomeTile extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Fundos quentes claros (dourado, terracota) não passam 4.5:1 com branco
+    // — branco sobre accent500 mede 2.11:1. Grafite sobre esses fundos passa
+    // folgado (8.24:1 no dourado, 5.32:1 na terracota — mesmo padrão do
+    // ScoreBadge "Bom"). Decidir pela luminância cobre qualquer cor futura.
+    final onColor =
+        ThemeData.estimateBrightnessForColor(color) == Brightness.light
+            ? AppColors.neutral900
+            : Colors.white;
     return Material(
       color: color,
       borderRadius: BorderRadius.circular(24),
@@ -397,14 +413,18 @@ class _HomeTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Icon(icon, color: Colors.white, size: 40),
-              Text(
-                label,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 18,
-                  fontWeight: FontWeight.w600,
-                  height: 1.2,
+              Icon(icon, color: onColor, size: 40),
+              Flexible(
+                child: Text(
+                  label,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                    color: onColor,
+                    fontSize: 18,
+                    fontWeight: FontWeight.w600,
+                    height: 1.2,
+                  ),
                 ),
               ),
             ],

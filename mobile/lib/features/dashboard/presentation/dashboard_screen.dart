@@ -83,7 +83,7 @@ class _DashboardScreenState extends ConsumerState<DashboardScreen> {
                             ),
                             Text(
                               'de ${data['total_in_category']} prestadores',
-                              style: TextStyle(color: Colors.grey[600]),
+                              style: TextStyle(color: AppColors.textSecondary),
                             ),
                           ],
                         ),
@@ -136,7 +136,7 @@ class _Stat extends StatelessWidget {
       children: [
         Text(value,
             style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold)),
-        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        Text(label, style: const TextStyle(fontSize: 12, color: AppColors.textSecondary)),
       ],
     );
   }
@@ -163,7 +163,7 @@ class _StatCard extends StatelessWidget {
                     fontSize: 20, fontWeight: FontWeight.bold)),
             const SizedBox(height: 2),
             Text(label,
-                style: const TextStyle(fontSize: 11, color: Colors.grey),
+                style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                 textAlign: TextAlign.center),
           ],
         ),

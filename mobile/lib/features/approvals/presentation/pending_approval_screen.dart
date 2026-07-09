@@ -48,7 +48,7 @@ class _PendingApprovalScreenState extends ConsumerState<PendingApprovalScreen> {
                     const Text(
                       'Seu cadastro foi recebido e está aguardando aprovação de outros moradores ou do administrador da comunidade.\n\nVocê receberá uma notificação quando for aprovado.',
                       textAlign: TextAlign.center,
-                      style: TextStyle(fontSize: 15, color: Colors.grey),
+                      style: TextStyle(fontSize: 15, color: AppColors.textSecondary),
                     ),
                     const SizedBox(height: 40),
                     OutlinedButton(

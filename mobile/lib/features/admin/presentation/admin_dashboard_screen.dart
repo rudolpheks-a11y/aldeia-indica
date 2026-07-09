@@ -251,11 +251,11 @@ class _StatTile extends StatelessWidget {
                       fontSize: 22, fontWeight: FontWeight.bold)),
               const SizedBox(height: 2),
               Text(label,
-                  style: const TextStyle(fontSize: 12, color: Colors.grey),
+                  style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   textAlign: TextAlign.center),
               if (sublabel != null)
                 Text(sublabel!,
-                    style: const TextStyle(fontSize: 10, color: Colors.grey),
+                    style: const TextStyle(fontSize: 12, color: AppColors.textSecondary),
                     textAlign: TextAlign.center),
             ],
           ),
@@ -437,7 +437,7 @@ class _StatusChip extends StatelessWidget {
       _ => AppColors.neutral500,
     };
     return Chip(
-      label: Text(status, style: const TextStyle(fontSize: 11, color: Colors.white)),
+      label: Text(status, style: const TextStyle(fontSize: 12, color: Colors.white)),
       backgroundColor: color,
       padding: EdgeInsets.zero,
     );

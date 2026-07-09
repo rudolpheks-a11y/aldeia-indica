@@ -61,7 +61,7 @@ class _SearchScreenState extends ConsumerState<SearchScreen> {
                   onPressed: () => _showFilters(context),
                 ),
                 filled: true,
-                fillColor: Colors.grey[100],
+                fillColor: AppColors.neutral100,
               ),
               onChanged: (v) =>
                   ref.read(searchFiltersProvider.notifier).setQuery(v),

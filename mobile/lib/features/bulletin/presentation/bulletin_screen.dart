@@ -73,10 +73,10 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                         mainAxisSize: MainAxisSize.min,
                         children: [
                           Icon(Icons.campaign_outlined,
-                              size: 64, color: Colors.grey),
+                              size: 64, color: AppColors.neutral300),
                           SizedBox(height: 12),
                           Text('Nenhum aviso ainda.',
-                              style: TextStyle(color: Colors.grey)),
+                              style: TextStyle(color: AppColors.textSecondary)),
                         ],
                       ),
                     )
@@ -99,12 +99,12 @@ class _BulletinScreenState extends ConsumerState<BulletinScreen> {
                                 Row(
                                   children: [
                                     const Icon(Icons.person_outline,
-                                        size: 14, color: Colors.grey),
+                                        size: 14, color: AppColors.textSecondary),
                                     const SizedBox(width: 4),
                                     Text(p.authorName,
                                         style: const TextStyle(
                                             fontSize: 12,
-                                            color: Colors.grey,
+                                            color: AppColors.textSecondary,
                                             fontWeight: FontWeight.w500)),
                                   ],
                                 ),

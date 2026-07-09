@@ -29,7 +29,9 @@ class AppColors {
   static const Color secondary900 = Color(0xFF5C331B);
 
   // Apoio
-  static const Color accent500 = Color(0xFFE3A83F); // Dourado — exclusivo estrelas
+  // Dourado — estrelas e superfícies de destaque. NUNCA com conteúdo branco:
+  // branco sobre accent500 mede 2.11:1 (falha AA); usar neutral900 (8.24:1).
+  static const Color accent500 = Color(0xFFE3A83F);
   static const Color error900 = Color(0xFFB0223C); // Carmim
   static const Color informational700 = Color(0xFF5B4B8A); // selo "Completo"
   static const Color informational900 = Color(0xFF3E3564); // ScoreBadge "Novo"

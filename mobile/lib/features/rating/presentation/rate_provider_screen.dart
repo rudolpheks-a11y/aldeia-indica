@@ -141,11 +141,13 @@ class _CriterionRow extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    // Label acima das estrelas (não ao lado): com alvo de toque de 48px por
+    // estrela e Dynamic Type grande, lado a lado não cabe na largura do phone.
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Expanded(
-          child: Text(label, style: const TextStyle(fontSize: 15)),
-        ),
+        Text(label, style: const TextStyle(fontSize: 15)),
+        const SizedBox(height: 4),
         InteractiveStarRating(value: value, onChanged: onChanged, size: 32),
       ],
     );
