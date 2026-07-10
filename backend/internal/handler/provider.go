@@ -90,9 +90,13 @@ func (h *ProviderHandler) Get(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Record profile view fire-and-forget
-	actorID := claims.UserID
-	go h.analytics.RecordEvent(r.Context(), claims.CommunityID, providerID, &actorID, service.EventProfileView)
+	// Registra a visita de forma ANÔNIMA (actor_id = nil): o prestador só
+	// pode saber QUANTAS visitas teve, nunca QUEM visitou — requisito de
+	// segurança da rede de confiança. Não guardar a identidade é a garantia
+	// mais forte: mesmo um endpoint futuro ou acesso direto ao banco não
+	// consegue reconstruir quem viu o perfil. A contagem (COUNT(*)) não
+	// depende de actor_id.
+	go h.analytics.RecordEvent(r.Context(), claims.CommunityID, providerID, nil, service.EventProfileView)
 
 	jsonOK(w, detail)
 }
