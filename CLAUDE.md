@@ -40,12 +40,29 @@ make migrate-down   # reverte 1 migration
 # Docker
 docker compose up postgres minio -d   # banco + storage em background
 
-# Mobile — comando completo com flags obrigatórias
+# Mobile — iOS (simulador iPhone 17)
 ~/development/flutter/bin/flutter run \
   --dart-define API_BASE_URL=http://localhost:8081/api/v1 \
   --dart-define WS_BASE_URL=ws://localhost:8081 \
   -d "iPhone 17"
+
+# Mobile — Android (emulador). ATENÇÃO: 10.0.2.2 (não localhost) é o host
+# que o emulador Android usa pra alcançar o Mac. localhost aponta pro
+# próprio emulador e a API falha.
+~/Library/Android/sdk/emulator/emulator -avd Pixel_6_API_36 &   # liga o emulador
+~/development/flutter/bin/flutter run \
+  --dart-define API_BASE_URL=http://10.0.2.2:8081/api/v1 \
+  --dart-define WS_BASE_URL=ws://10.0.2.2:8081 \
+  -d emulator-5554
 ```
+
+**Setup Android (feito em 2026-07-10):** Android Studio + SDK em
+`~/Library/Android/sdk`, JDK embutido em
+`/Applications/Android Studio.app/Contents/jbr/Contents/Home`, emulador
+`Pixel_6_API_36` (Android 16, arm64). A pasta `mobile/android/` foi gerada
+via `flutter create --platforms=android --org com.example .` (o projeto
+nascera só iOS). O manifesto de **debug** libera cleartext HTTP
+(`usesCleartextTraffic=true`) só pra dev — release continua exigindo HTTPS.
 
 ## Arquitetura do backend
 
