@@ -905,3 +905,44 @@ O e-mail de recuperação de senha (`internal/service/auth.go:366-379`, `resetEm
 | 2026-07-09 (2 P2 corrigidos e verificados) | 0 | 0 | 2 | 0 |
 
 A tendência de severidade caindo a cada rodada (P0/P1 zerados desde 07-05) é o sinal esperado de um backend que já passou por várias auditorias: o que resta são bugs de correção de baixa frequência, não buracos estruturais.
+
+---
+
+# Auditoria de acompanhamento — 2026-07-11 (delta + alinhamento dos dois clientes)
+
+**Data:** 2026-07-11
+**Escopo:** (1) delta do backend desde a auditoria de 2026-07-09 — exatamente 1 commit (`ffb24ab`, anonimização das visitas de perfil: `internal/handler/provider.go` + migration 000028); (2) alinhamento dos dois clientes (simulador iOS e emulador Android) contra o backend único.
+**Stack:** inalterada (Go 1.26.4, chi v5, pgx/v5, PostgreSQL 18). Migration 28/28 aplicada, limpa. `go build`/`vet`/`test` verdes.
+
+## Summary
+
+- P0: 0 · P1: 0 · P2: 0 · P3: 0 (backend)
+- **1 achado de alinhamento de clientes** (não é bug de backend): o build iOS instalado estava defasado — corrigido por rebuild nesta sessão.
+
+## Auditoria do delta (`ffb24ab`)
+
+O único código de backend novo desde 09/07 é a anonimização de `profile_view`. Verificado nas cinco dimensões — **nenhum achado**:
+
+- **Segurança/privacidade — a promessa de anonimato fecha por completo:** `RecordEvent` recebe `nil` como actor (diff verbatim conferido); nenhuma leitura de `actor_id` restou no código fora do INSERT (`grep` em `internal/`); o middleware de log (`logger.go:17`) registra só `method/path/status/duration_ms` — sem identidade do caller — então nem correlação com logs de acesso reidentifica o visitante. `contact_initiated` mantém o actor de propósito (morador se revela ao abrir chat), decisão documentada na própria migration.
+- **Confiabilidade:** reproduzido ao vivo em 10-11/07 — visitas do app Android gravaram com `actor_id` NULL e o painel do prestador contou corretamente (`view_count_30d` via `COUNT(*)`, independente do actor).
+- **Migrations:** 000028 up/down pareados; o down é no-op **deliberado e documentado** (anonimato não pode ser des-anonimizado) — não é o padrão usual de reversão, mas é a semântica correta aqui.
+- **Performance:** o UPDATE retroativo da migration foi one-shot em tabela pequena; nenhum índice novo necessário (leituras seguem pelos índices compostos existentes de `provider_events`).
+
+## Alinhamento iOS ↔ Android
+
+| Verificação | Resultado |
+|---|---|
+| Backend único para ambos | ✅ iOS → `localhost:8081`, Android → `10.0.2.2:8081` (mesmo processo; `/health` 200 dos dois caminhos) |
+| Backend roda o código de HEAD | ✅ Provado pela visita anônima gravada em teste ao vivo (comportamento só existe no commit atual) |
+| Contratos de API | ✅ Mesmo código Dart nos dois clientes; nenhum branching por plataforma nas chamadas |
+| Build Android | ✅ Instalado 11/07 21:57 com o fix do Mural (`31a9972`) — alinhado com HEAD |
+| Build iOS | ⚠️→✅ **Estava defasado** (binário Dart de 09/07 00:42, sem o fix do Mural — a aba Mural do admin renderizava em branco também no iOS, pois o bug é de código Dart compartilhado). **Corrigido nesta sessão por rebuild com HEAD.** |
+| Cleartext HTTP | ✅ iOS: ATS permite localhost por padrão; Android: `usesCleartextTraffic` só no manifest de debug |
+| WebSocket | ✅ Testado ao vivo no Android (11/07); iOS usa o mesmo código Dart e foi testado em 08/07 |
+
+**Limitação declarada:** a verificação por toque no iOS segue indisponível (permissão de Acessibilidade do macOS revogada desde 09/07), então a correção do Mural no iOS é garantida por transitividade — mesmo código Dart, fix verificado ao vivo no Android com o erro de layout confirmado no console do framework — e não por toque no próprio iOS.
+
+## What's working well
+
+- Delta de backend mínimo e correto entre auditorias — as mudanças de produto recentes foram quase todas no mobile, e a única mudança de backend passou limpa pelas cinco dimensões.
+- A disciplina de "reproduzir antes de reportar" pagou de novo: a suspeita de regressão no painel (contagem pós-anonimização) foi descartada por teste ao vivo, não por leitura de código.
