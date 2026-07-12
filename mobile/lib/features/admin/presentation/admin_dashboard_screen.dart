@@ -503,6 +503,14 @@ class _BulletinTabState extends ConsumerState<_BulletinTab> {
                             ),
                             const SizedBox(width: 8),
                             ElevatedButton.icon(
+                              // O tema global define minimumSize com largura
+                              // infinita (botões full-width em forms). Dentro de
+                              // um Row isso vira constraint inválida (Row dá
+                              // largura ilimitada) e quebra o layout da lista
+                              // inteira — daí a aba ficava em branco. Aqui o
+                              // botão precisa dimensionar pelo conteúdo.
+                              style: ElevatedButton.styleFrom(
+                                  minimumSize: const Size(0, 40)),
                               icon: const Icon(Icons.check, size: 16),
                               label: const Text('Aprovar'),
                               onPressed: () => _review(
