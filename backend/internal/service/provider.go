@@ -70,6 +70,7 @@ func (s *ProviderService) Search(ctx context.Context, communityID uuid.UUID, f S
 		WHERE pp.community_id = $1
 		  AND pp.is_visible = true
 		  AND u.status = 'active'
+		  AND u.deleted_at IS NULL
 		  AND ($2 = '' OR EXISTS (
 		        SELECT 1 FROM provider_services ps
 		        JOIN service_categories sc ON sc.id = ps.category_id
@@ -127,6 +128,7 @@ func (s *ProviderService) Featured(ctx context.Context, communityID uuid.UUID) (
 		WHERE pp.community_id = $1
 		  AND pp.is_visible = true
 		  AND u.status = 'active'
+		  AND u.deleted_at IS NULL
 		  AND (
 		        (pp.avg_rating >= 4.2 AND pp.total_clients >= 5)
 		     OR pp.recommendation_count >= 3
@@ -440,7 +442,7 @@ func (s *ProviderService) Get(ctx context.Context, communityID, providerID, view
 		        pp.needs_transport, pp.transport_type
 		 FROM provider_profiles pp
 		 JOIN users u ON u.id = pp.user_id
-		 WHERE pp.community_id = $1 AND pp.user_id = $2`,
+		 WHERE pp.community_id = $1 AND pp.user_id = $2 AND u.deleted_at IS NULL`,
 		communityID, providerID,
 	).Scan(
 		&d.UserID, &d.FullName, &d.AvatarKey,
@@ -499,7 +501,7 @@ func (s *ProviderService) ListFavorites(ctx context.Context, communityID, morado
 		 FROM provider_favorites pf
 		 JOIN provider_profiles pp ON pp.user_id = pf.provider_id AND pp.community_id = pf.community_id
 		 JOIN users u ON u.id = pp.user_id
-		 WHERE pf.community_id=$1 AND pf.morador_id=$2
+		 WHERE pf.community_id=$1 AND pf.morador_id=$2 AND u.deleted_at IS NULL
 		 ORDER BY pf.created_at DESC`,
 		communityID, moradorID,
 	)

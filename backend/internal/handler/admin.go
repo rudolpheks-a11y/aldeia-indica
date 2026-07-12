@@ -42,10 +42,10 @@ func (h *AdminHandler) Stats(w http.ResponseWriter, r *http.Request) {
 
 	err := h.db.QueryRow(r.Context(), `
 		SELECT
-			(SELECT COUNT(*) FROM users WHERE community_id=$1 AND role='morador'),
-			(SELECT COUNT(*) FROM users WHERE community_id=$1 AND role='morador' AND status='active'),
-			(SELECT COUNT(*) FROM users WHERE community_id=$1 AND role='prestador'),
-			(SELECT COUNT(*) FROM users WHERE community_id=$1 AND role='prestador' AND status='active'),
+			(SELECT COUNT(*) FROM users WHERE community_id=$1 AND role='morador' AND deleted_at IS NULL),
+			(SELECT COUNT(*) FROM users WHERE community_id=$1 AND role='morador' AND status='active' AND deleted_at IS NULL),
+			(SELECT COUNT(*) FROM users WHERE community_id=$1 AND role='prestador' AND deleted_at IS NULL),
+			(SELECT COUNT(*) FROM users WHERE community_id=$1 AND role='prestador' AND status='active' AND deleted_at IS NULL),
 			(SELECT COUNT(*) FROM service_categories),
 			(SELECT COUNT(*) FROM provider_services WHERE community_id=$1),
 			(SELECT COUNT(*) FROM service_requests WHERE community_id=$1),
@@ -74,11 +74,22 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	// LEFT JOIN: só prestadores têm provider_profiles; para moradores/admin
 	// (e prestadores anteriores à exigência do aceite, 2026-07-12) o campo
 	// ratings_acknowledged_at vem NULL — o app admin mostra "sem aceite".
+	// ?deleted=true lista as contas EXCLUÍDAS. É a trilha antifraude: um
+	// prestador pode excluir a conta pra tentar escapar de uma avaliação ruim,
+	// e o admin precisa enxergar isso. `deleted_by <> u.id` distingue quem foi
+	// removido pelo admin de quem se autoexcluiu.
+	onlyDeleted := r.URL.Query().Get("deleted") == "true"
+	deletedFilter := "u.deleted_at IS NULL"
+	if onlyDeleted {
+		deletedFilter = "u.deleted_at IS NOT NULL"
+	}
+
 	query := `SELECT u.id, u.full_name, u.email, u.role, u.status, u.created_at,
-	                 pp.ratings_acknowledged_at
+	                 pp.ratings_acknowledged_at, u.deleted_at,
+	                 (u.deleted_by IS NOT NULL AND u.deleted_by <> u.id) AS deleted_by_admin
 	           FROM users u
 	           LEFT JOIN provider_profiles pp ON pp.user_id = u.id
-	           WHERE u.community_id=$1`
+	           WHERE u.community_id=$1 AND ` + deletedFilter
 	args := []any{claims.CommunityID}
 
 	if status != "" {
@@ -111,8 +122,11 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 			// tipo não-ponteiro falharia silenciosamente truncando a lista
 			// (mesma classe do bug de admin/users corrigido em 2026-07-03).
 			RatingsAcknowledgedAt *time.Time `json:"ratings_acknowledged_at"`
+			DeletedAt             *time.Time `json:"deleted_at"`
+			DeletedByAdmin        bool       `json:"deleted_by_admin"`
 		}
-		if err := rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Role, &u.Status, &u.CreatedAt, &u.RatingsAcknowledgedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Role, &u.Status, &u.CreatedAt,
+			&u.RatingsAcknowledgedAt, &u.DeletedAt, &u.DeletedByAdmin); err != nil {
 			jsonError(w, "internal error", http.StatusInternalServerError)
 			return
 		}
@@ -120,11 +134,16 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 			"id": u.ID, "full_name": u.FullName, "email": u.Email,
 			"role": u.Role, "status": u.Status, "created_at": u.CreatedAt,
 			"ratings_acknowledged_at": u.RatingsAcknowledgedAt,
+			"deleted_at":              u.DeletedAt,
+			"deleted_by_admin":        u.DeletedByAdmin,
 		})
 	}
 	if err := rows.Err(); err != nil {
 		jsonError(w, "internal error", http.StatusInternalServerError)
 		return
+	}
+	if users == nil {
+		users = []map[string]any{}
 	}
 	jsonOK(w, users)
 }

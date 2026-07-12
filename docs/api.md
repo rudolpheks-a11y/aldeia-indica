@@ -9,7 +9,8 @@ Base: `/api/v1/...` | Auth: `Authorization: Bearer <access_token>`
 | Auth | `POST /auth/register/morador`, `POST /auth/register/prestador`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `POST /auth/forgot-password`, `POST /auth/reset-password` |
 | Aprovação | `GET /approvals/pending`, `POST /approvals/:id/vote`, `POST /approvals/:id/resolve` |
 | Convites | `POST /invites`, `GET /invites/:token`, `POST /invites/:token/use` |
-| Prestadores | `GET /providers` (search), `GET /providers/me`, `GET /providers/:id`, `PUT /providers/me`, `PUT /providers/me/availability` |
+| Prestadores | `GET /providers` (search, **só morador**), `GET /providers/featured` (**só morador**), `GET /providers/me`, `GET /providers/:id`, `PUT /providers/me`, `PUT /providers/me/availability` |
+| Conta | `DELETE /users/me` (exclusão reversível — ver database.md), `POST /auth/reactivate` (reativa conta autoexcluída) |
 | Categorias | `GET /categories` (público) |
 | Avaliações | `POST /ratings`, `GET /ratings/provider/:id` |
 | Recomendações | `POST /recommendations`, `DELETE /recommendations` (provider_id no body), `GET /recommendations/provider/:id` |
@@ -18,7 +19,7 @@ Base: `/api/v1/...` | Auth: `Authorization: Bearer <access_token>`
 | Upload | `POST /uploads/presign` |
 | Dashboard | `GET /dashboard/summary` |
 | Comunidades | `GET /communities` (público) |
-| Admin | `GET /admin/users`, `PUT /admin/users/:id/status`, `GET /admin/documents`, `POST /admin/documents/:providerID/review`, `POST /admin/communities` |
+| Admin | `GET /admin/users` (`?deleted=true` lista as excluídas), `PUT /admin/users/:id/status`, `DELETE /admin/users/:id` (não exclui admin), `GET /admin/documents`, `POST /admin/documents/:providerID/review`, `POST /admin/communities` |
 
 ## WebSocket (`/ws/chat?token=<jwt>`)
 

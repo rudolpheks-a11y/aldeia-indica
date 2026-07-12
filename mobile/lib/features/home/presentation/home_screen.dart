@@ -43,7 +43,6 @@ class HomeScreen extends ConsumerWidget {
             icon: const Icon(Icons.chat_bubble_outline),
             onPressed: () => context.push('/conversations'),
           ),
-          const ContactAdminIconButton(),
           IconButton(
             tooltip: 'Sair',
             icon: const Icon(Icons.logout),
@@ -71,6 +70,36 @@ class HomeScreen extends ConsumerWidget {
               }
             },
           ),
+          // Excluir conta fica no overflow, não como ícone: é destrutiva e não
+          // deve competir com as ações do dia a dia. "Contatar administrador"
+          // veio junto pra barra não passar de 4 slots.
+          PopupMenuButton<String>(
+            tooltip: 'Mais opções',
+            onSelected: (v) {
+              if (v == 'admin') openAdminEmail(context);
+              if (v == 'delete') _confirmDeleteAccount(context, ref);
+            },
+            itemBuilder: (_) => const [
+              PopupMenuItem(
+                value: 'admin',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading: Icon(Icons.email_outlined),
+                  title: Text('Contatar administrador'),
+                ),
+              ),
+              PopupMenuItem(
+                value: 'delete',
+                child: ListTile(
+                  contentPadding: EdgeInsets.zero,
+                  leading:
+                      Icon(Icons.delete_forever_outlined, color: AppColors.error900),
+                  title: Text('Excluir conta',
+                      style: TextStyle(color: AppColors.error900)),
+                ),
+              ),
+            ],
+          ),
         ],
       ),
       body: SafeArea(
@@ -82,6 +111,52 @@ class HomeScreen extends ConsumerWidget {
             : _MoradorHome(context: context),
       ),
     );
+  }
+}
+
+/// Exclusão de conta — dois passos de propósito: é irreversível e o usuário
+/// perde o acesso na hora. O texto diz o que some (dados pessoais, perfil) e o
+/// que fica (as avaliações que ele deu a outros), pra ninguém ser pego de
+/// surpresa depois.
+Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+  final confirm = await showDialog<bool>(
+    context: context,
+    builder: (ctx) => AlertDialog(
+      title: const Text('Excluir conta'),
+      content: const Text(
+        'Sua conta e seus dados pessoais serão removidos e você perderá o '
+        'acesso ao aplicativo. Esta ação não pode ser desfeita.\n\n'
+        'As avaliações e indicações que você deu a outras pessoas continuam '
+        'valendo, mas sem o seu nome.',
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, false),
+          child: const Text('Cancelar'),
+        ),
+        TextButton(
+          onPressed: () => Navigator.pop(ctx, true),
+          child: const Text('Excluir minha conta',
+              style: TextStyle(color: AppColors.error900)),
+        ),
+      ],
+    ),
+  );
+  if (confirm != true || !context.mounted) return;
+
+  try {
+    await ref.read(authProvider.notifier).deleteAccount();
+    // Sem navegação explícita: o redirect do go_router observa authProvider e
+    // manda pro /login assim que o estado vira AuthUnauthenticated.
+  } catch (e) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Não foi possível excluir a conta. Tente novamente.'),
+          backgroundColor: AppColors.error900,
+        ),
+      );
+    }
   }
 }
 

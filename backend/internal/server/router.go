@@ -31,6 +31,7 @@ func NewRouter(
 	bulletinH *handler.BulletinHandler,
 	notifH *handler.NotificationHandler,
 	questionH *handler.QuestionHandler,
+	userH *handler.UserHandler,
 	wsH *ws.Handler,
 ) http.Handler {
 	r := chi.NewRouter()
@@ -63,6 +64,9 @@ func NewRouter(
 		r.With(authRateLimit).Post("/auth/register/morador", authH.RegisterMorador)
 		r.With(authRateLimit).Post("/auth/register/prestador", authH.RegisterPrestador)
 		r.With(authRateLimit).Post("/auth/login", authH.Login)
+		// Reativação de conta autoexcluída — mesma proteção do login, já que
+		// também recebe e-mail + senha.
+		r.With(authRateLimit).Post("/auth/reactivate", authH.Reactivate)
 		r.Post("/auth/refresh", authH.Refresh)
 		r.With(authRateLimit).Post("/auth/forgot-password", authH.ForgotPassword)
 		r.With(authRateLimit).Post("/auth/reset-password", authH.ResetPassword)
@@ -76,11 +80,18 @@ func NewRouter(
 
 			r.Post("/auth/logout", authH.Logout)
 
+			// Exclusão da própria conta (morador e prestador)
+			r.Delete("/users/me", userH.DeleteMe)
+
 			r.Get("/categories", categoryH.List)
 
 			// Providers
-			r.Get("/providers", providerH.Search)
-			r.Get("/providers/featured", providerH.Featured)
+			// Buscar prestadores é exclusivo do morador (decisão de produto):
+			// prestador não procura prestador. Perfil por id e /providers/me
+			// seguem abertos — o prestador precisa deles pro tile "Ver meu
+			// perfil público" e pras telas de edição.
+			r.With(middleware.RequireRole("morador")).Get("/providers", providerH.Search)
+			r.With(middleware.RequireRole("morador")).Get("/providers/featured", providerH.Featured)
 			r.Get("/providers/favorites", providerH.ListFavorites)
 			r.Get("/providers/me", providerH.GetMe)
 			r.Get("/providers/me/ratings/summary", providerH.MyRatingSummary)
@@ -95,8 +106,11 @@ func NewRouter(
 			r.Get("/dashboard/summary", providerH.Dashboard)
 
 			// Mural de avisos (apenas moradores lêem e postam)
-			r.Get("/bulletin", bulletinH.ListApproved)
-			r.Post("/bulletin", bulletinH.Create)
+			// O mural é interação exclusiva entre moradores (decisão de
+			// produto) — prestador não lê nem publica. A moderação do admin
+			// usa /admin/bulletin/*, que não passa por aqui.
+			r.With(middleware.RequireRole("morador")).Get("/bulletin", bulletinH.ListApproved)
+			r.With(middleware.RequireRole("morador")).Post("/bulletin", bulletinH.Create)
 
 			// Ratings
 			r.Post("/ratings", ratingH.Create)
@@ -142,6 +156,7 @@ func NewRouter(
 				r.Get("/admin/stats", adminH.Stats)
 				r.Get("/admin/users", adminH.ListUsers)
 				r.Put("/admin/users/{id}/status", adminH.UpdateUserStatus)
+				r.Delete("/admin/users/{id}", userH.DeleteUser)
 				r.Get("/admin/provider-services", adminH.ListProviderServices)
 				r.Get("/admin/ratings", adminH.ListRatings)
 				r.Get("/admin/recommendations", adminH.ListRecommendations)

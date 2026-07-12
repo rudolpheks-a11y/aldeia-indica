@@ -24,6 +24,10 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _passwordCtrl = TextEditingController();
   String? _selectedCommunity;
   bool _obscurePassword = true;
+  // Loading é local: mandar o authProvider pra loading recriaria o GoRouter
+  // (o routerProvider observa o authProvider) e a tela seria destruída no meio
+  // da tentativa de login.
+  bool _loading = false;
 
   @override
   void dispose() {
@@ -34,29 +38,71 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
 
   Future<void> _login() async {
     if (!_formKey.currentState!.validate()) return;
-    await ref.read(authProvider.notifier).login(
+    setState(() => _loading = true);
+    final result = await ref.read(authProvider.notifier).login(
           communityId: _comunidades[_selectedCommunity!]!,
           email: _emailCtrl.text.trim(),
           password: _passwordCtrl.text,
         );
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    switch (result) {
+      case LoginOk():
+        break; // o redirect do go_router leva pra home
+      case LoginDeletedAccount(:final message):
+        await _offerReactivation(message);
+      case LoginFailed(:final message):
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text(message), backgroundColor: AppColors.error900),
+        );
+    }
+  }
+
+  Future<void> _offerReactivation(String message) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Reativar conta'),
+        content: Text(
+          '$message\n\n'
+          'Ao reativar, você volta com o mesmo perfil e o mesmo histórico de '
+          'avaliações de antes.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Agora não'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Reativar minha conta'),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true || !mounted) return;
+
+    setState(() => _loading = true);
+    final result = await ref.read(authProvider.notifier).reactivate(
+          communityId: _comunidades[_selectedCommunity!]!,
+          email: _emailCtrl.text.trim(),
+          password: _passwordCtrl.text,
+        );
+    if (!mounted) return;
+    setState(() => _loading = false);
+
+    if (result case LoginFailed(:final message)) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: AppColors.error900),
+      );
+    }
   }
 
   @override
   Widget build(BuildContext context) {
-    final auth = ref.watch(authProvider);
-    final isLoading = auth.isLoading;
-
-    ref.listen(authProvider, (_, next) {
-      final state = next.valueOrNull;
-      if (state is AuthError) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(state.message), backgroundColor: AppColors.error900),
-        );
-      }
-    });
-
     return LoadingOverlay(
-      isLoading: isLoading,
+      isLoading: _loading,
       child: Scaffold(
         body: SafeArea(
           child: SingleChildScrollView(
@@ -119,7 +165,7 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                   ),
                   const SizedBox(height: 24),
                   ElevatedButton(
-                    onPressed: isLoading ? null : _login,
+                    onPressed: _loading ? null : _login,
                     child: const Text('Entrar'),
                   ),
                   Align(

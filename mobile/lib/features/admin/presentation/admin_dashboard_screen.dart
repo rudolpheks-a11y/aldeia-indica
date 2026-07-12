@@ -13,7 +13,7 @@ class AdminDashboardScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return DefaultTabController(
-      length: 4,
+      length: 5,
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Painel Admin'),
@@ -46,9 +46,10 @@ class AdminDashboardScreen extends ConsumerWidget {
               },
             ),
           ],
-          bottom: const TabBar(tabs: [
+          bottom: const TabBar(isScrollable: true, tabs: [
             Tab(text: 'Visão Geral'),
             Tab(text: 'Usuários'),
+            Tab(text: 'Excluídos'),
             Tab(text: 'Mural'),
             Tab(text: 'Comunidades'),
           ]),
@@ -56,6 +57,7 @@ class AdminDashboardScreen extends ConsumerWidget {
         body: const TabBarView(children: [
           _OverviewTab(),
           _UsersTab(),
+          _DeletedTab(),
           _BulletinTab(),
           _CommunitiesTab(),
         ]),
@@ -409,6 +411,19 @@ class _UsersTabState extends ConsumerState<_UsersTab> {
                           _approve(context, u['id'] as String),
                     ),
                   ],
+                  // Admin não se exclui nem exclui outro admin — o backend
+                  // bloqueia com 403; aqui o botão nem aparece.
+                  if (u['role'] != 'admin')
+                    IconButton(
+                      tooltip: 'Excluir usuário',
+                      icon: const Icon(Icons.delete_outline,
+                          color: AppColors.error900),
+                      onPressed: () => _delete(
+                        context,
+                        u['id'] as String,
+                        u['full_name'] as String,
+                      ),
+                    ),
                 ],
               ),
             ),
@@ -417,6 +432,57 @@ class _UsersTabState extends ConsumerState<_UsersTab> {
         ),
       ),
     );
+  }
+
+  Future<void> _delete(
+      BuildContext context, String userId, String fullName) async {
+    final confirm = await showDialog<bool>(
+      context: context,
+      builder: (ctx) => AlertDialog(
+        title: const Text('Excluir usuário'),
+        content: Text(
+          'Excluir a conta de $fullName? Os dados pessoais são removidos e a '
+          'pessoa perde o acesso ao aplicativo. Esta ação não pode ser desfeita.\n\n'
+          'As avaliações e indicações que ela deu a outros continuam valendo, '
+          'mas sem o nome.',
+        ),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, false),
+            child: const Text('Cancelar'),
+          ),
+          TextButton(
+            onPressed: () => Navigator.pop(ctx, true),
+            child: const Text('Excluir',
+                style: TextStyle(color: AppColors.error900)),
+          ),
+        ],
+      ),
+    );
+    if (confirm != true) return;
+
+    try {
+      await ref.read(apiClientProvider).delete(ApiEndpoints.adminUser(userId));
+      ref.invalidate(_usersProvider);
+      // A Visão Geral conta usuários e a aba Excluídos ganha o registro novo —
+      // sem invalidar, ambas seguem com os dados antigos.
+      ref.invalidate(_statsProvider);
+      ref.invalidate(_deletedUsersProvider);
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('$fullName foi excluído.')),
+        );
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Não foi possível excluir o usuário. Tente novamente.'),
+            backgroundColor: AppColors.error900,
+          ),
+        );
+      }
+    }
   }
 
   Future<void> _approve(BuildContext context, String userId) async {
@@ -454,6 +520,103 @@ class _UsersTabState extends ConsumerState<_UsersTab> {
         );
       }
     }
+  }
+}
+
+class _DeletedTab extends ConsumerStatefulWidget {
+  const _DeletedTab();
+
+  @override
+  ConsumerState<_DeletedTab> createState() => _DeletedTabState();
+}
+
+class _DeletedTabState extends ConsumerState<_DeletedTab> {
+  final _listCtrl = ScrollController();
+
+  @override
+  void dispose() {
+    _listCtrl.dispose();
+    super.dispose();
+  }
+
+  static String _fmt(String? iso) {
+    if (iso == null) return 'data desconhecida';
+    final dt = DateTime.parse(iso).toLocal();
+    final dd = dt.day.toString().padLeft(2, '0');
+    final mm = dt.month.toString().padLeft(2, '0');
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+    return '$dd/$mm/${dt.year} às $hh:$min';
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final users = ref.watch(_deletedUsersProvider);
+    return users.when(
+      loading: () => const Center(child: CircularProgressIndicator()),
+      error: (_, __) => Center(
+          child: AppErrorView(onRetry: () => ref.invalidate(_deletedUsersProvider))),
+      data: (list) => list.isEmpty
+          ? const Center(child: Text('Nenhuma conta excluída'))
+          : Column(
+              children: [
+                Container(
+                  width: double.infinity,
+                  padding: const EdgeInsets.all(12),
+                  color: AppColors.secondary50,
+                  child: const Text(
+                    'O e-mail continua vinculado a estas contas: ninguém consegue '
+                    'se recadastrar com ele. Uma conta excluída pelo próprio dono '
+                    'pode voltar por reativação — com o histórico de avaliações junto.',
+                    style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
+                  ),
+                ),
+                Expanded(
+                  child: AppScrollbar(
+                    controller: _listCtrl,
+                    child: ListView.builder(
+                      controller: _listCtrl,
+                      padding: const EdgeInsets.all(12),
+                      itemCount: list.length,
+                      itemBuilder: (_, i) {
+                        final u = list[i];
+                        final byAdmin = u['deleted_by_admin'] == true;
+                        return Card(
+                          child: ListTile(
+                            leading: Icon(
+                              byAdmin ? Icons.gavel_rounded : Icons.person_off_outlined,
+                              color: byAdmin ? AppColors.error900 : AppColors.textSecondary,
+                            ),
+                            title: Text(u['full_name'] as String),
+                            subtitle: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text('${u['role']} · ${u['email']}'),
+                                Text(
+                                  'Excluída em ${_fmt(u['deleted_at'] as String?)}',
+                                  style: const TextStyle(
+                                      fontSize: 12, color: AppColors.textSecondary),
+                                ),
+                              ],
+                            ),
+                            trailing: Chip(
+                              label: Text(
+                                byAdmin ? 'pelo admin' : 'pelo usuário',
+                                style: const TextStyle(fontSize: 11, color: Colors.white),
+                              ),
+                              backgroundColor:
+                                  byAdmin ? AppColors.error900 : AppColors.neutral500,
+                              padding: EdgeInsets.zero,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+    );
   }
 }
 
@@ -703,6 +866,15 @@ final _statsProvider = FutureProvider((ref) async {
   final api = ref.watch(apiClientProvider);
   final resp = await api.get('/admin/stats');
   return resp.data as Map<String, dynamic>;
+});
+
+/// Contas excluídas — trilha antifraude. Um prestador pode excluir a conta pra
+/// tentar escapar de uma avaliação ruim; o admin precisa enxergar isso, e o
+/// e-mail continua preso à conta (recadastro com ele é bloqueado).
+final _deletedUsersProvider = FutureProvider((ref) async {
+  final api = ref.watch(apiClientProvider);
+  final resp = await api.get('/admin/users?deleted=true');
+  return (resp.data as List<dynamic>).cast<Map<String, dynamic>>();
 });
 
 final _usersProvider = FutureProvider((ref) async {

@@ -139,4 +139,33 @@ class AuthRepository {
     }
     await _storage.clear();
   }
+
+  /// Exclui a conta do próprio usuário. O backend NÃO apaga os dados: marca a
+  /// conta como excluída e mantém o e-mail preso a ela (antifraude — ninguém
+  /// se recadastra com o mesmo e-mail pra fugir de uma avaliação ruim). Dá pra
+  /// reativar depois com [reactivate]. Limpa a sessão local em seguida.
+  Future<void> deleteAccount() async {
+    await _api.delete(ApiEndpoints.usersMe);
+    await _storage.clear();
+  }
+
+  /// Reativa uma conta que o próprio dono excluiu, devolvendo a sessão. A senha
+  /// antiga é a prova de posse. Conta removida pelo admin não volta por aqui.
+  Future<TokenResponse> reactivate({
+    required String communityId,
+    required String email,
+    required String password,
+  }) async {
+    final resp = await _api.post(ApiEndpoints.reactivate, data: {
+      'community_id': communityId,
+      'email': email,
+      'password': password,
+    });
+    final tokens = TokenResponse.fromJson(resp.data as Map<String, dynamic>);
+    await _storage.saveTokens(
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
+    );
+    return tokens;
+  }
 }

@@ -3,7 +3,9 @@ import 'package:url_launcher/url_launcher.dart';
 
 const _adminEmail = 'rudolpheks@hotmail.com';
 
-Future<void> _openAdminEmail(BuildContext context) async {
+/// Abre o e-mail do administrador. Público porque a home agora chama isso
+/// direto do menu overflow, sem passar por um dos botões abaixo.
+Future<void> openAdminEmail(BuildContext context) async {
   final uri = Uri(
     scheme: 'mailto',
     path: _adminEmail,
@@ -25,23 +27,9 @@ class ContactAdminTextButton extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return TextButton.icon(
-      onPressed: () => _openAdminEmail(context),
+      onPressed: () => openAdminEmail(context),
       icon: const Icon(Icons.mail_outline, size: 18),
       label: const Text('Contatar administrador'),
-    );
-  }
-}
-
-/// Ícone para a AppBar da home.
-class ContactAdminIconButton extends StatelessWidget {
-  const ContactAdminIconButton({super.key});
-
-  @override
-  Widget build(BuildContext context) {
-    return IconButton(
-      tooltip: 'Contatar administrador',
-      icon: const Icon(Icons.mail_outline),
-      onPressed: () => _openAdminEmail(context),
     );
   }
 }

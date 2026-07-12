@@ -29,6 +29,17 @@ var (
 	ErrInvalidInviteCode     = errors.New("invalid or expired invite code")
 	ErrSameInviteSponsor     = errors.New("the two invite codes must be from different residents")
 	ErrIncompleteInviteCodes = errors.New("provide both invite codes or leave both empty")
+
+	// Conta excluída pelo próprio dono: as credenciais estão certas, mas a
+	// conta está inativa. O app oferece reativar.
+	ErrAccountDeleted = errors.New("account deleted")
+	// Conta excluída por um admin: o dono NÃO reativa sozinho, senão banir um
+	// fraudador não valeria de nada.
+	ErrAccountDeletedByAdmin = errors.New("account deleted by admin")
+	// Tentativa de cadastrar um e-mail que pertence a uma conta excluída. O
+	// e-mail continua preso à conta antiga de propósito (antifraude): a pessoa
+	// tem que reativar, não criar outra conta limpa.
+	ErrEmailTakenDeleted = errors.New("email belongs to a deleted account")
 )
 
 type AuthService struct {
@@ -127,7 +138,7 @@ func (s *AuthService) RegisterMorador(ctx context.Context, in RegisterMoradorInp
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return uuid.Nil, ErrEmailTaken
+			return uuid.Nil, s.emailTakenReason(ctx, in.CommunityID, in.Email)
 		}
 		return uuid.Nil, fmt.Errorf("insert user: %w", err)
 	}
@@ -192,7 +203,7 @@ func (s *AuthService) RegisterPrestador(ctx context.Context, in RegisterPrestado
 	if err != nil {
 		var pgErr *pgconn.PgError
 		if errors.As(err, &pgErr) && pgErr.Code == "23505" {
-			return uuid.Nil, ErrEmailTaken
+			return uuid.Nil, s.emailTakenReason(ctx, in.CommunityID, in.Email)
 		}
 		return uuid.Nil, fmt.Errorf("insert user: %w", err)
 	}
@@ -220,18 +231,38 @@ type LoginInput struct {
 	Platform    string
 }
 
+// emailTakenReason distingue "e-mail já em uso" de "e-mail pertence a uma conta
+// EXCLUÍDA". O segundo caso é o coração do antifraude: o e-mail continua preso
+// à conta antiga, então um prestador não consegue se recadastrar do zero para
+// escapar de uma avaliação ruim — ele é mandado reativar a conta original.
+func (s *AuthService) emailTakenReason(ctx context.Context, communityID uuid.UUID, email string) error {
+	var deleted bool
+	err := s.db.QueryRow(ctx,
+		`SELECT deleted_at IS NOT NULL FROM users
+		  WHERE community_id = $1 AND email = $2`,
+		communityID, email,
+	).Scan(&deleted)
+	if err == nil && deleted {
+		return ErrEmailTakenDeleted
+	}
+	return ErrEmailTaken
+}
+
 func (s *AuthService) Login(ctx context.Context, in LoginInput) (*TokenPair, error) {
 	var user struct {
 		ID           uuid.UUID
 		PasswordHash string
 		Role         domain.UserRole
 		Status       domain.UserStatus
+		DeletedAt    *time.Time
+		DeletedBy    *uuid.UUID
 	}
 	err := s.db.QueryRow(ctx,
-		`SELECT id, password_hash, role, status FROM users
+		`SELECT id, password_hash, role, status, deleted_at, deleted_by FROM users
 		 WHERE community_id = $1 AND email = $2`,
 		in.CommunityID, in.Email,
-	).Scan(&user.ID, &user.PasswordHash, &user.Role, &user.Status)
+	).Scan(&user.ID, &user.PasswordHash, &user.Role, &user.Status,
+		&user.DeletedAt, &user.DeletedBy)
 	if err != nil {
 		return nil, ErrInvalidCredentials
 	}
@@ -240,6 +271,70 @@ func (s *AuthService) Login(ctx context.Context, in LoginInput) (*TokenPair, err
 		return nil, ErrInvalidCredentials
 	}
 
+	// Só depois de conferir a senha — não revelar a existência de uma conta
+	// excluída para quem não sabe a senha dela.
+	if user.DeletedAt != nil {
+		if user.DeletedBy != nil && *user.DeletedBy == user.ID {
+			return nil, ErrAccountDeleted // autoexcluída: pode reativar
+		}
+		return nil, ErrAccountDeletedByAdmin // removida pelo admin: não reativa
+	}
+
+	switch user.Status {
+	case domain.StatusPending:
+		return nil, ErrUserPending
+	case domain.StatusSuspended:
+		return nil, ErrUserSuspended
+	}
+
+	return s.issuePair(ctx, domain.Claims{
+		UserID:      user.ID,
+		CommunityID: in.CommunityID,
+		Role:        user.Role,
+	}, in.DeviceInfo)
+}
+
+// Reactivate desfaz uma autoexclusão e já devolve a sessão — a pessoa entra
+// direto, com o histórico de avaliações intacto. Exige a senha da conta antiga
+// (é a prova de posse) e recusa conta removida por admin.
+func (s *AuthService) Reactivate(ctx context.Context, in LoginInput) (*TokenPair, error) {
+	var user struct {
+		ID           uuid.UUID
+		PasswordHash string
+		Role         domain.UserRole
+		Status       domain.UserStatus
+		DeletedAt    *time.Time
+		DeletedBy    *uuid.UUID
+	}
+	err := s.db.QueryRow(ctx,
+		`SELECT id, password_hash, role, status, deleted_at, deleted_by FROM users
+		 WHERE community_id = $1 AND email = $2`,
+		in.CommunityID, in.Email,
+	).Scan(&user.ID, &user.PasswordHash, &user.Role, &user.Status,
+		&user.DeletedAt, &user.DeletedBy)
+	if err != nil {
+		return nil, ErrInvalidCredentials
+	}
+
+	if err := bcrypt.CompareHashAndPassword([]byte(user.PasswordHash), []byte(in.Password)); err != nil {
+		return nil, ErrInvalidCredentials
+	}
+
+	if user.DeletedAt == nil {
+		return nil, ErrUserNotFound // não está excluída — nada a reativar
+	}
+	if user.DeletedBy == nil || *user.DeletedBy != user.ID {
+		return nil, ErrAccountDeletedByAdmin
+	}
+
+	if _, err := s.db.Exec(ctx,
+		`UPDATE users SET deleted_at = NULL, deleted_by = NULL, updated_at = now()
+		  WHERE id = $1`, user.ID); err != nil {
+		return nil, err
+	}
+
+	// A conta volta ao status que tinha antes (o delete nunca mexeu nele): se
+	// estava pendente de aprovação, continua pendente.
 	switch user.Status {
 	case domain.StatusPending:
 		return nil, ErrUserPending

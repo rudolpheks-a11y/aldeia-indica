@@ -56,6 +56,10 @@ func (h *AuthHandler) RegisterMorador(w http.ResponseWriter, r *http.Request) {
 	})
 	if err != nil {
 		switch {
+		case errors.Is(err, service.ErrEmailTakenDeleted):
+			jsonErrorCode(w, "email_taken_deleted",
+				"Já existe uma conta excluída com este e-mail. Faça login com a senha antiga para reativá-la — o e-mail continua vinculado a ela.",
+				http.StatusConflict)
 		case errors.Is(err, service.ErrEmailTaken):
 			jsonError(w, err.Error(), http.StatusConflict)
 		case errors.Is(err, service.ErrInvalidInviteCode),
@@ -119,6 +123,12 @@ func (h *AuthHandler) RegisterPrestador(w http.ResponseWriter, r *http.Request) 
 		ProfessionalBio:     in.ProfessionalBio,
 	})
 	if err != nil {
+		if errors.Is(err, service.ErrEmailTakenDeleted) {
+			jsonErrorCode(w, "email_taken_deleted",
+				"Já existe uma conta excluída com este e-mail. Faça login com a senha antiga para reativá-la — o e-mail continua vinculado a ela.",
+				http.StatusConflict)
+			return
+		}
 		if errors.Is(err, service.ErrEmailTaken) {
 			jsonError(w, err.Error(), http.StatusConflict)
 			return
@@ -164,12 +174,72 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "account pending approval", http.StatusForbidden)
 		case errors.Is(err, service.ErrUserSuspended):
 			jsonError(w, "account suspended", http.StatusForbidden)
+		case errors.Is(err, service.ErrAccountDeleted):
+			// A senha está certa, a conta é dela e foi ela quem excluiu — o app
+			// lê o code e oferece "Reativar conta".
+			jsonErrorCode(w, "account_deleted",
+				"Esta conta foi excluída. Você pode reativá-la para recuperar seu histórico.",
+				http.StatusForbidden)
+		case errors.Is(err, service.ErrAccountDeletedByAdmin):
+			jsonErrorCode(w, "account_deleted_by_admin",
+				"Esta conta foi removida pelo administrador da comunidade. Entre em contato com ele.",
+				http.StatusForbidden)
 		default:
 			jsonError(w, "internal error", http.StatusInternalServerError)
 		}
 		return
 	}
 
+	jsonOK(w, pair)
+}
+
+// Reactivate desfaz uma autoexclusão e já devolve a sessão. Exige a senha da
+// conta antiga — é a prova de que a pessoa é mesmo a dona. Conta removida por
+// admin não reativa por aqui.
+func (h *AuthHandler) Reactivate(w http.ResponseWriter, r *http.Request) {
+	var in struct {
+		CommunityID string `json:"community_id"`
+		Email       string `json:"email"`
+		Password    string `json:"password"`
+		DeviceInfo  string `json:"device_info"`
+		Platform    string `json:"platform"`
+	}
+	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
+		jsonError(w, "invalid body", http.StatusBadRequest)
+		return
+	}
+	communityID, err := uuid.Parse(in.CommunityID)
+	if err != nil {
+		jsonError(w, "invalid community_id", http.StatusBadRequest)
+		return
+	}
+
+	pair, err := h.svc.Reactivate(r.Context(), service.LoginInput{
+		CommunityID: communityID,
+		Email:       in.Email,
+		Password:    in.Password,
+		DeviceInfo:  in.DeviceInfo,
+		Platform:    in.Platform,
+	})
+	if err != nil {
+		switch {
+		case errors.Is(err, service.ErrInvalidCredentials):
+			jsonError(w, "invalid credentials", http.StatusUnauthorized)
+		case errors.Is(err, service.ErrAccountDeletedByAdmin):
+			jsonErrorCode(w, "account_deleted_by_admin",
+				"Esta conta foi removida pelo administrador e não pode ser reativada por você.",
+				http.StatusForbidden)
+		case errors.Is(err, service.ErrUserNotFound):
+			jsonError(w, "esta conta não está excluída", http.StatusConflict)
+		case errors.Is(err, service.ErrUserPending):
+			jsonError(w, "account pending approval", http.StatusForbidden)
+		case errors.Is(err, service.ErrUserSuspended):
+			jsonError(w, "account suspended", http.StatusForbidden)
+		default:
+			jsonError(w, "internal error", http.StatusInternalServerError)
+		}
+		return
+	}
 	jsonOK(w, pair)
 }
 
@@ -265,4 +335,12 @@ func jsonError(w http.ResponseWriter, msg string, code int) {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(code)
 	json.NewEncoder(w).Encode(map[string]string{"error": msg})
+}
+
+// jsonErrorCode é o jsonError com um código estável que o app usa pra decidir o
+// que fazer (ex.: oferecer reativação em vez de só mostrar a mensagem).
+func jsonErrorCode(w http.ResponseWriter, code, msg string, status int) {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(status)
+	json.NewEncoder(w).Encode(map[string]string{"error": msg, "code": code})
 }

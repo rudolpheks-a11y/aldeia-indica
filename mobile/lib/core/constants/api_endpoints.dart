@@ -62,5 +62,9 @@ class ApiEndpoints {
   static const String notificationsUnreadCount = '/notifications/unread-count';
   static const String notificationsReadAll = '/notifications/read-all';
 
+  static const String reactivate = '/auth/reactivate';
+  static const String usersMe = '/users/me';
+  static String adminUser(String id) => '/admin/users/$id';
+
   static const String wsChat = '/ws/chat';
 }
