@@ -197,9 +197,12 @@ func (s *AuthService) RegisterPrestador(ctx context.Context, in RegisterPrestado
 		return uuid.Nil, fmt.Errorf("insert user: %w", err)
 	}
 
+	// ratings_acknowledged_at = now(): o handler já garantiu que o aceite
+	// das avaliações públicas veio marcado (400 sem ele), então o momento
+	// do cadastro É o momento do aceite.
 	_, err = tx.Exec(ctx,
-		`INSERT INTO provider_profiles (user_id, community_id, city, years_in_neighborhood, professional_bio, is_visible)
-		 VALUES ($1, $2, $3, $4, $5, true)`,
+		`INSERT INTO provider_profiles (user_id, community_id, city, years_in_neighborhood, professional_bio, is_visible, ratings_acknowledged_at)
+		 VALUES ($1, $2, $3, $4, $5, true, now())`,
 		userID, in.CommunityID, in.City, in.YearsInNeighborhood, in.ProfessionalBio,
 	)
 	if err != nil {

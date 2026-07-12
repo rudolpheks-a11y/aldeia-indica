@@ -84,6 +84,7 @@ func (h *AuthHandler) RegisterPrestador(w http.ResponseWriter, r *http.Request) 
 		City                string `json:"city"`
 		YearsInNeighborhood int    `json:"years_in_neighborhood"`
 		ProfessionalBio     string `json:"professional_bio"`
+		RatingsAcknowledged bool   `json:"ratings_acknowledged"`
 	}
 	if err := json.NewDecoder(r.Body).Decode(&in); err != nil {
 		jsonError(w, "invalid body", http.StatusBadRequest)
@@ -97,6 +98,14 @@ func (h *AuthHandler) RegisterPrestador(w http.ResponseWriter, r *http.Request) 
 	}
 	if len(in.Password) < 6 {
 		jsonError(w, "password must be at least 6 characters", http.StatusBadRequest)
+		return
+	}
+	// Aceite obrigatório (2026-07-12): o prestador reconhece que moradores
+	// poderão avaliar seus serviços e que as avaliações ficam públicas no
+	// perfil. Validado no servidor — o checkbox do app não basta como única
+	// barreira. O timestamp do aceite é gravado no provider_profiles.
+	if !in.RatingsAcknowledged {
+		jsonError(w, "ratings acknowledgment is required", http.StatusBadRequest)
 		return
 	}
 

@@ -50,6 +50,7 @@ class _RegisterPrestadorScreenState
   String? _selectedCommunity;
   final Set<String> _selectedServicos = {};
   int _years = 0;
+  bool _ratingsAcknowledged = false;
 
   @override
   void dispose() {
@@ -89,6 +90,7 @@ class _RegisterPrestadorScreenState
         city: 'Aldeia da Serra',
         yearsInNeighborhood: _years,
         professionalBio: servicosList.join(', '),
+        ratingsAcknowledged: _ratingsAcknowledged,
       );
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -220,9 +222,62 @@ class _RegisterPrestadorScreenState
                   ),
                 ),
               ],
-              const SizedBox(height: 32),
+              const SizedBox(height: 24),
+              // ── Aviso sobre avaliações públicas + aceite obrigatório ──────
+              Container(
+                padding: const EdgeInsets.all(16),
+                decoration: BoxDecoration(
+                  color: AppColors.primary50,
+                  borderRadius: BorderRadius.circular(12),
+                  border: Border.all(color: AppColors.primary200),
+                ),
+                child: const Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Sobre as avaliações dos moradores',
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                    SizedBox(height: 8),
+                    Text(
+                      'No Aldeia Indica, a confiança da comunidade é construída '
+                      'por avaliações. Ao concluir seu cadastro como prestador:\n\n'
+                      '•  Moradores que contratarem seus serviços poderão '
+                      'avaliá-los com notas e comentários.\n'
+                      '•  Essas avaliações ficam públicas no seu perfil, '
+                      'visíveis para todos os moradores da comunidade.\n'
+                      '•  As avaliações alimentam o seu Score Aldeia, a nota '
+                      'que ordena os prestadores nas buscas.',
+                      style: TextStyle(
+                        fontSize: 14,
+                        height: 1.45,
+                        color: AppColors.textPrimary,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              CheckboxListTile(
+                value: _ratingsAcknowledged,
+                onChanged: (v) =>
+                    setState(() => _ratingsAcknowledged = v ?? false),
+                controlAffinity: ListTileControlAffinity.leading,
+                contentPadding: EdgeInsets.zero,
+                title: const Text(
+                  'Li e estou ciente de que meus serviços poderão ser '
+                  'avaliados pelos moradores e que essas avaliações serão '
+                  'públicas no meu perfil.',
+                  style: TextStyle(fontSize: 14, height: 1.4),
+                ),
+              ),
+              const SizedBox(height: 8),
               ElevatedButton(
-                onPressed: _register,
+                // Sem o aceite, o cadastro não anda (o backend também exige).
+                onPressed: _ratingsAcknowledged ? _register : null,
                 child: const Text('Cadastrar'),
               ),
               TextButton(

@@ -75,6 +75,9 @@ class AuthRepository {
     required String city,
     required int yearsInNeighborhood,
     String professionalBio = '',
+    // Aceite das avaliações públicas — obrigatório no backend (400 sem ele);
+    // o momento do aceite fica gravado no perfil (ratings_acknowledged_at).
+    required bool ratingsAcknowledged,
   }) async {
     final resp = await _api.post(ApiEndpoints.registerPrestador, data: {
       'community_id': communityId,
@@ -84,6 +87,7 @@ class AuthRepository {
       'city': city,
       'years_in_neighborhood': yearsInNeighborhood,
       'professional_bio': professionalBio,
+      'ratings_acknowledged': ratingsAcknowledged,
     });
     return (resp.data as Map<String, dynamic>)['user_id'] as String;
   }
