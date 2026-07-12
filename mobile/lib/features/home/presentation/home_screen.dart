@@ -70,14 +70,14 @@ class HomeScreen extends ConsumerWidget {
               }
             },
           ),
-          // Excluir conta fica no overflow, não como ícone: é destrutiva e não
-          // deve competir com as ações do dia a dia. "Contatar administrador"
-          // veio junto pra barra não passar de 4 slots.
+          // Desativar conta fica no overflow, não como ícone: é uma saída, não
+          // uma ação do dia a dia. "Contatar administrador" veio junto pra
+          // barra não passar de 4 slots.
           PopupMenuButton<String>(
             tooltip: 'Mais opções',
             onSelected: (v) {
               if (v == 'admin') openAdminEmail(context);
-              if (v == 'delete') _confirmDeleteAccount(context, ref);
+              if (v == 'deactivate') _confirmDeactivateAccount(context, ref);
             },
             itemBuilder: (_) => const [
               PopupMenuItem(
@@ -89,12 +89,12 @@ class HomeScreen extends ConsumerWidget {
                 ),
               ),
               PopupMenuItem(
-                value: 'delete',
+                value: 'deactivate',
                 child: ListTile(
                   contentPadding: EdgeInsets.zero,
                   leading:
-                      Icon(Icons.delete_forever_outlined, color: AppColors.error900),
-                  title: Text('Excluir conta',
+                      Icon(Icons.person_off_outlined, color: AppColors.error900),
+                  title: Text('Desativar minha conta',
                       style: TextStyle(color: AppColors.error900)),
                 ),
               ),
@@ -114,20 +114,23 @@ class HomeScreen extends ConsumerWidget {
   }
 }
 
-/// Exclusão de conta — dois passos de propósito: é irreversível e o usuário
-/// perde o acesso na hora. O texto diz o que some (dados pessoais, perfil) e o
-/// que fica (as avaliações que ele deu a outros), pra ninguém ser pego de
-/// surpresa depois.
-Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
+/// Desativação de conta. O texto tem que ser honesto sobre o que acontece de
+/// verdade: o perfil sai do ar, mas os dados e o histórico ficam guardados
+/// (ver docs/database.md — é o que permite reativar e o que impede um prestador
+/// de fugir de uma avaliação ruim). Chamar isso de "excluir" seria uma promessa
+/// falsa; o apagamento definitivo passa pelo administrador.
+Future<void> _confirmDeactivateAccount(BuildContext context, WidgetRef ref) async {
   final confirm = await showDialog<bool>(
     context: context,
     builder: (ctx) => AlertDialog(
-      title: const Text('Excluir conta'),
+      title: const Text('Desativar minha conta'),
       content: const Text(
-        'Sua conta e seus dados pessoais serão removidos e você perderá o '
-        'acesso ao aplicativo. Esta ação não pode ser desfeita.\n\n'
-        'As avaliações e indicações que você deu a outras pessoas continuam '
-        'valendo, mas sem o seu nome.',
+        'Seu perfil sai do ar e você perde o acesso ao aplicativo.\n\n'
+        'Seus dados e seu histórico ficam guardados: se mudar de ideia, você '
+        'pode reativar a conta depois entrando com o mesmo e-mail e senha, e '
+        'tudo volta como estava.\n\n'
+        'Para apagar seus dados definitivamente, fale com o administrador '
+        'da comunidade.',
       ),
       actions: [
         TextButton(
@@ -136,7 +139,7 @@ Future<void> _confirmDeleteAccount(BuildContext context, WidgetRef ref) async {
         ),
         TextButton(
           onPressed: () => Navigator.pop(ctx, true),
-          child: const Text('Excluir minha conta',
+          child: const Text('Desativar minha conta',
               style: TextStyle(color: AppColors.error900)),
         ),
       ],

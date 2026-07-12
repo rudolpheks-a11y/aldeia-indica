@@ -44,7 +44,7 @@ irregularidade.
 ### E-mail duplicado
 
 O e-mail é único **por comunidade** (`UNIQUE(community_id, email)`). Tentar cadastrar um
-e-mail já usado retorna **409**. Se o e-mail pertencer a uma conta **excluída**, o 409 vem
+e-mail já usado retorna **409**. Se o e-mail pertencer a uma conta **desativada**, o 409 vem
 com `code: email_taken_deleted` e uma mensagem diferente — mandando reativar a conta
 antiga (ver seção 5).
 
@@ -79,7 +79,7 @@ O morador gera o resto do dado social:
 - **Favoritos**, **perguntas públicas**, **avisos no mural** (que passam por moderação do admin)
 
 Avaliações e indicações alimentam o **Score Aldeia** e os selos. É esse histórico que
-torna a exclusão de conta um problema delicado — ver seção 5.
+torna a desativação de conta um problema delicado — ver seção 5.
 
 ---
 
@@ -94,8 +94,8 @@ torna a exclusão de conta um problema delicado — ver seção 5.
 | Senha errada / e-mail inexistente | **401** (mesma resposta para os dois — não vaza quais e-mails existem) |
 | `pending` (morador sem os 2 convites) | **403** — tela "aguardando aprovação" |
 | `suspended` | **403** |
-| **Excluída pelo próprio dono** | **403** + `code: account_deleted` → o app oferece **reativar** |
-| **Excluída pelo admin** | **403** + `code: account_deleted_by_admin` → não reativa |
+| **Desativada pelo próprio dono** | **403** + `code: account_deleted` → o app oferece **reativar** |
+| **Desativada pelo admin** | **403** + `code: account_deleted_by_admin` → não reativa |
 
 O login é limitado a **5 tentativas por minuto por IP**.
 
@@ -120,10 +120,10 @@ enviado pelo cliente.
 
 Duas portas levam ao mesmo lugar:
 
-- **O próprio usuário:** menu ⋮ na home → "Excluir conta" → `DELETE /users/me`
-- **O admin:** aba Usuários → ícone de lixeira → `DELETE /admin/users/:id`
+- **O próprio usuário:** menu ⋮ na home → **"Desativar minha conta"** → `DELETE /users/me`
+- **O admin:** aba Usuários → **"Desativar usuário"** → `DELETE /admin/users/:id`
 
-O admin **não** exclui outro admin nem a si mesmo (403) — ficar sem moderador não é uma
+O admin **não** desativa outro admin nem a si mesmo (403) — ficar sem moderador não é uma
 opção, e ele não teria como se reativar.
 
 ### O que realmente acontece
@@ -131,7 +131,7 @@ opção, e ele não teria como se reativar.
 **Nada é apagado. Nada é anonimizado.** A conta recebe:
 
 - `deleted_at = now()`
-- `deleted_by = quem excluiu` (o próprio usuário, ou o admin)
+- `deleted_by = quem desativou` (o próprio usuário, ou o admin)
 - todos os refresh tokens revogados — a sessão morre na hora, sem esperar o token expirar
 
 Nome, e-mail, senha, perfil, avaliações e mensagens continuam exatamente onde estavam.
@@ -149,8 +149,8 @@ da saída de um terceiro. A reputação da rede não pode depender de quem perma
 ### Por que não anonimizar o e-mail
 
 Porque é isso que fecha a fraude. Se o e-mail fosse liberado, um prestador com avaliação
-ruim poderia excluir a conta e se recadastrar com o mesmo e-mail, nascendo limpo. O
-e-mail continua **preso à conta excluída**: o recadastro é bloqueado com 409, e a única
+ruim poderia desativar a conta e se recadastrar com o mesmo e-mail, nascendo limpo. O
+e-mail continua **preso à conta desativada**: o recadastro é bloqueado com 409, e a única
 saída é reativar a conta antiga — que volta com o histórico junto.
 
 ---
@@ -173,7 +173,7 @@ quem ficou não se mexe. As avaliações que ela **recebeu** também ficam, pres
 
 É aqui que `deleted_by` decide tudo:
 
-| Quem excluiu | O dono pode reativar? | Como |
+| Quem desativou | O dono pode reativar? | Como |
 |---|---|---|
 | **O próprio usuário** | **Sim** | Faz login com a senha antiga → o app oferece "Reativar conta" → `POST /auth/reactivate`. Volta com perfil e histórico intactos. |
 | **O admin** | **Não** | Login e reativação devolvem 403. Só falando com o administrador. |
@@ -183,7 +183,7 @@ se reativar. A senha antiga é a prova de posse — ninguém reativa a conta de 
 
 ### O admin enxerga tudo
 
-A aba **"Excluídos"** do painel (`GET /admin/users?deleted=true`) lista todas as contas
+A aba **"Desativados"** do painel (`GET /admin/users?deleted=true`) lista todas as contas
 desativadas, com a data e um selo dizendo se foi **o próprio usuário** ou **o admin**.
 É a trilha antifraude: um prestador sumindo logo depois de uma avaliação ruim fica
 visível.
@@ -217,12 +217,23 @@ O e-mail permanece ocupado em **todos** os estados, inclusive excluída.
 
 ---
 
-## 7. Tensão conhecida (LGPD)
+## 7. Nomenclatura e o apagamento definitivo
 
-"Excluir conta" aqui significa **desativar**, não apagar dados pessoais: nome, e-mail e
-endereço permanecem no banco. A escolha foi deliberada e prioriza a integridade da rede
-de confiança sobre o direito ao esquecimento.
+A interface fala em **"Desativar minha conta"**, nunca "excluir" — porque nada é apagado.
+Chamar de exclusão seria uma promessa falsa, e a promessa falsa é o problema maior. O
+diálogo diz explicitamente o que fica guardado e que a conta pode voltar.
 
-Se um dia for preciso atender a um pedido formal de eliminação de dados, será um fluxo
-separado — e provavelmente manual, no banco, aceitando o impacto no Score Aldeia de
-terceiros. Vale rever essa decisão antes de qualquer lançamento público mais amplo.
+**Apagamento definitivo de dados pessoais não existe no app.** O texto encaminha ao
+administrador, e hoje isso é tratado na mão, no banco — o que é adequado enquanto a base
+for de uma comunidade só.
+
+**Quando isso deixar de bastar** (mais bairros, base maior), o desenho a construir é uma
+*lápide*: apagar os dados pessoais de verdade (nome, e-mail, telefone, endereço, bio) mas
+manter uma linha com o **hash do e-mail** — não o e-mail. Isso preserva exatamente o que o
+antifraude precisa (reconhecer que aquele e-mail já teve conta e reputação) sem guardar o
+dado pessoal. Vale notar que **o vetor de fraude é só do prestador** — é ele que tem
+reputação da qual fugir —, então o morador pode ter apagamento pleno sem lápide.
+
+Em qualquer cenário, as avaliações que a pessoa **deu a terceiros** permanecem: são
+opiniões sobre *outra* pessoa e sustentam a reputação dela. Apagá-las não protegeria a
+privacidade de quem sai — danificaria a de quem fica.

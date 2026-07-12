@@ -49,7 +49,7 @@ class AdminDashboardScreen extends ConsumerWidget {
           bottom: const TabBar(isScrollable: true, tabs: [
             Tab(text: 'Visão Geral'),
             Tab(text: 'Usuários'),
-            Tab(text: 'Excluídos'),
+            Tab(text: 'Desativados'),
             Tab(text: 'Mural'),
             Tab(text: 'Comunidades'),
           ]),
@@ -411,11 +411,11 @@ class _UsersTabState extends ConsumerState<_UsersTab> {
                           _approve(context, u['id'] as String),
                     ),
                   ],
-                  // Admin não se exclui nem exclui outro admin — o backend
+                  // Admin não se desativa nem desativa outro admin — o backend
                   // bloqueia com 403; aqui o botão nem aparece.
                   if (u['role'] != 'admin')
                     IconButton(
-                      tooltip: 'Excluir usuário',
+                      tooltip: 'Desativar usuário',
                       icon: const Icon(Icons.delete_outline,
                           color: AppColors.error900),
                       onPressed: () => _delete(
@@ -439,12 +439,13 @@ class _UsersTabState extends ConsumerState<_UsersTab> {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Excluir usuário'),
+        title: const Text('Desativar usuário'),
         content: Text(
-          'Excluir a conta de $fullName? Os dados pessoais são removidos e a '
-          'pessoa perde o acesso ao aplicativo. Esta ação não pode ser desfeita.\n\n'
-          'As avaliações e indicações que ela deu a outros continuam valendo, '
-          'mas sem o nome.',
+          'Desativar a conta de $fullName? O perfil sai do ar e a pessoa perde o '
+          'acesso ao aplicativo.\n\n'
+          'Os dados e o histórico ficam guardados, e o e-mail continua vinculado '
+          'a esta conta — ela não consegue se cadastrar de novo com ele. Só você '
+          'pode reverter esta desativação.',
         ),
         actions: [
           TextButton(
@@ -453,7 +454,7 @@ class _UsersTabState extends ConsumerState<_UsersTab> {
           ),
           TextButton(
             onPressed: () => Navigator.pop(ctx, true),
-            child: const Text('Excluir',
+            child: const Text('Desativar',
                 style: TextStyle(color: AppColors.error900)),
           ),
         ],
@@ -464,20 +465,20 @@ class _UsersTabState extends ConsumerState<_UsersTab> {
     try {
       await ref.read(apiClientProvider).delete(ApiEndpoints.adminUser(userId));
       ref.invalidate(_usersProvider);
-      // A Visão Geral conta usuários e a aba Excluídos ganha o registro novo —
+      // A Visão Geral conta usuários e a aba Desativados ganha o registro novo —
       // sem invalidar, ambas seguem com os dados antigos.
       ref.invalidate(_statsProvider);
       ref.invalidate(_deletedUsersProvider);
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('$fullName foi excluído.')),
+          SnackBar(content: Text('$fullName foi desativado.')),
         );
       }
     } catch (e) {
       if (context.mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
           const SnackBar(
-            content: Text('Não foi possível excluir o usuário. Tente novamente.'),
+            content: Text('Não foi possível desativar o usuário. Tente novamente.'),
             backgroundColor: AppColors.error900,
           ),
         );
@@ -557,7 +558,7 @@ class _DeletedTabState extends ConsumerState<_DeletedTab> {
       error: (_, __) => Center(
           child: AppErrorView(onRetry: () => ref.invalidate(_deletedUsersProvider))),
       data: (list) => list.isEmpty
-          ? const Center(child: Text('Nenhuma conta excluída'))
+          ? const Center(child: Text('Nenhuma conta desativada'))
           : Column(
               children: [
                 Container(
@@ -566,8 +567,9 @@ class _DeletedTabState extends ConsumerState<_DeletedTab> {
                   color: AppColors.secondary50,
                   child: const Text(
                     'O e-mail continua vinculado a estas contas: ninguém consegue '
-                    'se recadastrar com ele. Uma conta excluída pelo próprio dono '
-                    'pode voltar por reativação — com o histórico de avaliações junto.',
+                    'se recadastrar com ele. Quem se desativou sozinho pode voltar '
+                    'reativando a conta — com o histórico de avaliações junto. Quem '
+                    'foi desativado por você, não.',
                     style: TextStyle(fontSize: 12, color: AppColors.textSecondary),
                   ),
                 ),
@@ -593,7 +595,7 @@ class _DeletedTabState extends ConsumerState<_DeletedTab> {
                               children: [
                                 Text('${u['role']} · ${u['email']}'),
                                 Text(
-                                  'Excluída em ${_fmt(u['deleted_at'] as String?)}',
+                                  'Desativada em ${_fmt(u['deleted_at'] as String?)}',
                                   style: const TextStyle(
                                       fontSize: 12, color: AppColors.textSecondary),
                                 ),
@@ -868,8 +870,8 @@ final _statsProvider = FutureProvider((ref) async {
   return resp.data as Map<String, dynamic>;
 });
 
-/// Contas excluídas — trilha antifraude. Um prestador pode excluir a conta pra
-/// tentar escapar de uma avaliação ruim; o admin precisa enxergar isso, e o
+/// Contas desativadas — trilha antifraude. Um prestador pode desativar a conta
+/// pra tentar escapar de uma avaliação ruim; o admin precisa enxergar isso, e o
 /// e-mail continua preso à conta (recadastro com ele é bloqueado).
 final _deletedUsersProvider = FutureProvider((ref) async {
   final api = ref.watch(apiClientProvider);

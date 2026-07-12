@@ -57,16 +57,22 @@ score = (avg_rating/5 × 35) + (min(anos/10, 1) × 15) +
 
 Recalculado na mesma transação após: inserção de rating, inserção/remoção de recommendation, `POST /providers/:id/hire`. Persistido em `provider_profiles.score_aldeia`. Sem cron.
 
-## Exclusão de conta (soft-delete reversível) — antifraude
+## Desativação de conta (soft-delete reversível) — antifraude
+
+**Nomenclatura (decisão de produto, 2026-07-12):** na interface isso se chama
+**"Desativar minha conta"**, nunca "excluir". Chamar de exclusão seria promessa falsa —
+nada é apagado. O apagamento definitivo de dados não existe no app: passa pelo
+administrador, na mão. As rotas HTTP mantêm o verbo `DELETE` (é o método correto para a
+operação), mas todo texto visível ao usuário fala em desativar.
 
 `DELETE /users/me` e `DELETE /admin/users/:id` **não apagam nada e não anonimizam**:
 marcam `deleted_at = now()` e `deleted_by = <quem excluiu>` (migrations 000030 e 000031),
 e revogam os refresh tokens. E-mail, nome, senha e histórico permanecem intactos.
 
 **Por que não anonimizar (decisão de produto, 2026-07-12):** o e-mail tem que continuar
-preso à conta excluída. Se ele fosse liberado, um prestador poderia excluir a conta e se
+preso à conta desativada. Se ele fosse liberado, um prestador poderia desativar a conta e se
 recadastrar com o mesmo e-mail para nascer sem as avaliações ruins. Recadastro com
-e-mail de conta excluída é bloqueado (**409 + `code: email_taken_deleted`**) e a pessoa é
+e-mail de conta desativada é bloqueado (**409 + `code: email_taken_deleted`**) e a pessoa é
 instruída a reativar a conta antiga — que volta com o histórico junto.
 
 **Por que também não apagar de verdade:** a maioria das FKs para `users(id)` é RESTRICT
@@ -83,7 +89,7 @@ indicações que a pessoa **deu a terceiros**, alterando o Score Aldeia de quem 
   fraudador não valeria de nada — bastaria ele logar de novo.
 
 **Visibilidade do admin:** `GET /admin/users?deleted=true` lista as contas excluídas com
-`deleted_at` e `deleted_by_admin` — é a trilha antifraude (aba "Excluídos" no painel).
+`deleted_at` e `deleted_by_admin` — é a trilha antifraude (aba "Desativados" no painel).
 
 **Todo caminho de leitura filtra `deleted_at IS NULL`:** login, busca/featured de
 prestadores, perfil por id, favoritos, `/admin/users` e `/admin/stats`. Ao adicionar uma
@@ -92,7 +98,7 @@ query nova sobre `users`, incluir o filtro.
 **Admin não exclui admin** (nem a si mesmo) — 403. Remoção de moderador é operação de
 banco, deliberadamente fora do app.
 
-**Tensão conhecida (LGPD):** "excluir conta" aqui é desativação, não apagamento de dados
-pessoais. A escolha foi deliberada e prioriza a integridade da rede de confiança. Se um
-dia for preciso atender a um pedido formal de eliminação de dados, será um fluxo
-separado (e provavelmente manual, no banco).
+**Apagamento definitivo não existe no app.** A UI encaminha ao administrador, e hoje isso
+é tratado na mão, no banco. Quando a base crescer, o desenho a construir é uma *lápide*:
+apagar os dados pessoais mas guardar o **hash do e-mail** (não o e-mail), que preserva o
+antifraude sem reter o dado pessoal. Ver `docs/ciclo-de-vida-da-conta.md` seção 7.

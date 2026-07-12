@@ -58,7 +58,7 @@ func (h *AuthHandler) RegisterMorador(w http.ResponseWriter, r *http.Request) {
 		switch {
 		case errors.Is(err, service.ErrEmailTakenDeleted):
 			jsonErrorCode(w, "email_taken_deleted",
-				"Já existe uma conta excluída com este e-mail. Faça login com a senha antiga para reativá-la — o e-mail continua vinculado a ela.",
+				"Já existe uma conta desativada com este e-mail. Entre com a senha antiga para reativá-la — o e-mail continua vinculado a ela.",
 				http.StatusConflict)
 		case errors.Is(err, service.ErrEmailTaken):
 			jsonError(w, err.Error(), http.StatusConflict)
@@ -125,7 +125,7 @@ func (h *AuthHandler) RegisterPrestador(w http.ResponseWriter, r *http.Request) 
 	if err != nil {
 		if errors.Is(err, service.ErrEmailTakenDeleted) {
 			jsonErrorCode(w, "email_taken_deleted",
-				"Já existe uma conta excluída com este e-mail. Faça login com a senha antiga para reativá-la — o e-mail continua vinculado a ela.",
+				"Já existe uma conta desativada com este e-mail. Entre com a senha antiga para reativá-la — o e-mail continua vinculado a ela.",
 				http.StatusConflict)
 			return
 		}
@@ -178,11 +178,11 @@ func (h *AuthHandler) Login(w http.ResponseWriter, r *http.Request) {
 			// A senha está certa, a conta é dela e foi ela quem excluiu — o app
 			// lê o code e oferece "Reativar conta".
 			jsonErrorCode(w, "account_deleted",
-				"Esta conta foi excluída. Você pode reativá-la para recuperar seu histórico.",
+				"Esta conta está desativada. Você pode reativá-la e recuperar seu perfil e histórico.",
 				http.StatusForbidden)
 		case errors.Is(err, service.ErrAccountDeletedByAdmin):
 			jsonErrorCode(w, "account_deleted_by_admin",
-				"Esta conta foi removida pelo administrador da comunidade. Entre em contato com ele.",
+				"Esta conta foi desativada pelo administrador da comunidade. Entre em contato com ele.",
 				http.StatusForbidden)
 		default:
 			jsonError(w, "internal error", http.StatusInternalServerError)
@@ -227,10 +227,10 @@ func (h *AuthHandler) Reactivate(w http.ResponseWriter, r *http.Request) {
 			jsonError(w, "invalid credentials", http.StatusUnauthorized)
 		case errors.Is(err, service.ErrAccountDeletedByAdmin):
 			jsonErrorCode(w, "account_deleted_by_admin",
-				"Esta conta foi removida pelo administrador e não pode ser reativada por você.",
+				"Esta conta foi desativada pelo administrador e não pode ser reativada por você.",
 				http.StatusForbidden)
 		case errors.Is(err, service.ErrUserNotFound):
-			jsonError(w, "esta conta não está excluída", http.StatusConflict)
+			jsonError(w, "esta conta não está desativada", http.StatusConflict)
 		case errors.Is(err, service.ErrUserPending):
 			jsonError(w, "account pending approval", http.StatusForbidden)
 		case errors.Is(err, service.ErrUserSuspended):

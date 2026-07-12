@@ -25,7 +25,7 @@ func (h *UserHandler) DeleteMe(w http.ResponseWriter, r *http.Request) {
 	claims, _ := middleware.ClaimsFrom(r.Context())
 
 	if claims.Role == "admin" {
-		jsonError(w, "administradores não podem excluir a própria conta", http.StatusForbidden)
+		jsonError(w, "administradores não podem desativar a própria conta", http.StatusForbidden)
 		return
 	}
 
@@ -55,7 +55,7 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 	// Um admin se excluindo deixaria a comunidade sem quem aprove moradores e
 	// modere o mural — e ele não teria como se reativar.
 	if targetID == claims.UserID {
-		jsonError(w, "você não pode excluir a própria conta de admin", http.StatusForbidden)
+		jsonError(w, "você não pode desativar a própria conta de admin", http.StatusForbidden)
 		return
 	}
 
@@ -68,7 +68,7 @@ func (h *UserHandler) DeleteUser(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		if errors.Is(err, service.ErrCannotDeleteSelf) {
-			jsonError(w, "não é possível excluir outro administrador", http.StatusForbidden)
+			jsonError(w, "não é possível desativar outro administrador", http.StatusForbidden)
 			return
 		}
 		jsonError(w, "internal error", http.StatusInternalServerError)
