@@ -71,19 +71,25 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 	status := r.URL.Query().Get("status")
 	role := r.URL.Query().Get("role")
 
-	query := `SELECT id, full_name, email, role, status, created_at
-	           FROM users WHERE community_id=$1`
+	// LEFT JOIN: só prestadores têm provider_profiles; para moradores/admin
+	// (e prestadores anteriores à exigência do aceite, 2026-07-12) o campo
+	// ratings_acknowledged_at vem NULL — o app admin mostra "sem aceite".
+	query := `SELECT u.id, u.full_name, u.email, u.role, u.status, u.created_at,
+	                 pp.ratings_acknowledged_at
+	           FROM users u
+	           LEFT JOIN provider_profiles pp ON pp.user_id = u.id
+	           WHERE u.community_id=$1`
 	args := []any{claims.CommunityID}
 
 	if status != "" {
 		args = append(args, status)
-		query += fmt.Sprintf(" AND status=$%d", len(args))
+		query += fmt.Sprintf(" AND u.status=$%d", len(args))
 	}
 	if role != "" {
 		args = append(args, role)
-		query += fmt.Sprintf(" AND role=$%d", len(args))
+		query += fmt.Sprintf(" AND u.role=$%d", len(args))
 	}
-	query += " ORDER BY created_at DESC"
+	query += " ORDER BY u.created_at DESC"
 
 	rows, err := h.db.Query(r.Context(), query, args...)
 	if err != nil {
@@ -101,14 +107,19 @@ func (h *AdminHandler) ListUsers(w http.ResponseWriter, r *http.Request) {
 			Role      string    `json:"role"`
 			Status    string    `json:"status"`
 			CreatedAt time.Time `json:"created_at"`
+			// *time.Time, não time.Time: a coluna é nullable e um Scan em
+			// tipo não-ponteiro falharia silenciosamente truncando a lista
+			// (mesma classe do bug de admin/users corrigido em 2026-07-03).
+			RatingsAcknowledgedAt *time.Time `json:"ratings_acknowledged_at"`
 		}
-		if err := rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Role, &u.Status, &u.CreatedAt); err != nil {
+		if err := rows.Scan(&u.ID, &u.FullName, &u.Email, &u.Role, &u.Status, &u.CreatedAt, &u.RatingsAcknowledgedAt); err != nil {
 			jsonError(w, "internal error", http.StatusInternalServerError)
 			return
 		}
 		users = append(users, map[string]any{
 			"id": u.ID, "full_name": u.FullName, "email": u.Email,
 			"role": u.Role, "status": u.Status, "created_at": u.CreatedAt,
+			"ratings_acknowledged_at": u.RatingsAcknowledgedAt,
 		})
 	}
 	if err := rows.Err(); err != nil {

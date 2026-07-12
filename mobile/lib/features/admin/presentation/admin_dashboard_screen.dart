@@ -334,6 +334,19 @@ class _UsersTab extends ConsumerStatefulWidget {
 class _UsersTabState extends ConsumerState<_UsersTab> {
   final _listCtrl = ScrollController();
 
+  /// Formata o registro do aceite de avaliações públicas do prestador.
+  static String _acknowledgmentLabel(String? isoTimestamp) {
+    if (isoTimestamp == null) {
+      return 'Sem aceite registrado (cadastro anterior a 12/07/2026)';
+    }
+    final dt = DateTime.parse(isoTimestamp).toLocal();
+    final dd = dt.day.toString().padLeft(2, '0');
+    final mm = dt.month.toString().padLeft(2, '0');
+    final hh = dt.hour.toString().padLeft(2, '0');
+    final min = dt.minute.toString().padLeft(2, '0');
+    return 'Aceite de avaliações: $dd/$mm/${dt.year} às $hh:$min';
+  }
+
   @override
   void dispose() {
     _listCtrl.dispose();
@@ -358,7 +371,29 @@ class _UsersTabState extends ConsumerState<_UsersTab> {
           return Card(
             child: ListTile(
               title: Text(u['full_name'] as String),
-              subtitle: Text('${u['role']} · ${u['email']}'),
+              subtitle: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('${u['role']} · ${u['email']}'),
+                  // Registro do aceite de avaliações públicas — só faz
+                  // sentido para prestadores. NULL = cadastro anterior à
+                  // exigência (2026-07-12), não é irregularidade.
+                  if (u['role'] == 'prestador')
+                    Padding(
+                      padding: const EdgeInsets.only(top: 2),
+                      child: Text(
+                        _acknowledgmentLabel(
+                            u['ratings_acknowledged_at'] as String?),
+                        style: TextStyle(
+                          fontSize: 12,
+                          color: u['ratings_acknowledged_at'] != null
+                              ? AppColors.primary700
+                              : AppColors.textSecondary,
+                        ),
+                      ),
+                    ),
+                ],
+              ),
               trailing: Row(
                 mainAxisSize: MainAxisSize.min,
                 children: [
